@@ -41,8 +41,8 @@ The app explains this in "How radar sees the ground" (radar button, top right).
 
 | Product | Data | Method |
 |---|---|---|
-| Radar picture 2026 | Sentinel-1 RTC, orbit 73 ascending, all passes June–November 2026 | median gamma0; R = VV, G = VH, B = VV/VH |
-| Change in a year | Sentinel-1 RTC, orbit 73: 12 passes Sep–Nov 2026 and 12 passes Sep–Nov 2025 | median VV difference; double bounce = VV change minus VH change ≥ 1.5 dB |
+| Radar picture 2026 | Sentinel-1 RTC, orbit 73 ascending, all passes June–November 2026, read at full 10 m resolution | median gamma0; R = VV, G = VH, B = VV/VH |
+| Change in a year | Sentinel-1 RTC, orbit 73: 12 passes Sep–Nov 2026 and 12 passes Sep–Nov 2025, full 10 m resolution | median VV difference; double bounce = VV change minus VH change ≥ 1.5 dB |
 | Response to moisture | Sentinel-1 2026 passes + NASA POWER GWETTOP soil wetness on each pass day (one MERRA-2 grid value for the whole area, about 50 km across) | Spearman rank correlation per 120 m cell; only p < 0.05 shown; the surface responding to wet weather, not drainage |
 | Water seen by radar | Sentinel-1 2026 passes | calm open water: share of passes with VV < −17 dB |
 | Ground motion | EGMS 2016–2020 vertical (Copernicus), via PIG-PIB | mm/year per cell |
@@ -60,13 +60,15 @@ Filled in by `pipeline/build_sar.py` (see `web/data/land/sar.json`, key `checks`
 
 - **New-building decisions**: strong brightening (VV up by 3 dB or more, autumn to autumn) on plots with a new-building
   decision of the Poznań planning office (building permits, notifications, zoning and location decisions, June–August 2026)
-  versus the rest of the city. The hits come from a handful of building sites, so the ratio is uncertain and we give no
-  p-value (neighbouring cells are not independent). The new-wall signature alone is not yet clearly more common there.
+  versus the rest of the city: 16 of 766 cells (2.1%) against 0.5%, about 4 times as common, from 8 decisions (9 separate
+  clusters). Resampling neighbouring cells together (blocks of about 0.6 km) gives a 95% interval of about 1.7–7; we give
+  no cell-level p-value. The new-wall signature alone: 9 of 766 cells, about 3.5 times as common, borderline once
+  neighbouring cells are treated as dependent.
 - **Projection and radar**: change on the 5% of open land the model ranks highest versus other open land. It is mostly
   at the edge of existing estates; ranking open land by its existing built-up share gives the same result, so this does
   not test the model.
 - **Response to moisture**: share of open-land cells whose VV follows soil wetness, inside versus outside the PIG-PIB
-  groundwater-flood areas (about the same).
+  groundwater-flood areas: 25% vs 23%, about the same (the block-bootstrap interval of the ratio includes 1).
 - **NISAR in groundwater-flood areas**: the HH rise from 25 Jun to 24 Aug is less common there, not more; the
   hypothesis was not confirmed.
 
@@ -89,6 +91,8 @@ NISAR GCOV pixels need a free NASA Earthdata account (put it in `~/.netrc`), the
 ## Limits we state openly
 
 - Our cells are 120 m on the Web Mercator grid, about 73 m on the ground: they show estates and streets, not single houses.
+- Sentinel-1 is read at full 10 m resolution (since 14 Nov 2026 evening). Before, an 80 m overview was used, so
+  neighbouring cells shared pixels; all checks were recomputed on the full-resolution data.
 - We use NISAR backscatter (GCOV), not phase. NISAR interferometry can detect fast motion within months, but rates of
   millimetres a year need years; ground motion comes from EGMS 2016–2020.
 - A building permit is not a building site; radar sees walls and earthworks, not paperwork.
