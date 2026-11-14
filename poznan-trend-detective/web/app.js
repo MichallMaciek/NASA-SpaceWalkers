@@ -16,11 +16,51 @@
   const mean = (a) => { const v = a.filter((x) => x != null && isFinite(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  // Our own JSON files, with quiet retries: on busy Wi-Fi one request out of dozens is easily lost.
+  // A network error, a 5xx answer or a cut-off body is tried again after each wait; a 4xx answer is final.
+  async function fetchJSON(url, waits = [1000, 3000]) {
+    for (let i = 0; ; i++) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) return await r.json();
+        const err = new Error(`HTTP ${r.status}`);
+        err.status = r.status;
+        err.final = r.status < 500; // the file is not there: asking again will not help
+        throw err;
+      } catch (e) {
+        if (e.final || i >= waits.length) throw e;
+      }
+      await sleep(waits[i]);
+    }
+  }
+  // every data file is asked for as get("<path under data/>"): tests/data_contract.py reads the file list from these calls
+  const get = (f) => fetchJSON(`data/${f}?v=${DATA_V}`).catch((e) => { const err = new Error(`${f}: ${e.message}`); err.status = e.status; throw err; });
 
   // light / dark: the viewer's choice wins over the system setting and is remembered
   try { const th = localStorage.getItem("ptd-theme"); if (th) document.documentElement.setAttribute("data-theme", th); } catch (e) { /* ignore */ }
   let lang = (navigator.language || "pl").toLowerCase().startsWith("en") ? "en" : "pl";
   try { lang = localStorage.getItem("ptd-lang") || lang; } catch (e) { /* storage blocked */ }
+  if (lang !== "pl" && lang !== "en") lang = "pl";
+  // Texts for loading failures. They live here, not in i18n.js, and this early in the file, because they are shown when
+  // the data did not load or when something the rest of this file relies on is missing.
+  const BOOT = {
+    pl: { failH: "Nie udało się wczytać danych", failP: "Sprawdź połączenie z internetem i spróbuj ponownie.", retry: "Spróbuj ponownie", layerFail: "Nie udało się wczytać tej warstwy." },
+    en: { failH: "The data did not load", failP: "Check your internet connection and try again.", retry: "Try again", layerFail: "This layer did not load." },
+  };
+  function renderLoadError() {
+    const b = BOOT[lang] || BOOT.pl;
+    $("#sidecard").classList.remove("min");
+    $("#sidecard").innerHTML = `<h2>${b.failH}</h2><p class="sub">${b.failP}</p><button type="button" class="btn-primary" id="boot-retry">${b.retry}</button>`;
+    $("#boot-retry").addEventListener("click", () => location.reload());
+  }
+  // The map library comes from a CDN. If it did not arrive (blocked, offline), nothing below can run: say so and stop.
+  if (!window.L || !window.I18N) {
+    console.error("SARnik: Leaflet or the text files did not load");
+    if (location.protocol !== "file:") renderLoadError();
+    return;
+  }
+
   const T = () => window.I18N[lang];
   const U = () => window.I18N[lang].ui;
   const dsep = () => (lang === "pl" ? "," : ".");
@@ -123,6 +163,8 @@
 
   /* ================= data ================= */
   let study, gL, gN, areas, land, flood;
+  // gL and gN (the two MODIS grids: summer heat and greenness, 5 MB of JSON) are not needed for the first view.
+  // They arrive later through loadGrids(); until then gL, gN, geo.L and geo.N are undefined, and gridsOK() says so.
   const geo = {};
   const L8 = {};
   const smooth = {}; // smoothed built-up intensity per epoch (Float32Array)
@@ -168,28 +210,100 @@
     }
     return ins;
   }
-  const inArea = (f, lat, lng) => rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng));
+  // Bounding box of each municipality, worked out once. A point outside the box cannot be inside the outline, so the
+  // box test spares the walk along thousands of border points for most point/area pairs; the answer does not change.
+  const areaBox = new WeakMap();
+  function boxOf(f) {
+    let b = areaBox.get(f);
+    if (!b) {
+      b = [Infinity, Infinity, -Infinity, -Infinity]; // west, south, east, north
+      rings(f.geometry).forEach((poly) => poly[0].forEach(([x, y]) => { if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; }));
+      areaBox.set(f, b);
+    }
+    return b;
+  }
+  const inArea = (f, lat, lng) => {
+    const b = boxOf(f);
+    return lng >= b[0] && lng <= b[2] && lat >= b[1] && lat <= b[3] && rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng));
+  };
   // official groundwater-flood areas (PIG-PIB): inside an outer ring and not inside one of its holes
   const inFlood = (lat, lng) => flood.features.some((f) => rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng) && !poly.slice(1).some((h) => pointInRing(h, lat, lng))));
   const areaAt = (lat, lng) => areas.features.find((f) => inArea(f, lat, lng)) || null;
   const areaStats = (name) => study.areas.find((a) => a.name === name);
 
   const grayLoading = {}; // in-flight loads, so a click during start-up does not decode the same PNG twice
-  function loadGray(name) {
+  // A grey-level PNG decoded from its own bytes, without a canvas. Brave and Firefox (private windows, strict tracking
+  // protection) add noise to pixels read back from a canvas; a "no data" 0 that comes back as 1 or 2 would then count
+  // as a measurement (in sar_egms: -99 mm a year). The bytes of the file are the same in every browser, and this
+  // route needs no canvas memory. Every layer is 8-bit greyscale and not interlaced (tests/data_contract.py checks
+  // the files); anything else throws, and loadGray falls back to the canvas.
+  async function decodeGrayPNG(buf) {
+    const b = new Uint8Array(buf), dv = new DataView(buf);
+    if (b.length < 45 || dv.getUint32(0) !== 0x89504e47 || dv.getUint32(4) !== 0x0d0a1a0a) throw new Error("not a PNG");
+    let w = 0, h = 0;
+    const idat = [];
+    for (let p = 8; p + 12 <= b.length;) {
+      const len = dv.getUint32(p), type = dv.getUint32(p + 4);
+      if (type === 0x49484452) { // IHDR: width, height, bit depth, colour type, compression, filter, interlace
+        w = dv.getUint32(p + 8); h = dv.getUint32(p + 12);
+        if (b[p + 16] !== 8 || b[p + 17] !== 0 || b[p + 20] !== 0) throw new Error("PNG is not 8-bit greyscale, non-interlaced");
+      } else if (type === 0x49444154) idat.push(b.subarray(p + 8, p + 8 + len)); // IDAT: the compressed rows
+      else if (type === 0x49454e44) break; // IEND
+      p += 12 + len;
+    }
+    if (!w || !h || !idat.length) throw new Error("PNG without a picture");
+    const raw = new Uint8Array(await new Response(new Blob(idat).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());
+    if (raw.length !== (w + 1) * h) throw new Error("PNG rows do not match its size");
+    // each row: one filter byte, then w bytes that are stored as differences from the pixel to the left (a), the one
+    // above (bb) and the one above-left (c), as the PNG standard defines
+    const out = new Uint8Array(w * h);
+    for (let y = 0, s = 0, o = 0; y < h; y++, s += w, o += w) {
+      const f = raw[s++], up = o - w;
+      if (f === 0) out.set(raw.subarray(s, s + w), o);
+      else if (f === 1) { let a = 0; for (let x = 0; x < w; x++) a = out[o + x] = (raw[s + x] + a) & 255; }
+      else if (f === 2) { for (let x = 0; x < w; x++) out[o + x] = (raw[s + x] + (y ? out[up + x] : 0)) & 255; }
+      else if (f === 3) { let a = 0; for (let x = 0; x < w; x++) a = out[o + x] = (raw[s + x] + ((a + (y ? out[up + x] : 0)) >> 1)) & 255; }
+      else if (f === 4) {
+        let a = 0, c = 0;
+        for (let x = 0; x < w; x++) {
+          const bb = y ? out[up + x] : 0, pa = Math.abs(bb - c), pb = Math.abs(a - c), pc = Math.abs(a + bb - 2 * c);
+          const pred = pa <= pb && pa <= pc ? a : pb <= pc ? bb : c;
+          c = bb; a = out[o + x] = (raw[s + x] + pred) & 255;
+        }
+      } else throw new Error("PNG row filter");
+    }
+    return out;
+  }
+  // One grey-level PNG of data/land as a Uint8Array (one value per cell), kept in L8[name].
+  // `low === true` marks a download made ahead of need: the browser then lets the map tiles and anything asked for
+  // directly go first. (Only the literal true counts: names.map(loadGray) passes the array index as second argument.)
+  function loadGray(name, low) {
     if (L8[name]) return Promise.resolve(L8[name]);
     if (grayLoading[name]) return grayLoading[name];
-    const pr = new Promise((res, rej) => {
+    const url = `data/land/${name}.png?v=${DATA_V}`;
+    const viaBytes = () => fetch(url, low === true ? { priority: "low" } : undefined)
+      .then((r) => { if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`); return r.arrayBuffer(); })
+      .then((buf) => decodeGrayPNG(buf).catch((e) => { e.png = true; throw e; }));
+    // the older route, for browsers without DecompressionStream: an image drawn to a canvas and read back
+    const viaCanvas = () => new Promise((res, rej) => {
       const img = new Image();
+      if (low === true) img.fetchPriority = "low";
       img.onload = () => {
-        const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
-        const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0);
-        const d = x.getImageData(0, 0, img.width, img.height).data, out = new Uint8Array(img.width * img.height);
-        for (let i = 0; i < out.length; i++) out[i] = d[i * 4];
-        L8[name] = out; res(out);
+        try {
+          const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+          const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0);
+          const d = x.getImageData(0, 0, img.width, img.height).data, out = new Uint8Array(img.width * img.height);
+          for (let i = 0; i < out.length; i++) out[i] = d[i * 4];
+          c.width = c.height = 0; // hand the pixel store back at once: phones cap the canvas memory of a page
+          res(out);
+        } catch (e) { rej(e); }
       };
       img.onerror = () => rej(new Error(name));
-      img.src = `data/land/${name}.png?v=${DATA_V}`;
+      img.src = url;
     });
+    // a file this decoder cannot read goes to the canvas at once; a lost request gets one quiet second try, as the JSON files do
+    const attempt = () => (typeof DecompressionStream === "function" ? viaBytes().catch((e) => { if (e && e.png) return viaCanvas(); throw e; }) : viaCanvas());
+    const pr = attempt().catch(() => sleep(1200).then(attempt)).then((out) => (L8[name] = out));
     grayLoading[name] = pr;
     pr.then(() => delete grayLoading[name], () => delete grayLoading[name]);
     return pr;
@@ -249,6 +363,22 @@
       if (isFinite(s)) rankPool.ndvi.push(s);
     }
     Object.values(rankPool).forEach((a) => a.sort((x, y) => x - y));
+  }
+  // The two MODIS grids, fetched once and indexed. Nothing in the first view needs them: they feed the summer-heat and
+  // greenness layers and the heat rows of the place card, so they load with the first place that is picked (or a little
+  // earlier, see warmUp) or when one of those layers is switched on. Call only after `areas` has loaded.
+  let gridsP = null;
+  const gridsOK = () => !!geo.L;
+  function loadGrids() {
+    if (!gridsP) {
+      gridsP = Promise.all([get("grid_lst.json"), get("grid_ndvi.json")]).then(([a, b]) => {
+        a.layers.night_mean = a.layers.night_years.map((ys) => { const m = mean(ys.slice(0, 25)); return isFinite(m) ? m : null; });
+        gL = a; gN = b; geo.N = buildGeometry(b); geo.L = buildGeometry(a);
+        try { prepareHeatRanks(); } catch (e) { delete geo.L; throw e; } // gridsOK() stays false unless everything is in place
+      });
+      gridsP.catch(() => { gridsP = null; }); // a failed load may be tried again
+    }
+    return gridsP;
   }
   function prepareRiskPool() { // 5-year chance (2025-2030) of every not-yet-built cell in the 18 municipalities
     const p = L8.prob_2030, st = L8.study, b25 = L8.built_2025, thr = THR(), pool = [];
@@ -475,6 +605,15 @@
   }
   const geoCache = new Map();
   const bases = {}, overlays = {}, pixelLayers = {};
+  // Canvas and map layer of one data layer, made the first time that layer is drawn (its pixel buffers follow in
+  // renderLand / renderLandHi). Making all twelve at start-up took about 80 MB that most visits never use.
+  function overlay(k) {
+    if (!overlays[k]) {
+      const c = document.createElement("canvas"); c.width = land.width; c.height = land.height;
+      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land" }) };
+    }
+    return overlays[k];
+  }
   const dark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
 
   const CanvasOverlay = L.ImageOverlay.extend({
@@ -542,7 +681,22 @@
 
   /* ---- base map: OpenFreeMap vector tiles, recoloured to the prototype palette; labels drawn above the data ---- */
   let styleJSON = null, themeTok = 0;
+  // MapLibre draws with WebGL. Where the browser gives none (blocked driver, hardened settings, some remote desktops)
+  // it throws only later, while its layer is being added to the map, past the point where a raster stand-in is chosen.
+  let glOK = null;
+  function hasWebGL() {
+    if (glOK === null) {
+      try {
+        const c = document.createElement("canvas"), gl = c.getContext("webgl2") || c.getContext("webgl");
+        glOK = !!gl;
+        const lose = gl && gl.getExtension("WEBGL_lose_context");
+        if (lose) lose.loseContext(); // do not keep a context just for this test: a page may hold only a few
+      } catch (e) { glOK = false; }
+    }
+    return glOK;
+  }
   async function makeVectorBase() {
+    if (!window.maplibregl || !L.maplibreGL || !hasWebGL()) throw new Error("no MapLibre or no WebGL");
     if (!styleJSON) styleJSON = await Promise.race([fetch("https://tiles.openfreemap.org/styles/positron").then((r) => r.json()),
       new Promise((_, no) => setTimeout(() => no(new Error("OpenFreeMap style timeout")), 4000))]); // a failure is not cached
     const style = JSON.parse(JSON.stringify(styleJSON)); // each theme recolours its own copy
@@ -561,6 +715,10 @@
       else if (id === "building") { p["fill-color"] = C.building; p["fill-outline-color"] = C.building; }
       else if (l.type === "line" && /casing/.test(id)) p["line-color"] = C.casing;
       else if (l.type === "line" && /highway|road/.test(id)) p["line-color"] = C.road;
+      // the style's own light greys for rails, tunnels and runways glare on the dark map: there they follow the road palette
+      // (rails keep their sleeper pattern: road-coloured line, background-coloured dashes); the light theme stays as it is
+      else if (dk && l.type === "line" && /dashline/.test(id)) p["line-color"] = C.bg;
+      else if (dk && l.type === "line" && /railway|tunnel|aeroway/.test(id)) p["line-color"] = C.road;
       else if (l.type === "symbol") { p["text-color"] = C.text; p["text-halo-color"] = C.halo; }
       return l;
     };
@@ -593,7 +751,8 @@
     if (state.sel && state.sel.ready) renderCard(); else if (!state.sel) renderFindings();
   }
 
-  async function initMap() {
+  let baseDead = false; // neither the vector base map nor its raster stand-in answered: only the plain background is left
+  async function initMap(baseP) {
     // Leaflet rounds every wheel burst up to a whole zoom level (2x), so a few small trackpad moves jumped 4 levels at once.
     // Quarter steps and a slower wheel make scrolling over the map smooth; the + and - buttons still move one level.
     map = L.map("map", { zoomControl: false, minZoom: 8, maxZoom: 18, preferCanvas: true, attributionControl: true,
@@ -601,11 +760,17 @@
     map.createPane("land"); map.getPane("land").style.zIndex = 390;
     map.createPane("labels"); map.getPane("labels").style.zIndex = 650; map.getPane("labels").style.pointerEvents = "none";
     map.createPane("sel"); map.getPane("sel").style.zIndex = 660;
-    try { const v = await makeVectorBase(); bases.map = v.base; bases.mapLabels = v.labels; }
+    try { const v = await (baseP || makeVectorBase()); bases.map = v.base; bases.mapLabels = v.labels; } // main() asks for it alongside the data
     catch (e) { // fallback: Esri light grey raster
       console.warn("vector base failed, using raster", e);
       bases.map = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19, attribution: "Esri" });
       bases.mapLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19, pane: "labels" });
+      // If this host is silent too, the plain background stays and our own municipality names are the only orientation:
+      // show them until a tile does arrive.
+      const names = (dead) => { if (baseDead === dead) return; baseDead = dead; if (dead) console.warn("no base map tiles: showing municipality names on the plain background"); syncNames(); };
+      let got = false;
+      bases.map.on("tileload", () => { got = true; names(false); });
+      bases.map.on("tileerror", () => { if (!got) names(true); });
     }
     bases.photoLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19, pane: "labels", attribution: "Esri" });
     bases.orto = L.tileLayer.wms("https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution", { layers: "Raster", format: "image/jpeg", version: "1.3.0", maxZoom: 19, attribution: "Ortofotomapa &copy; GUGiK" });
@@ -613,11 +778,7 @@
     bases.poz2025 = geopozWms("ortogpkg:orto2025");
     bases.poz1940 = geopozWms("ortogpkg:ortofotomapa_2001");
 
-    LAND_KEYS.forEach((k) => {
-      const c = document.createElement("canvas"); c.width = land.width; c.height = land.height;
-      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land" }) };
-      overlays[k].img = overlays[k].ctx.createImageData(land.width, land.height);
-    });
+    // the canvases of the data layers are made on first use, see overlay()
     Object.keys(PIXEL).forEach((k) => { pixelLayers[k] = new PixelLayer(k, { opacity: state.lyr[k].op, zIndex: 395, updateWhenZooming: false }); });
 
     borderLayer = L.geoJSON(areas, { interactive: false, style: (f) => ({ color: css("--ink-2"), weight: f.properties.role === "city" ? 1.8 : 0.8, opacity: 0.55, fill: false, dashArray: f.properties.role === "city" ? null : "3 4" }) }).addTo(map);
@@ -631,8 +792,10 @@
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
     floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
+    // fit the 18 municipalities first, without animation, and only then add the base map: it then asks for the tiles of
+    // the opening view only (an animated fit made it fetch the tiles of the provisional view as well)
+    map.fitBounds(borderLayer.getBounds(), { ...fitPad(), animate: false });
     setBase(state.base);
-    map.fitBounds(borderLayer.getBounds(), fitPad());
     const hideTip = () => { $("#hovertip").hidden = true; };
     map.on("mousemove", onHover);
     map.on("mouseout", hideTip);
@@ -650,6 +813,12 @@
     map.on("zoomend", () => $("#map").classList.toggle("far", map.getZoom() < 10));
   }
 
+  // the vector base already names towns; our municipality labels are needed on aerial photos and when no base map loaded
+  function syncNames() {
+    if (!labelLayer || !map) return;
+    const show = (state.base !== "map" || baseDead) && (!$("#borders") || $("#borders").checked);
+    if (show) labelLayer.addTo(map); else map.removeLayer(labelLayer);
+  }
   function setBase(key) {
     state.base = key;
     ["map", "mapLabels", "photoLabels", "orto", "poz2025", "poz1940"].forEach((k) => bases[k] && map.hasLayer(bases[k]) && map.removeLayer(bases[k]));
@@ -658,9 +827,7 @@
       if (key !== "orto") bases.map.addTo(map);
       bases[key].addTo(map); bases.photoLabels.addTo(map);
     }
-    // the vector base already names towns; our municipality labels are only needed on aerial photos
-    const showLabels = key !== "map" && (!$("#borders") || $("#borders").checked);
-    if (labelLayer) { if (showLabels) labelLayer.addTo(map); else map.removeLayer(labelLayer); }
+    syncNames();
     document.documentElement.classList.toggle("on-photo", key !== "map");
   }
 
@@ -722,7 +889,7 @@
   // The whole grid is drawn on the fine canvas: 120 m cells as blocks, and inside the window the sharp pixels instead.
   // Table lookups and one 32-bit write per pixel keep this near 30 ms; nothing is redrawn when nothing changed.
   function renderLandHi(k, arrs) {
-    const o = overlays[k], S = hires.scale, w = land.width, h = land.height, W2 = w * S, H2 = h * S, st = L8.study, s = state.lyr[k];
+    const o = overlay(k), S = hires.scale, w = land.width, h = land.height, W2 = w * S, H2 = h * S, st = L8.study, s = state.lyr[k];
     const names = HIRES_SRC[k](), key = `${k}|${names.join()}|${s.min ?? ""}`;
     if (o.hiKey === key && o.canvas.width === W2) return;
     if (o.canvas.width !== W2) { o.canvas.width = W2; o.canvas.height = H2; }
@@ -785,7 +952,9 @@
   function renderLand(k) {
     const hi = hiresArrays(k);
     if (hi) return renderLandHi(k, hi);
-    const o = overlays[k], px = o.img.data, n = land.width * land.height, st = L8.study, s = state.lyr[k];
+    const o = overlay(k);
+    if (!o.img) o.img = o.ctx.createImageData(land.width, land.height);
+    const px = o.img.data, n = land.width * land.height, st = L8.study, s = state.lyr[k];
     if (o.canvas.width !== land.width) { o.canvas.width = land.width; o.canvas.height = land.height; }
     o.hiKey = null;
     px.fill(0);
@@ -959,12 +1128,14 @@
       queued = false;
       LAND_KEYS.forEach((k) => {
         const on = state.lyr[k].on && ready(k);
-        if (on) { renderLand(k); if (!map.hasLayer(overlays[k].layer)) overlays[k].layer.addTo(map); overlays[k].layer.setOpacity(state.lyr[k].op); }
-        else if (map.hasLayer(overlays[k].layer)) map.removeLayer(overlays[k].layer);
+        if (on) { renderLand(k); const lyr = overlay(k).layer; if (!map.hasLayer(lyr)) lyr.addTo(map); lyr.setOpacity(state.lyr[k].op); }
+        else if (overlays[k] && map.hasLayer(overlays[k].layer)) map.removeLayer(overlays[k].layer);
       });
       Object.keys(PIXEL).forEach((k) => {
         const pl = pixelLayers[k];
-        if (state.lyr[k].on) { if (!map.hasLayer(pl)) pl.addTo(map); else if (k === "nightyear") pl.repaint(); pl.setOpacity(state.lyr[k].op); }
+        // a heat or greenness layer switched on before its grid has arrived is drawn as soon as the grid lands
+        if (state.lyr[k].on && !gridsOK()) loadGrids().then(redraw, (e) => console.error(e));
+        if (state.lyr[k].on && gridsOK()) { if (!map.hasLayer(pl)) pl.addTo(map); else if (k === "nightyear") pl.repaint(); pl.setOpacity(state.lyr[k].op); }
         else if (map.hasLayer(pl)) map.removeLayer(pl);
       });
       if (state.lyr.flood.on) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
@@ -984,10 +1155,22 @@
       renderLegend();
     });
   }
+  // Layers that are switched on but whose data did not arrive (after the quiet retries). The map then shows nothing for
+  // them, so the legend says so and offers another try instead of describing colours that are not there (renderLegend).
+  const layerFailed = new Set();
   async function ensure(k) {
+    if (PIXEL[k]) { // heat and greenness layers are drawn from the MODIS grids
+      if (gridsOK()) return;
+      $("#map").style.cursor = "progress";
+      layerFailed.delete(k);
+      try { await loadGrids(); } catch (e) { console.error(e); layerFailed.add(k); }
+      $("#map").style.cursor = "";
+      return;
+    }
     if (!NEEDS[k] || ready(k)) return;
     $("#map").style.cursor = "progress";
-    try { await Promise.all(NEEDS[k]().map(loadGray)); } catch (e) { console.error(e); }
+    layerFailed.delete(k);
+    try { await Promise.all(NEEDS[k]().map(loadGray)); } catch (e) { console.error(e); layerFailed.add(k); }
     $("#map").style.cursor = "";
   }
 
@@ -1099,7 +1282,8 @@
   function renderLegend() {
     const u = U(), blocks = [];
     const ramp_ = (stops, lo, hi) => `<div class="ramp" style="background:${gradient(stops)}"></div><div class="ticks"><span>${lo}</span><span>${hi}</span></div>`;
-    const L_ = state.lyr;
+    // a layer that failed to load is left out of the colour keys below and gets its own block at the end
+    const L_ = layerFailed.size ? Object.fromEntries(Object.entries(state.lyr).map(([k, v]) => [k, layerFailed.has(k) ? { ...v, on: false } : v])) : state.lyr;
     if (sar) {
       const lg = state.expert ? u.lg : { ...u.lg, ...u.lgPlain };
       const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
@@ -1131,7 +1315,10 @@
     if (L_.nisar.on) blocks.push(`<div class="lt">${u.lg.nisar(NISAR_DATES[L_.nisar.i] || "")}</div><div class="lrow">${u.lg.nisarNote}</div>`);
     ["night", "day", "ndvi"].forEach((k) => { if (L_[k].on) { const P = PIXEL[k]; blocks.push(`<div class="lt">${u.L[k]}</div>${ramp_([...P.neg].reverse().concat([css("--ns")], P.pos), sgn(-P.max, P.max < 1 ? 2 : 1), sgn(P.max, P.max < 1 ? 2 : 1))}<div class="lrow"><span class="sw" style="background:${css("--ns")}"></span>${T().notSig}</div>`); } });
     if (L_.nightyear.on) blocks.push(`<div class="lt">${u.lg.nightyear(heatYear())}</div>${ramp_(RAMPS.heat, "10 °C", "20 °C")}`);
+    const boot = BOOT[lang] || BOOT.pl;
+    layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");
+    $("#legend").querySelectorAll("[data-retry-layer]").forEach((b) => b.addEventListener("click", () => ensure(b.dataset.retryLayer).then(redraw)));
     // the side card above it shrinks so the legend is never covered
     document.documentElement.style.setProperty("--legend-h", `${blocks.length ? $("#legend").offsetHeight + 8 : 0}px`);
   }
@@ -1386,7 +1573,7 @@
     const bd = $("#borders");
     if (bd) bd.addEventListener("change", () => {
       if (bd.checked) borderLayer.addTo(map); else map.removeLayer(borderLayer);
-      if (bd.checked && state.base !== "map") labelLayer.addTo(map); else map.removeLayer(labelLayer);
+      syncNames();
     });
     $("#sources-link").addEventListener("click", (e) => { e.preventDefault(); $("#about-sheet").showModal(); });
   }
@@ -1471,7 +1658,7 @@
     if (state.lyr.radar.on && ready("radar") && c) { const a = L8[`s1_${s1Year()}`][c.i]; if (a) lines.push(`${num(a / 6 - 30, 1)} dB (${s1Year()})`); }
     if (state.lyr.activity.on && ready("activity") && c) { const a = L8.s1_2017[c.i], b = L8.s1_2024[c.i]; if (a && b) lines.push(`${u.L.activity}: ${sgn((b - a) / 6, 1)} dB`); }
     ["night", "day", "ndvi", "nightyear"].forEach((k) => {
-      if (!state.lyr[k].on) return;
+      if (!state.lyr[k].on || !gridsOK()) return;
       const P = PIXEL[k], g = P.grid === "N" ? gN : gL, i = cellAt(g, lat, lng);
       if (i < 0) return;
       const { v, p } = pixelValue(k, i);
@@ -1683,8 +1870,7 @@
     selOutline(ring, true);
     pinMarker = L.marker([lat, lng], { pane: "sel", icon: L.divIcon({ className: "", html: '<div class="pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false, interactive: false }).addTo(selLayer);
     $("#tool-clear").disabled = false;
-    const sq = cellAt(gL, lat, lng);
-    state.sel = { kind: "point", lat, lng, ring, label: label || null, area: f ? f.properties.name : null, sq: sq >= 0 ? [sq] : [], ready: false };
+    state.sel = { kind: "point", lat, lng, ring, label: label || null, area: f ? f.properties.name : null, sq: [], ready: false }; // sq is filled in finishSelection
     try { history.replaceState(null, "", `#${lat.toFixed(5)},${lng.toFixed(5)}`); } catch (e) { /* ignore */ } // shareable link to this place
     // fit the 1 km circle into the part of the screen the card leaves free (on phones the card sits at the bottom)
     if (opts.zoom) map.flyToBounds(L.latLngBounds(ring), { ...selPad(), maxZoom: opts.zoom, duration: 0.8 });
@@ -1703,16 +1889,19 @@
     // a drawn area has no point link: drop the previous point's #lat,lng so a shared link does not open the wrong place
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
     const cLat = mean(ring.map((p) => p[0])), cLng = mean(ring.map((p) => p[1])), f = areaAt(cLat, cLng);
-    state.sel = { kind: "area", lat: cLat, lng: cLng, ring, label: null, area: f ? f.properties.name : null, sq: squaresInRing(ring), ready: false };
-    if (!state.sel.sq.length) { const s = cellAt(gL, cLat, cLng); if (s >= 0) state.sel.sq = [s]; }
+    state.sel = { kind: "area", lat: cLat, lng: cLng, ring, label: null, area: f ? f.properties.name : null, sq: [], ready: false }; // sq is filled in finishSelection
     await finishSelection(state.sel);
   }
   async function finishSelection(sel) {
     sel.failed = false;
     renderCardLoading();
     // a layer failed (flaky network, missing file): renderCardLoading then says so and offers a retry
-    try { await Promise.all(PLACE_LAYERS().map(loadGray)); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
+    try { await Promise.all([loadGrids(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
     if (state.sel !== sel) return;
+    // the 1 km MODIS squares under the place (heat and greenness rows of the card): all squares whose centre lies in a
+    // drawn area, otherwise the one square that holds the point (or the area's centre)
+    if (sel.kind === "area") sel.sq = squaresInRing(sel.ring);
+    if (!sel.sq.length) { const s = cellAt(gL, sel.lat, sel.lng); if (s >= 0) sel.sq = [s]; }
     if (!rankPool.risk) prepareRiskPool();
     sel.cells = cellsInRing(sel.ring).filter((i) => L8.study[i]);
     sel.ready = true;
@@ -2512,46 +2701,77 @@
     });
     // map credits open in a new tab instead of replacing the app
     document.addEventListener("click", (e) => { const a = e.target.closest(".leaflet-control-attribution a"); if (a) { a.target = "_blank"; a.rel = "noopener"; } }, true);
-    // a pasted or edited #lat,lng in an open tab selects that place
-    window.addEventListener("hashchange", () => {
-      const m = location.hash.match(/^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
-      if (!m) return;
-      const same = state.sel && state.sel.kind === "point" && state.sel.lat.toFixed(5) === (+m[1]).toFixed(5) && state.sel.lng.toFixed(5) === (+m[2]).toFixed(5);
-      if (!same) selectPoint(+m[1], +m[2], null, { zoom: 14 });
-    });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { redraw(); renderTimeline(); });
     window.addEventListener("resize", () => { map.invalidateSize(); renderTimeline(); });
   }
 
+  // The place card needs the two MODIS grids and about 10 MB of rasters on top of the first view. They are fetched when
+  // a place is picked (finishSelection), so a visit that only looks at the map does not pay for them. Opening the search
+  // box or a drawing tool says a place is about to be picked: the download then starts a few seconds early, at low
+  // priority. On a data-saving or slow connection nothing is fetched ahead.
+  let warmed = false;
+  function warmUp() {
+    if (warmed) return;
+    warmed = true;
+    const c = navigator.connection;
+    if (c && (c.saveData || /^(slow-2g|2g|3g)$/.test(c.effectiveType || ""))) return;
+    loadGrids().catch(() => {});
+    const names = PLACE_LAYERS(); // four at a time, so map tiles and anything the visitor asks for directly go first
+    let i = 0;
+    const next = () => { while (i < names.length && L8[names[i]]) i++; if (i < names.length) loadGray(names[i++], true).then(next, next); };
+    for (let k = 0; k < 4; k++) next();
+  }
+
   async function main() {
-    const get = (f) => fetch(`data/${f}?v=${DATA_V}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
-    [study, gL, gN, areas, land, flood] = await Promise.all([get("study.json"), get("grid_lst.json"), get("grid_ndvi.json"), get("areas.geojson"), get("land/land.json"), get("podtopienia.geojson")]);
+    // Everything the first view needs is asked for at once; nothing waits for anything else.
+    const baseP = makeVectorBase(); // the base map style (4 s limit); initMap awaits it and falls back to a raster
+    baseP.catch(() => {});
+    // The finer radar pictures are optional. The radar products are optional only where they were never built (404):
+    // the app then uses the v1 layout. If sar.json exists but cannot be reached, start-up fails with the retry message
+    // instead of quietly showing a visitor the layout without radar.
+    [study, areas, land, flood, hires, sar] = await Promise.all([get("study.json"), get("areas.geojson"), get("land/land.json"),
+      get("podtopienia.geojson"), get("land/hires.json").catch(() => null), get("land/sar.json").catch((e) => { if (e.status === 404) return null; throw e; })]);
     NISAR_DATES = land.nisar_dates || [];
     state.lyr.nisar.i = Math.max(0, NISAR_DATES.length - 1);
-    // radar products (v2); without them the app falls back to the v1 layout
-    try { hires = await get("land/hires.json"); } catch (e) { hires = null; }
-    try { sar = await get("land/sar.json"); } catch (e) { sar = null; SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
+    if (!sar) { SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
     if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
-    gL.layers.night_mean = gL.layers.night_years.map((ys) => { const m = mean(ys.slice(0, 25)); return isFinite(m) ? m : null; });
-    geo.L = buildGeometry(gL); geo.N = buildGeometry(gN);
-    prepareHeatRanks();
-    await initMap();
+    // start on the radar view: NISAR 2026 at the end of the L-band time line. Its rasters download while the map is set up.
+    const firstP = sar ? applyLens() : Promise.resolve();
+    await initMap(baseP);
     initDraw();
     initSearch();
     wire();
-    if (sar) await applyLens(); // start on the radar view: NISAR 2026 at the end of the L-band time line
     document.body.classList.toggle("expert", state.expert);
-    applyLang();
+    applyLang(); // texts and controls are on screen from here; the radar picture follows as soon as its rasters land
+    await firstP;
     await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));
     redraw();
-    // The place-card layers (about 10 MB) are not preloaded: selectPoint loads and awaits them on the first selection,
-    // so a visit that only looks at the map downloads about 3 MB instead of 14 MB (hosting transfer, 14 Nov 2026).
-    // open a shared place link: #52.40812,16.93350
-    const m = location.hash.match(/^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
-    if (m) selectPoint(+m[1], +m[2], null, { zoom: 14 });
+    try { performance.mark("sarnik-first-view"); } catch (e) { /* ignore */ }
+    // The place-card layers (about 10 MB) and the MODIS grids are not preloaded: finishSelection loads and awaits them on
+    // the first selection, so a visit that only looks at the map downloads about 2 MB instead of 14 MB.
+    $("#q").addEventListener("focus", warmUp, { once: true });
+    ["#tool-free", "#tool-poly"].forEach((sel) => $(sel).addEventListener("click", warmUp, { once: true }));
+    // open a shared place link: #52.40812,16.93350, now and whenever the address changes in this tab. Chat apps encode
+    // the comma or glue a full stop to the end, so the pattern is forgiving; a point outside the map is ignored.
+    const openHash = () => {
+      let h = location.hash;
+      try { h = decodeURIComponent(h); } catch (e) { /* keep it as typed */ }
+      const m = h.match(/^#\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)[.,;)\s]*$/);
+      if (!m) return;
+      const lat = +m[1], lng = +m[2], [[south, west], [north, east]] = land.bounds;
+      if (lat < south || lat > north || lng < west || lng > east) return;
+      const same = state.sel && state.sel.kind === "point" && state.sel.lat.toFixed(5) === lat.toFixed(5) && state.sel.lng.toFixed(5) === lng.toFixed(5);
+      if (!same) selectPoint(lat, lng, null, { zoom: 14 }); // the place already on screen is not picked a second time
+    };
+    window.addEventListener("hashchange", openHash);
+    openHash();
   }
   main().catch((e) => {
-    $("#sidecard").innerHTML = `<p>The data did not load (${esc(e.message)}). Serve the <code>web</code> folder over HTTP, for example: <code>python3 -m http.server</code>.</p>`;
-    console.error(e);
+    console.error(e); // the technical detail stays in the console
+    if (location.protocol === "file:") {
+      $("#sidecard").innerHTML = `<p>The data did not load (${esc(e.message)}). Serve the <code>web</code> folder over HTTP, for example: <code>python3 -m http.server</code>.</p>`;
+      return;
+    }
+    renderLoadError();
   });
 })();

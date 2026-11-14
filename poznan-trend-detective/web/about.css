@@ -1,6 +1,6 @@
 /* SARnik "About the project" page. Colours and type follow web/styles.css (same variables, same
-   light / dark switch on the data-theme attribute). No web fonts are loaded here: Archivo is used
-   when it is installed, otherwise the system sans-serif. */
+   light / dark switch on the data-theme attribute). Archivo is the same file the app uses, served from
+   fonts/ (the @font-face rules are in the head of about.html); the system sans-serif is the fallback. */
 :root {
   color-scheme: light;
   --map: #F1F0EB;
