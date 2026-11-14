@@ -1,0 +1,67 @@
+# Publikuje interaktywny pitch (poznan-trend-detective/promo/prezentacje/interaktywna) na GitHub Pages.
+# Każdy push do main, który zmienia ten folder, wdraża nową wersję w ok. minutę. Bez sekretów i bez logowania:
+# workflow używa wbudowanego tokenu GitHuba, więc agent na dowolnym komputerze potrzebuje tylko prawa do pusha.
+# Adres: https://michallmaciek.github.io/NASA-SpaceWalkers/pitch/
+name: Pitch na GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "poznan-trend-detective/promo/prezentacje/interaktywna/**"
+      - ".github/workflows/pitch-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pitch-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}pitch/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Czy GitHub Pages jest włączone?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages jest wyłączone. Właściciel repo: Settings → Pages → Source: GitHub Actions. Do tego czasu pitch działa przez raw.githack.com (link w README folderu)."
+          fi
+
+      - name: Złóż stronę (bez kroku budowania, same pliki)
+        run: |
+          set -e
+          SRC=poznan-trend-detective/promo/prezentacje/interaktywna
+          test -f "$SRC/index.html" && test -f "$SRC/steps.js"
+          node --check "$SRC/steps.js"
+          mkdir -p _site/pitch
+          cp -r "$SRC"/. _site/pitch/
+          rm -f _site/pitch/README.md
+          printf '<!doctype html><meta charset="utf-8"><title>SARnik</title><meta http-equiv="refresh" content="0; url=pitch/"><a href="pitch/">SARnik: pitch</a>\n' > _site/index.html
+          touch _site/.nojekyll
+
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/configure-pages@v5
+
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/deploy-pages@v4
