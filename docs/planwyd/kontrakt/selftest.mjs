@@ -25,6 +25,8 @@ const point = () => ({ kind: 'point', lat: 52.4022, lng: 16.9453, ring: [], area
   check('karta została narysowana ponownie dokładnie raz', core.rerenders === 1, String(core.rerenders))
   check('brak naruszeń kontraktu', core.problems(before.concat(after)).length === 0, core.problems(before.concat(after)).join('; '))
   check('id wiersza ma prefiks modułu', after[0].id === 'example:value', after[0].id)
+  check('wiersz trafia do grupy „tło z innych źródeł” (sar = no)', after[0].sar === 'no', String(after[0].sar))
+  check('nagłówek karty liczy 0 w toku i 1 po odpowiedzi', core.flags(before) === 0 && core.flags(after) === 1, core.flags(before) + ' / ' + core.flags(after))
   core.setLang('en')
   check('teksty po angielsku', core.items(sel)[0].t === 'Example (contract test)', core.items(sel)[0].t)
 }
