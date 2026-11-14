@@ -1,0 +1,31 @@
+1
+00:00:00,190 --> 00:00:02,545
+A used car gets a full inspection.
+
+2
+00:00:02,545 --> 00:00:05,190
+A million-złoty house gets nice photos.
+
+3
+00:00:05,190 --> 00:00:10,330
+Around Poznań, built-up land more than doubled between 1990 and 2020.
+
+4
+00:00:10,330 --> 00:00:13,554
+Type any address and get a technical inspection of the land:
+
+5
+00:00:13,554 --> 00:00:16,667
+building, trees, heat, groundwater, radar.
+
+6
+00:00:16,667 --> 00:00:19,452
+NASA MODIS, Landsat and NISAR data.
+
+7
+00:00:19,452 --> 00:00:23,620
+Every trend tested, the forecast checked on years it never saw.
+
+8
+00:00:23,620 --> 00:00:27,943
+Poznań Trend Detective. Check the land before you sign.

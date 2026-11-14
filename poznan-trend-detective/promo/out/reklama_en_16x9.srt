@@ -1,0 +1,71 @@
+1
+00:00:00,340 --> 00:00:06,020
+When you buy a used car for 30,000 złoty, you take it to a diagnostic station:
+
+2
+00:00:06,020 --> 00:00:10,980
+you measure the paint thickness, check the frame geometry and look for oil leaks.
+
+3
+00:00:10,980 --> 00:00:14,380
+When you buy a house or a plot for 1,000,000 złoty…
+
+4
+00:00:14,380 --> 00:00:18,880
+you look at nice photos on Otodom and take the developer's word for it!
+
+5
+00:00:18,880 --> 00:00:22,220
+Nobody does a technical X-ray of the land!
+
+6
+00:00:22,220 --> 00:00:26,880
+We built one from satellite data: Poznań Trend Detective.
+
+7
+00:00:27,150 --> 00:00:31,950
+Type an address or draw an area, and you get a technical inspection of the land:
+
+8
+00:00:31,950 --> 00:00:36,990
+building history and forecast, a building-risk score, trees cut, heat,
+
+9
+00:00:36,990 --> 00:00:42,690
+groundwater-flood areas (PIG-PIB), terrain hollows, radar and the price per square metre.
+
+10
+00:00:43,020 --> 00:00:47,340
+Around Poznań, built-up land more than doubled in 30 years.
+
+11
+00:00:47,340 --> 00:00:50,140
+The model shows where the city grows next.
+
+12
+00:00:50,140 --> 00:00:54,940
+Tested on years it never saw, it found 56% of new building.
+
+13
+00:00:54,940 --> 00:00:57,360
+A ranking, not a verdict.
+
+14
+00:00:57,460 --> 00:01:02,900
+Summer nights warmed significantly almost everywhere, and not one square cooled.
+
+15
+00:01:02,900 --> 00:01:07,790
+And the faster a municipality grew, the faster its summer days warmed.
+
+16
+00:01:07,790 --> 00:01:17,470
+Data: NASA MODIS, NISAR, Landsat, Sentinel-1, Copernicus DEM, GUS and IMGW.
+
+17
+00:01:17,470 --> 00:01:21,650
+Every trend is tested with Mann-Kendall and Theil-Sen.
+
+18
+00:01:21,760 --> 00:01:26,340
+Poznań Trend Detective. Check the land before you sign.

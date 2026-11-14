@@ -1,0 +1,71 @@
+1
+00:00:00,340 --> 00:00:05,620
+Gdy kupujesz używany samochód za 30 tysięcy, jedziesz na stację diagnostyczną:
+
+2
+00:00:05,620 --> 00:00:10,260
+mierzysz grubość lakieru, sprawdzasz geometrię ramy i wycieki oleju.
+
+3
+00:00:10,260 --> 00:00:13,500
+Gdy kupujesz dom lub działkę za 1 000 000 zł…
+
+4
+00:00:13,500 --> 00:00:18,120
+oglądasz ładne zdjęcia na OtoDomie i wierzysz deweloperowi na słowo!
+
+5
+00:00:18,160 --> 00:00:21,300
+Nikt nie robi technicznego prześwietlenia terenu!
+
+6
+00:00:21,340 --> 00:00:26,400
+My zrobiliśmy je z danych satelitarnych: Poznań Trend Detective.
+
+7
+00:00:26,510 --> 00:00:31,350
+Wpisz adres albo obrysuj działkę, a dostaniesz przegląd techniczny terenu:
+
+8
+00:00:31,350 --> 00:00:37,230
+historię zabudowy i jej prognozę, wskaźnik ryzyka zabudowy, wycinkę drzew, upał,
+
+9
+00:00:37,230 --> 00:00:41,890
+obszary podtopień (PIG-PIB), obniżenia terenu, radar i cenę metra.
+
+10
+00:00:42,060 --> 00:00:46,300
+Wokół Poznania zabudowa w 30 lat wzrosła ponad dwukrotnie.
+
+11
+00:00:46,300 --> 00:00:49,260
+Model pokazuje, gdzie miasto urośnie dalej.
+
+12
+00:00:49,260 --> 00:00:53,820
+Na latach, których nie widział, trafił 56% nowej zabudowy.
+
+13
+00:00:53,820 --> 00:00:55,940
+To ranking, nie wyrok.
+
+14
+00:00:55,940 --> 00:01:01,020
+Letnie noce ociepliły się istotnie prawie wszędzie, a żaden kwadrat się nie ochłodził.
+
+15
+00:01:01,020 --> 00:01:05,710
+A im szybciej rosła gmina, tym szybciej nagrzewały się jej letnie dni.
+
+16
+00:01:05,710 --> 00:01:12,963
+Dane: NASA MODIS, NISAR, Landsat, Sentinel-1, Copernicus DEM, GUS i IMGW.
+
+17
+00:01:12,963 --> 00:01:17,440
+Każdy trend sprawdzamy testem Manna-Kendalla i Theila-Sena.
+
+18
+00:01:17,440 --> 00:01:22,340
+Poznań Trend Detective. Sprawdź teren, zanim podpiszesz.
