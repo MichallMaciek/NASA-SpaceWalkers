@@ -301,7 +301,7 @@ body.drawer-open .leaflet-bottom.leaflet-right { right: 440px; }
 .mlabel.city span { font-size: 17px; font-weight: 700; color: var(--ink); }
 #map.far .mlabel:not(.city) { display: none; }
 .on-photo .mlabel span { color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000; }
-.pin { width: 16px; height: 16px; border-radius: 50%; background: var(--area); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--area), 0 2px 6px rgba(0,0,0,.25); }
+.pin { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.3); }
 #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair; }
 
 .hovertip { position: fixed; z-index: 1200; pointer-events: none; padding: 8px 10px; font-size: 13px; line-height: 1.35; max-width: 260px; border-radius: 10px; }
@@ -403,3 +403,46 @@ body, .card, .drawer, .sheet { transition: background-color .25s ease, color .25
   body.drawer-open .leaflet-bottom.leaflet-right { right: 0; }
   .drawer { box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18); }
 }
+
+/* ===================== SARnik v2: radar ===================== */
+:root { --c-radar: #1E88A8; --c-radar-soft: #E3F2F6; --c-wet: #9CC3E6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --c-radar: #4FB3D1; --c-radar-soft: #1E3540; --c-wet: #3D6688; } }
+:root[data-theme="dark"] { --c-radar: #4FB3D1; --c-radar-soft: #1E3540; --c-wet: #3D6688; }
+
+.radar-block { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.radar-block .rb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.radar-block .rb-title { font-weight: 700; font-size: 16px; color: var(--ink); }
+.radar-block .rb-src { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.radar-block .linkish { white-space: nowrap; }
+.radar-block .rows { margin-top: 10px; }
+.rb-row { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rb-row .k { display: flex; align-items: center; gap: 9px; font-size: 14px; }
+.rb-row .v { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; font-size: 15px; }
+.rb-row .note { grid-column: 1 / -1; padding-left: 18px; margin-top: 2px; font-size: 12.5px; color: var(--ink-2); line-height: 1.35; }
+.rb-chart svg { width: 100%; height: 92px; display: block; margin-top: 8px; overflow: visible; }
+.rb-chart .lg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+.rb-chart .lg i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.rb-chart .lg i.bar { height: 8px; width: 8px; border-radius: 2px; }
+.rb-nisar { font-size: 12px; color: var(--ink-2); margin: 6px 0 0; }
+.rb-nisar b { color: var(--ink); font-weight: 650; }
+
+/* "How radar sees the ground" */
+.radar-how .rh-lead { font-size: 15px; }
+.rh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 12px 0 6px; }
+.rh-fig { margin: 0; }
+.rh-fig svg { width: 100%; height: auto; display: block; background: var(--soft, #F6F5F1); border-radius: 10px; }
+.rh-fig figcaption { font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.4; }
+.rh-fig figcaption b { display: block; color: var(--ink); font-size: 14px; margin-bottom: 2px; }
+.rh-sat rect { fill: var(--ink-2); } .rh-sat path { stroke: var(--ink-2); stroke-width: 2; }
+.rh-ray { fill: none; stroke: var(--c-radar); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.rh-away, .rh-scatter { stroke-dasharray: 4 4; opacity: .7; }
+.rh-scatter { fill: none; stroke: var(--c-radar); stroke-width: 1.6; }
+.rh-back { stroke-dasharray: 6 4; }
+.rh-head { fill: none; stroke: var(--c-radar); stroke-width: 2.2; stroke-linecap: round; }
+.rh-water { fill: none; stroke: #3B8FE0; stroke-width: 2.4; }
+.rh-ground { stroke: var(--ink-3); stroke-width: 2; }
+.rh-house { fill: var(--card); stroke: var(--ink-2); stroke-width: 2; } .rh-roof { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linejoin: round; }
+.rh-trunk { stroke: #8F6230; stroke-width: 4; } .rh-crown { fill: color-mix(in srgb, var(--c-green) 35%, transparent); stroke: var(--c-green); stroke-width: 2; }
+@media (max-width: 760px) { .rh-grid { grid-template-columns: 1fr; } .rh-fig svg { max-width: 320px; } }
+.hist-h { margin: 16px 0 0; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.hist-h + .chip { margin-top: 6px; }

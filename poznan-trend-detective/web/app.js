@@ -10,6 +10,8 @@
   const NOW_YEAR = new Date().getFullYear();
   const LAWICA = [52.4167, 16.8264], OLD_MARKET = [52.4083, 16.9335];
   const $ = (s) => document.querySelector(s);
+  // data files carry the page's build number, so a new deploy never mixes with cached data
+  const DATA_V = ((document.currentScript && document.currentScript.src) || "").split("v=")[1] || String(Date.now());
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const mean = (a) => { const v = a.filter((x) => x != null && isFinite(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -38,6 +40,13 @@
     loss: ["#F6C25B", "#E5602A", "#B8261E"],
     radar: ["#3B3F45", "#7B8087", "#C9B98F", "#F2C14E", "#FFF1B8"],
     terrain: ["#BFE6E2", "#7FD0C9", "#2FB3AA", "#17A2A0", "#0E6F6D"],
+    // radar (v2)
+    up: ["#F07A3A", "#E2551C", "#C2300F", "#8F1A08"],        // new walls: brighter with double bounce
+    upSoft: ["#F6DDB0", "#F2C987", "#EDB566", "#E5A04A"],    // brighter without double bounce: fields, earthworks
+    down: ["#C9C3F2", "#8E80E3", "#5B47C9", "#33238F"],      // darker: harvest, felling, water
+    wet: ["#CFE3F5", "#8CBDE8", "#3F8FD6", "#155FA8"],
+    water: ["#9ED0F5", "#4AA3E8", "#1C73C9", "#0B4A8C"],
+    sink: ["#F7C3B0", "#EB7E5B", "#CC3B24", "#8C1A10"],
   };
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rampCache = new Map();
@@ -177,7 +186,7 @@
         L8[name] = out; res(out);
       };
       img.onerror = () => rej(new Error(name));
-      img.src = `data/land/${name}.png`;
+      img.src = `data/land/${name}.png?v=${DATA_V}`;
     });
     grayLoading[name] = pr;
     pr.then(() => delete grayLoading[name], () => delete grayLoading[name]);
@@ -255,7 +264,15 @@
   const state = {
     year: 2020, yearF: 2020, horizon: 10, minChance: 5, base: "map",
     lyr: {
-      built: { on: true, op: 0.85 },
+      // radar first (SARnik v2): Sentinel-1 2026 picture and change, wet ground, water, ground motion, L-band history
+      s1rgb: { on: true, op: 0.8 },
+      sarchange: { on: false, op: 0.9, min: 3 },
+      sarwet: { on: false, op: 0.85 },
+      sarwater: { on: false, op: 0.85, min: 20 },
+      egms: { on: false, op: 0.95, min: 2 },
+      alos: { on: false, op: 0.85, y: 2021 },
+      nisarwet: { on: false, op: 0.9, min: 2 },
+      built: { on: false, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },
       activity: { on: false, op: 0.9, min: 3 },
@@ -270,7 +287,12 @@
     findingsOpen: innerWidth >= 760, finding: null, testVar: "built",
   };
   let NISAR_DATES = [];
-  const LAND_KEYS = ["dem", "radar", "forest", "activity", "built"]; // draw order, bottom to top
+  let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
+  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
+  const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
+  // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
+  const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
+  const lbandNames = (y) => (y === 2026 ? ["nisar_hh_med", "nisar_hv_med"] : [`alos_hh_${y}`, `alos_hv_${y}`]);
   // keep the area clear of the floating cards: side card on the left (desktop) or at the bottom (phone)
   const fitPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 130] } : { paddingTopLeft: [420, 80], paddingBottomRight: [80, 150] });
   const selPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, Math.round(innerHeight * 0.42 + 120)] } : fitPad());
@@ -286,8 +308,23 @@
     activity: () => ["s1_2017", "s1_2024", "study"],
     dem: () => ["dem", "study"],
     radar: () => ["s1_2017", "s1_2020", "s1_2024", "study"],
+    s1rgb: () => ["sar_vv_med", "sar_vh_med", "study"],
+    sarchange: () => ["sar_change", "sar_dratio", "study"],
+    sarwet: () => ["sar_wet", "study"],
+    sarwater: () => ["sar_water", "study"],
+    egms: () => ["sar_egms", "study"],
+    alos: () => [...lbandNames(state.lyr.alos.y), "study"],
+    nisarwet: () => ["nisar_wetdry", "study"],
   };
-  const ready = (k) => !NEEDS[k] || NEEDS[k]().every((n) => L8[n]);
+  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
+  const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
+    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
+  // decoders (sar.json "decode")
+  const dbOf = (v) => (v ? v / 6 - 30 : NaN);
+  const changeOf = (v) => (v ? v / 12.75 - 10 : NaN);
+  const wetOf = (v) => (v ? (v - 1) / 127 - 1 : NaN);
+  const waterOf = (v) => (v ? (v - 1) / 254 : NaN);
+  const egmsOf = (v) => (v ? v - 100 : NaN);
   const horizonEnd = () => (state.horizon === 5 ? 2030 : 2035);
   const isFuture = () => state.year > LAST_OBS();
   const s1Year = () => (state.year <= 2018 ? 2017 : state.year <= 2022 ? 2020 : 2024);
@@ -295,13 +332,7 @@
 
   /* ================= map ================= */
   let map, borderLayer, labelLayer, choroLayer, pinMarker, nisarLayer, selLayer, baseGL, labelGL, floodLayer;
-  let wuiaLayer = null, nisarOverlay = null;
-  const NISAR_BOUNDS = [[52.29, 16.73], [52.51, 17.07]];
-  const NISAR_SCENES = {
-    "2026-06-25": "data/nisar/nisar_poznan_2026-06-25_sucho.jpg",
-    "2026-07-07": "data/nisar/nisar_poznan_2026-07-07.jpg",
-    "2026-08-24": "data/nisar/nisar_poznan_2026-08-24_mokro.jpg"
-  };
+  let wuiaLayer = null; // building permits and applications of the Poznań planning office (GEOPOZ), added by Szymon
   const geoCache = new Map();
   const bases = {}, overlays = {}, pixelLayers = {};
   const dark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
@@ -455,7 +486,7 @@
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
     floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
-    fetch("data/wuia_decyzje.geojson").then((r) => r.json()).then((data) => {
+    fetch(`data/wuia_decyzje.geojson?v=${DATA_V}`).then((r) => r.json()).then((data) => {
       wuiaLayer = L.geoJSON(data, {
         pane: "land",
         style: (f) => {
@@ -465,8 +496,8 @@
         },
         onEachFeature: (f, lyr) => {
           const p = f.properties;
-          lyr.bindPopup(`<div style="font-size:13px;font-family:inherit"><strong>${esc(p.kategoria || "Decyzja")}</strong><br><span style="color:var(--ink-2)">${esc(p.OPIS || "")}</span><br><small style="color:var(--ink-3)">Data: ${esc(p.DATA || "")} · Sprawa: ${esc(p.NR_SPRAWY || "")}</small></div>`);
-        }
+          lyr.bindPopup(`<div style="font-size:13px;font-family:inherit"><strong>${esc(p.kategoria || "Decyzja")}</strong><br><span style="color:var(--ink-2)">${esc(p.OPIS || "")}</span><br><small style="color:var(--ink-3)">${esc(p.DATA || "")}, ${esc(p.NR_SPRAWY || "")}</small></div>`);
+        },
       });
       if (state.lyr.wuia.on) wuiaLayer.addTo(map);
     }).catch((e) => console.warn("wuia load skipped", e));
@@ -491,6 +522,20 @@
     if (labelLayer) { if (showLabels) labelLayer.addTo(map); else map.removeLayer(labelLayer); }
     document.documentElement.classList.toggle("on-photo", key !== "map");
   }
+
+  // radar colour composite, shared by the map and its legend so they always agree.
+  // Stretches from the 2nd-98th percentiles in the study area: 120 m cells mix surfaces, so contrast is narrower
+  // than in single 10-20 m pixels. R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio.
+  const RGB_STRETCH = { s1rgb: [-13, -3, -19, -10, 4, 10], alos: [-16, -1, -26, -10, 4, 12] };
+  function radarRgb(k, co, cx) {
+    const [c0, c1, x0, x1, r0, r1] = RGB_STRETCH[k], sc = (v, a, b) => clamp(((v - a) / (b - a)) * 255, 0, 255) | 0;
+    return [sc(co, c0, c1), sc(cx, x0, x1), sc(co - cx, r0, r1)];
+  }
+  // typical values (dB, co / cross) of each surface in the study area, measured by build_sar.py
+  const RADAR_LEGEND = {
+    s1rgb: [["rgbBuilt", -5.8, -12.3], ["rgbStrong", -3, -13], ["rgbVeg", -8.2, -13.3], ["rgbBare", -9.5, -17], ["rgbWater", -20, -27]],
+    alos: [["rgbBuilt", -6.8, -13.7], ["rgbStrong", -2, -12], ["rgbVeg", -6.3, -11.5], ["rgbBare", -13.8, -22.5], ["rgbWater", -24, -30]],
+  };
 
   /* ================= rendering of the data layers ================= */
   function renderLand(k) {
@@ -552,6 +597,61 @@
         if (db < s.lo || db > s.hi) continue;
         put(i, rampRgb(RAMPS.radar, (db - s.lo) / Math.max(1, s.hi - s.lo)), 215);
       }
+    } else if (k === "s1rgb" || k === "alos") {
+      // classic radar colour composite: R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio
+      const [hn, vn] = k === "alos" ? lbandNames(s.y) : ["sar_vv_med", "sar_vh_med"], co = L8[hn], cx = L8[vn];
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !co[i] || !cx[i]) continue;
+        const c = radarRgb(k, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
+        px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
+      }
+    } else if (k === "sarchange") {
+      const a = L8.sar_change, r = L8.sar_dratio, wall = lutFor(RAMPS.up), soft = lutFor(RAMPS.upSoft), dn = lutFor(RAMPS.down), wd = sar.s1.wall_db || 1.5;
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const d = changeOf(a[i]);
+        if (Math.abs(d) < s.min) continue;
+        const isWall = d > 0 && r[i] && changeOf(r[i]) >= wd;
+        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d < 0 ? dn : isWall ? wall : soft, j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], (isWall ? 190 : 130) + t * 60);
+      }
+    } else if (k === "nisarwet") {
+      // NISAR HH, wet pass (24 Aug) minus dry pass (25 Jun), open land only
+      const a = L8.nisar_wetdry, wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const d = changeOf(a[i]);
+        if (Math.abs(d) < s.min) continue;
+        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 140 + t * 100);
+      }
+    } else if (k === "sarwet") {
+      const a = L8.sar_wet, rc = sar.s1.r_crit, L = lutFor(RAMPS.wet);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const r = wetOf(a[i]);
+        if (r < rc) continue;
+        const t = clamp((r - rc) / (0.85 - rc), 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 120 + t * 120);
+      }
+    } else if (k === "sarwater") {
+      const a = L8.sar_water, L = lutFor(RAMPS.water), m = s.min / 100;
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const w = waterOf(a[i]);
+        if (w < m) continue;
+        const t = clamp((w - m) / Math.max(0.05, 1 - m), 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 140 + t * 110);
+      }
+    } else if (k === "egms") {
+      const a = L8.sar_egms, sub = lutFor(RAMPS.sink), upl = lutFor(RAMPS.cool);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const v = egmsOf(a[i]);
+        if (Math.abs(v) < s.min) continue;
+        const t = clamp((Math.abs(v) - s.min) / 8, 0, 1), L = v < 0 ? sub : upl, j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 170 + t * 80);
+      }
     }
     o.ctx.putImageData(o.img, 0, 0);
   }
@@ -584,28 +684,13 @@
       if (state.lyr.flood.on) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
       if (state.lyr.price.on) { renderChoro(); if (!map.hasLayer(choroLayer)) choroLayer.addTo(map); } else if (map.hasLayer(choroLayer)) map.removeLayer(choroLayer);
       if (state.lyr.nisar.on && NISAR_DATES.length) {
-        const curDate = NISAR_DATES[state.lyr.nisar.i] || "2026-06-25";
-        let scene = NISAR_SCENES[curDate];
-        if (!scene) {
-          scene = curDate <= "2026-07-01" ? NISAR_SCENES["2026-06-25"] : (curDate <= "2026-07-20" ? NISAR_SCENES["2026-07-07"] : NISAR_SCENES["2026-08-24"]);
-        }
-        if (!nisarOverlay) {
-          nisarOverlay = L.imageOverlay(scene, NISAR_BOUNDS, { opacity: state.lyr.nisar.op, pane: "land" });
-        } else {
-          nisarOverlay.setUrl(scene);
-          nisarOverlay.setOpacity(state.lyr.nisar.op);
-        }
-        if (!map.hasLayer(nisarOverlay)) nisarOverlay.addTo(map);
-      } else if (nisarOverlay && map.hasLayer(nisarOverlay)) {
-        map.removeLayer(nisarOverlay);
-      }
+        nisarLayer.setUrl(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/NISAR_L2_Geocoded_Polarimetric_Covariance/default/${NISAR_DATES[state.lyr.nisar.i]}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`, true);
+        nisarLayer.setOpacity(state.lyr.nisar.op);
+        if (!map.hasLayer(nisarLayer)) nisarLayer.addTo(map); else nisarLayer.redraw();
+      } else if (map.hasLayer(nisarLayer)) map.removeLayer(nisarLayer);
       if (wuiaLayer) {
-        if (state.lyr.wuia.on) {
-          wuiaLayer.setStyle({ fillOpacity: state.lyr.wuia.op });
-          if (!map.hasLayer(wuiaLayer)) wuiaLayer.addTo(map);
-        } else if (map.hasLayer(wuiaLayer)) {
-          map.removeLayer(wuiaLayer);
-        }
+        if (state.lyr.wuia.on) { wuiaLayer.setStyle({ fillOpacity: state.lyr.wuia.op }); if (!map.hasLayer(wuiaLayer)) wuiaLayer.addTo(map); }
+        else if (map.hasLayer(wuiaLayer)) map.removeLayer(wuiaLayer);
       }
       renderLegend();
     });
@@ -682,6 +767,19 @@
     const u = U(), blocks = [];
     const ramp_ = (stops, lo, hi) => `<div class="ramp" style="background:${gradient(stops)}"></div><div class="ticks"><span>${lo}</span><span>${hi}</span></div>`;
     const L_ = state.lyr;
+    if (sar) {
+      const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
+      if (L_.sarchange.on) blocks.push(`<div class="lt">${u.lg.sarchange}</div>${sw(RAMPS.up[1], u.lg.wallsNow)}${sw(RAMPS.upSoft[2], u.lg.brighterNow)}${sw(RAMPS.down[2], u.lg.darkerNow)}`);
+      if (L_.nisarwet.on && sar.nisar) blocks.push(`<div class="lt">${u.lg.nisarwet}</div>${sw(RAMPS.wet[2], u.lg.wetter)}${sw(RAMPS.brown[2], u.lg.drier)}`);
+      if (L_.sarwet.on) blocks.push(`<div class="lt">${u.lg.sarwet}</div>${ramp_(RAMPS.wet, u.lg.weak, u.lg.strong)}`);
+      if (L_.sarwater.on) blocks.push(`<div class="lt">${u.lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
+      if (L_.egms.on) blocks.push(`<div class="lt">${u.lg.egms}</div>${sw(RAMPS.sink[2], u.lg.sinks)}${sw(RAMPS.cool[2], u.lg.rises)}`);
+      if (L_.s1rgb.on || L_.alos.on) {
+        const kk = L_.alos.on && !L_.s1rgb.on ? "alos" : "s1rgb";
+        blocks.push(`<div class="lt">${kk === "alos" ? (L_.alos.y === 2026 ? u.lg.nisarL : u.lg.alos(L_.alos.y)) : u.lg.s1rgb}</div>` +
+          RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
+      }
+    }
     if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
@@ -698,7 +796,7 @@
   }
 
   /* ================= drawer (map settings) ================= */
-  const DOT = { flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
+  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", wuia: "--c-built", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
   function rangeHTML(id, min, max, step, lo, hi, cls = "") {
     const a = ((lo - min) / (max - min)) * 100, b = hi == null ? a : ((hi - min) / (max - min)) * 100;
     return `<div class="rng ${cls}" data-rng="${id}"><div class="rail"></div><div class="fill" style="left:${hi == null ? 0 : a}%;width:${hi == null ? a : b - a}%"></div>
@@ -713,6 +811,7 @@
       <div class="lyr-ctrl">${extra}<div class="field"><div class="field-head"><span class="fl" style="font-size:13px;color:var(--ink-2)">${u.opacity}</span><output>${Math.round(s.op * 100)}%</output></div>${rangeHTML(`op-${k}`, 20, 100, 5, Math.round(s.op * 100))}</div></div>
     </div>`;
   }
+  const lbLabel = (y) => (y === 2026 ? "2026 (NISAR)" : `${y} (ALOS-2)`);
   function renderDrawer() {
     const u = U(), L_ = state.lyr;
     const demMax = Math.ceil(Math.max(...Object.values(land.municipalities).map((m) => m.elev_max))); // 164 m: the hills too
@@ -720,12 +819,27 @@
     const radar = `<div class="field"><div class="field-head"><span class="fl">${u.radarRange}</span><output>${L_.radar.lo} ${u.to} ${L_.radar.hi} dB</output></div>${rangeHTML("radar", -25, 5, 1, L_.radar.lo, L_.radar.hi)}<div class="hint">${u.radarHint(s1Year())}</div></div>`;
     const act = `<div class="field"><div class="field-head"><span class="fl">${u.minChange}</span><output>${num(L_.activity.min, 1)} dB</output></div>${rangeHTML("act", 1, 8, 0.5, L_.activity.min)}</div>`;
     const nis = NISAR_DATES.length ? `<div class="field"><div class="field-head"><span class="fl">${u.pass}</span><output>${NISAR_DATES[L_.nisar.i]}</output></div>${rangeHTML("nisar", 0, NISAR_DATES.length - 1, 1, L_.nisar.i)}</div>` : "";
-    $("#drawer-body").innerHTML = `
-      <details class="sec" open><summary>${u.secLayers}</summary><div class="sec-body">
-        ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("wuia")}${layerRow("activity", act)}
+    const field = (label, out, rng) => `<div class="field"><div class="field-head"><span class="fl">${label}</span><output>${out}</output></div>${rng}</div>`;
+    const radarSecs = sar ? `
+      <details class="sec" open><summary>${u.secRadar}</summary><div class="sec-body">
+        ${layerRow("s1rgb")}
+        ${layerRow("sarchange", field(u.minDb, `${num(L_.sarchange.min, 1)} dB`, rangeHTML("sch", 1, 8, 0.5, L_.sarchange.min)))}
+        ${layerRow("sarwet")}
+        ${layerRow("sarwater", field(u.minWater, `${L_.sarwater.min}%`, rangeHTML("swa", 10, 90, 5, L_.sarwater.min)))}
+        ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
+        ${layerRow("nisar", nis)}
       </div></details>
+      <details class="sec" open><summary>${u.secGround}</summary><div class="sec-body">
+        ${layerRow("egms", field(u.minMove, `${L_.egms.min} mm/${u.yr}`, rangeHTML("seg", 1, 10, 1, L_.egms.min)))}
+        ${layerRow("alos", field(u.alosYear, lbLabel(L_.alos.y), rangeHTML("aly", 0, LBAND_YEARS().length - 1, 1, Math.max(0, LBAND_YEARS().indexOf(L_.alos.y)))))}
+        ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("activity", act)}
+      </div></details>` : `
       <details class="sec" open><summary>${u.secSar}</summary><div class="sec-body">
-        ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}
+        ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}${layerRow("activity", act)}
+      </div></details>`;
+    $("#drawer-body").innerHTML = `${radarSecs}
+      <details class="sec" ${sar ? "" : "open"}><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
+        ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("wuia")}
       </div></details>
       <details class="sec" open><summary>${u.secPred}</summary><div class="sec-body">
         <div class="field"><div class="field-head"><span class="fl">${u.horizon}</span></div>
@@ -773,6 +887,11 @@
       else if (id === "act") { state.lyr.activity.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       else if (id === "nisar") { state.lyr.nisar.i = vals[0]; out.textContent = NISAR_DATES[vals[0]]; }
       else if (id === "chance") { state.minChance = vals[0]; out.textContent = `${vals[0]}%`; }
+      else if (id === "sch") { state.lyr.sarchange.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
+      else if (id === "swa") { state.lyr.sarwater.min = vals[0]; out.textContent = `${vals[0]}%`; }
+      else if (id === "seg") { state.lyr.egms.min = vals[0]; out.textContent = `${vals[0]} mm/${u.yr}`; }
+      else if (id === "aly") { state.lyr.alos.y = LBAND_YEARS()[vals[0]]; out.textContent = lbLabel(state.lyr.alos.y); if (state.lyr.alos.on) { ensure("alos").then(redraw); return; } }
+      else if (id === "nwm") { state.lyr.nisarwet.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       redraw();
     }));
     body.querySelectorAll("[data-hz]").forEach((b) => b.addEventListener("click", () => {
@@ -806,6 +925,19 @@
     const { lat, lng } = e.latlng, f = areaAt(lat, lng);
     if (!f) { tip.hidden = true; return; }
     const lines = [], u = U(), c = land && landCell(lat, lng);
+    if (sar && c) {
+      const Ly = state.lyr;
+      if ((Ly.s1rgb.on && ready("s1rgb")) || (Ly.alos.on && ready("alos"))) {
+        const [hn, vn] = lbandNames(Ly.alos.y);
+        const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
+        if (a && b) lines.push(`${tag}: ${num(dbOf(a), 1)} / ${num(dbOf(b), 1)} dB`);
+      }
+      if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) lines.push(`${u.L.sarchange}: ${sgn(changeOf(L8.sar_change[c.i]), 1)} dB`);
+      if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) lines.push(`${u.L.nisarwet}: ${sgn(changeOf(L8.nisar_wetdry[c.i]), 1)} dB`);
+      if (Ly.sarwet.on && ready("sarwet") && L8.sar_wet[c.i]) lines.push(`${u.L.sarwet}: r = ${num(wetOf(L8.sar_wet[c.i]), 2)}`);
+      if (Ly.sarwater.on && ready("sarwater") && L8.sar_water[c.i]) lines.push(`${u.L.sarwater}: ${num(waterOf(L8.sar_water[c.i]) * 100, 0)}%`);
+      if (Ly.egms.on && ready("egms")) lines.push(L8.sar_egms[c.i] ? `${u.L.egms}: ${sgn(egmsOf(L8.sar_egms[c.i]), 0)} mm/${u.yr}` : `${u.L.egms}: ${u.noPoints}`);
+    }
     if (state.lyr.built.on && ready("built") && c) {
       const { e0, e1, t } = epochPair(state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
       const v = (a + (b - a) * t) / 255;
@@ -840,7 +972,13 @@
   // Pointer events on the map container: works with mouse, pen and touch, keeps tracking when the pointer
   // leaves the map (pointer capture), and never lets the click that ends a drawing select a point instead.
   const draw = { mode: null, pts: [], shape: null, guide: null, vtx: null, down: false, suppressUntil: 0, pointerId: null };
-  const AREA_STYLE = () => ({ color: css("--area"), weight: 2.5, fillColor: css("--area"), fillOpacity: 0.07, pane: "sel" });
+  // selection drawn like a surveyor's mark: thin ink line over a light halo, readable on the map and on radar colours
+  const AREA_STYLE = () => ({ color: css("--ink"), weight: 2, fillColor: css("--ink"), fillOpacity: 0.04, lineJoin: "round", pane: "sel" });
+  const HALO = () => (dark() ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.92)");
+  function selOutline(ring, dashed) {
+    L.polygon(ring, { pane: "sel", interactive: false, color: HALO(), weight: 5.5, fill: false, lineJoin: "round" }).addTo(selLayer);
+    L.polygon(ring, { ...AREA_STYLE(), interactive: false, dashArray: dashed ? "1 6" : null, lineCap: "round", weight: dashed ? 2.6 : 2 }).addTo(selLayer);
+  }
   const drawHint = (txt) => { $("#drawhint").hidden = !txt; $("#drawhint-text").textContent = txt || ""; };
   function startDraw(mode) {
     stopDraw();
@@ -870,7 +1008,7 @@
     draw.vtx.clearLayers();
     draw.pts.forEach((p, k) => L.circleMarker(p, {
       pane: "sel", interactive: false, radius: k === 0 ? (hoverFirst ? 8 : 6) : 4.5, weight: 2,
-      color: css("--area"), fillColor: k === 0 && hoverFirst ? css("--area") : "#fff", fillOpacity: 1,
+      color: css("--ink"), fillColor: k === 0 && hoverFirst ? css("--ink") : "#fff", fillOpacity: 1,
     }).addTo(draw.vtx));
   }
   // Douglas-Peucker in screen pixels, so long freehand strokes become light, clean polygons
@@ -963,7 +1101,7 @@
 
   /* ================= selection: a point (1 km circle) or a drawn area ================= */
   const PLACE_LAYERS = () => [...builtNames(), "prob_2025", "prob_2030", "prob_2035", "study", "forest_loss", "forest2000_frac", "loss_frac",
-    "loss_cum_2005", "loss_cum_2010", "loss_cum_2015", "loss_cum_2020", "dem", "s1_2017", "s1_2024"];
+    "loss_cum_2005", "loss_cum_2010", "loss_cum_2015", "loss_cum_2020", "dem", "s1_2017", "s1_2024", ...SAR_PLACE()];
   function clearSelection() {
     state.sel = null;
     selLayer.clearLayers();
@@ -1001,7 +1139,7 @@
     const f = areaAt(lat, lng);
     const ring = circleRing(lat, lng, 1);
     selLayer.clearLayers();
-    L.polygon(ring, { ...AREA_STYLE(), dashArray: "6 6", interactive: false }).addTo(selLayer);
+    selOutline(ring, true);
     pinMarker = L.marker([lat, lng], { pane: "sel", icon: L.divIcon({ className: "", html: '<div class="pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(selLayer);
     $("#tool-clear").disabled = false;
     const sq = cellAt(gL, lat, lng);
@@ -1019,7 +1157,7 @@
     state.finding = null;
     const ring = pts.map((p) => [p.lat, p.lng]);
     selLayer.clearLayers();
-    L.polygon(ring, { ...AREA_STYLE(), interactive: false }).addTo(selLayer);
+    selOutline(ring, false);
     $("#tool-clear").disabled = false;
     // a drawn area has no point link: drop the previous point's #lat,lng so a shared link does not open the wrong place
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
@@ -1085,6 +1223,103 @@
     return HEAT_YEARS.map((_, k) => mean(sq.map((i) => gL.layers[name][i][k])));
   };
 
+  /* ================= radar numbers for a selection (v2) ================= */
+  const pw10 = (db) => 10 ** (db / 10);
+  function sarStats(cells) {
+    const ch = L8.sar_change, dr = L8.sar_dratio, we = L8.sar_wet, wa = L8.sar_water, eg = L8.sar_egms, rc = sar.s1.r_crit, wd = sar.s1.wall_db || 1.5;
+    let nCh = 0, sCh = 0, up = 0, dn = 0, wl = 0, nW = 0, wetN = 0, nWa = 0, waN = 0;
+    const egv = [];
+    for (const i of cells) {
+      if (ch[i]) { const d = changeOf(ch[i]); nCh++; sCh += d; if (d >= 3) { up++; if (dr[i] && changeOf(dr[i]) >= wd) wl++; } else if (d <= -3) dn++; }
+      if (we[i]) { nW++; if (wetOf(we[i]) > rc) wetN++; }
+      if (wa[i]) { nWa++; if (waterOf(wa[i]) >= 0.2) waN++; }
+      if (eg[i]) egv.push(egmsOf(eg[i]));
+    }
+    egv.sort((a, b) => a - b);
+    const ys = sar.alos.years, y0 = ys[0], y1 = ys[ys.length - 1], h0 = L8[`alos_hv_${y0}`], h1 = L8[`alos_hv_${y1}`];
+    let p0 = 0, p1 = 0, nA = 0;
+    for (const i of cells) if (h0[i] && h1[i]) { p0 += pw10(dbOf(h0[i])); p1 += pw10(dbOf(h1[i])); nA++; }
+    let nN = 0, sN = 0, upN = 0;
+    if (sar.nisar && L8.nisar_wetdry) for (const i of cells) { const v = L8.nisar_wetdry[i]; if (v) { const d = changeOf(v); nN++; sN += d; if (d >= 2) upN++; } }
+    return {
+      nisarWet: nN ? sN / nN : NaN, nisarWetUp: nN ? upN / nN : NaN, nisarOpen: nN,
+      meanCh: nCh ? sCh / nCh : NaN, up: nCh ? up / nCh : NaN, dn: nCh ? dn / nCh : NaN, walls: nCh ? wl / nCh : NaN,
+      wet: nW ? wetN / nW : NaN, water: nWa ? waN / nWa : NaN,
+      egMed: egv.length ? egv[egv.length >> 1] : NaN, egMin: egv.length ? egv[0] : NaN, egN: egv.length,
+      dHV: nA ? 10 * Math.log10(p1 / nA) - 10 * Math.log10(p0 / nA) : NaN, y0, y1,
+    };
+  }
+  // VV and VH of every pass for the selection, from the 480 m sheet (power-averaged)
+  function sarSeries(cells, which = "s1") {
+    const S = which === "nisar" ? sar.nisar.series : sar.s1.series, sh = which === "nisar" ? L8.nisar_series : L8.sar_series;
+    const W2 = 2 * S.bw, w = land.width, blocks = new Set();
+    for (const i of cells) blocks.add(((Math.floor(i / w) / S.block) | 0) * S.bw + (((i % w) / S.block) | 0));
+    const vv = [], vh = [];
+    for (let k = 0; k < S.n; k++) {
+      let a = 0, b = 0, na = 0, nb = 0;
+      for (const bi of blocks) {
+        const row = (k * S.bh + ((bi / S.bw) | 0)) * W2, c = bi % S.bw, x = sh[row + c], y = sh[row + S.bw + c];
+        if (x) { a += pw10(dbOf(x)); na++; }
+        if (y) { b += pw10(dbOf(y)); nb++; }
+      }
+      vv.push(na ? 10 * Math.log10(a / na) : NaN); vh.push(nb ? 10 * Math.log10(b / nb) : NaN);
+    }
+    return { vv, vh };
+  }
+  const dayNum = (d) => Date.parse(`${d}T12:00:00Z`) / 864e5;
+  function radarChart(ser, nser) {
+    const u = U(), W = 340, H = 92, top = 4, lineH = 58, barTop = 66, barH = 16;
+    const dates = sar.s1.dates, t0 = dayNum(dates[0]) - 2, t1 = dayNum(dates[dates.length - 1]) + 2;
+    const GX = 34; // left gutter for the dB labels
+    const x = (d) => GX + ((dayNum(d) - t0) / (t1 - t0)) * (W - GX);
+    const nd = nser ? sar.nisar.dates : [];
+    const ok = ser.vv.concat(ser.vh, nser ? nser.vv.concat(nser.vh) : []).filter(isFinite);
+    if (!ok.length) return "";
+    const lo = Math.min(...ok) - 0.5, hi = Math.max(...ok) + 0.5, y = (v) => top + (1 - (v - lo) / (hi - lo)) * lineH;
+    const path = (vals, ds = dates) => vals.map((v, k) => (isFinite(v) ? `${k && isFinite(vals[k - 1]) ? "L" : "M"}${x(ds[k]).toFixed(1)},${y(v).toFixed(1)}` : "")).join("");
+    const wet = sar.s1.soil_wetness || [], bw = Math.max(3, (W / dates.length) * 0.5);
+    const bars = wet.map((w, k) => (w == null ? "" : `<rect x="${(x(dates[k]) - bw / 2).toFixed(1)}" y="${(barTop + barH * (1 - w)).toFixed(1)}" width="${bw.toFixed(1)}" height="${(barH * w).toFixed(1)}" rx="1" fill="var(--c-wet)"/>`)).join("");
+    const nis = NISAR_DATES.filter((d) => dayNum(d) >= t0 && dayNum(d) <= t1).map((d) => `<line x1="${x(d).toFixed(1)}" x2="${x(d).toFixed(1)}" y1="${barTop + barH + 2}" y2="${barTop + barH + 7}" stroke="${css("--c-nisar")}" stroke-width="1.6"/>`).join("");
+    const months = [];
+    for (let m = 6; m <= 11; m++) { const d = `2026-${String(m).padStart(2, "0")}-01`; if (dayNum(d) >= t0) months.push(`<text x="${x(d).toFixed(1)}" y="${H + 10}" font-size="10" fill="${css("--ink-3")}">${u.rb.months[m - 1]}</text>`); }
+    const dots = (vals, col, ds = dates, rr = 2.2) => vals.map((v, k) => (isFinite(v) ? `<circle cx="${x(ds[k]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${rr}" fill="${col}"/>` : "")).join("");
+    const nc = css("--c-nisar");
+    const nis2 = nser ? `<path d="${path(nser.vv, nd)}" fill="none" stroke="${nc}" stroke-width="1.8"/>${dots(nser.vv, nc, nd, 2.6)}
+      <path d="${path(nser.vh, nd)}" fill="none" stroke="${nc}" stroke-width="1.6" stroke-dasharray="4 3"/>${dots(nser.vh, nc, nd, 2.6)}` : "";
+    return `<div class="rb-chart"><svg viewBox="0 0 ${W} ${H + 12}" aria-hidden="true">
+      <text x="0" y="${top + 8}" font-size="10" fill="${css("--ink-3")}">${num(hi, 0)} dB</text><text x="0" y="${top + lineH}" font-size="10" fill="${css("--ink-3")}">${num(lo, 0)} dB</text>
+      <line x1="${GX - 4}" x2="${W}" y1="${top + lineH + 2}" y2="${top + lineH + 2}" stroke="${css("--line")}" stroke-width="1"/>
+      <path d="${path(ser.vv)}" fill="none" stroke="${css("--ink")}" stroke-width="1.8"/>${dots(ser.vv, css("--ink"))}
+      <path d="${path(ser.vh)}" fill="none" stroke="${css("--c-green")}" stroke-width="1.8"/>${dots(ser.vh, css("--c-green"))}
+      ${nis2}${bars}${nis}${months.join("")}</svg>
+      <div class="lg"><span><i style="background:${css("--ink")}"></i>VV</span><span><i style="background:${css("--c-green")}"></i>VH</span>
+        ${nser ? `<span><i style="background:${nc}"></i>HH</span><span><i style="background:repeating-linear-gradient(90deg,${nc} 0 4px,transparent 4px 7px)"></i>HV (NISAR)</span>` : ""}
+        <span><i class="bar" style="background:var(--c-wet)"></i>${u.rb.lgWet}</span><span><i style="background:${nc};width:2px;height:9px"></i>${u.rb.lgNisar}</span></div></div>`;
+  }
+  function radarBlock(sel) {
+    const u = U(), rb = u.rb, s = sarStats(sel.cells), ser = sarSeries(sel.cells), d = sar.s1.dates;
+    const nser = sar.nisar && L8.nisar_series ? sarSeries(sel.cells, "nisar") : null;
+    const pct = (v) => (isFinite(v) ? `${num(v * 100, 0)}%` : "—");
+    const fmtD = (x) => { const [, m, dd] = x.split("-"); return `${+dd}.${m}`; };
+    const row = (dot, k, v, note) => `<div class="rb-row"><span class="k"><span class="dot" style="background:${dot}"></span>${k}</span><span class="v">${v}</span><span class="note">${note}</span></div>`;
+    const nd = NISAR_DATES;
+    return `<div class="radar-block">
+      <div class="rb-head"><div><div class="rb-title">${rb.title}</div><div class="rb-src">${rb.src(d.length, fmtD(d[0]), fmtD(d[d.length - 1]))}${sar.nisar ? `; ${rb.srcN(sar.nisar.dates.length)}` : ""}</div></div>
+        <button type="button" class="linkish" data-radar-how>${rb.how}</button></div>
+      ${radarChart(ser, nser)}
+      <div class="rows">
+        ${row(RAMPS.up[1], rb.change, pct(s.walls), rb.changeV(pct(s.up), pct(s.dn)))}
+        ${sar.nisar ? row(css("--c-nisar"), rb.nisarWet, s.nisarOpen ? `${sgn(s.nisarWet, 1)} dB` : "—", s.nisarOpen ? rb.nisarWetV(pct(s.nisarWetUp)) : rb.nisarNoOpen) : ""}
+        ${row(RAMPS.wet[2], rb.wet, pct(s.wet), rb.wetV)}
+        ${row(RAMPS.water[2], rb.water, pct(s.water), rb.waterV)}
+        ${row(RAMPS.sink[2], rb.egms, s.egN ? `${sgn(s.egMed, 0)} mm/${u.yr}` : "—", s.egN ? rb.egmsV(s.egN) : rb.egmsNone)}
+        ${row(css("--c-green"), rb.lband, isFinite(s.dHV) ? `${sgn(s.dHV, 1)} dB` : "—", rb.lbandV(s.y0, s.y1))}
+      </div>
+      ${sar.nisar ? `<p class="rb-nisar">${rb.nisarUsed(sar.nisar.dates.length, sar.nisar.track, fmtD(sar.nisar.dates[0]), fmtD(sar.nisar.dates[sar.nisar.dates.length - 1]), nd.length)}</p>`
+        : nd.length ? `<p class="rb-nisar">${rb.nisar(nd.length, fmtD(nd[0]), fmtD(nd[nd.length - 1]))}</p>` : ""}
+    </div>`;
+  }
+
   /* ================= side card ================= */
   function renderCardLoading() {
     $("#sidecard").classList.remove("min");
@@ -1149,7 +1384,9 @@
     const more = moreHTML(sel);
     const moreOpen = !!(card.querySelector("details.more") || {}).open; // keep "More data" open while the year changes
     card.innerHTML = `<div class="collapse-head"><h2>${title}</h2></div>
-      <p class="sub">${sub} · ${range}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>${chip}
+      <p class="sub">${sub} · ${range}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
+      ${sar && L8.sar_series ? radarBlock(sel) : ""}
+      ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
       <div class="rows">
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-built")}"></span>${u.rowBuilt}</span><span class="v">${builtV}<small>${builtNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-forest")}"></span>${u.rowForest}</span><span class="v">${forestV}<small>${forestNote}</small></span></div>
@@ -1226,28 +1463,20 @@
     items.push({ lvl: hollow ? "warn" : "ok", t: c.water, link: true,
       v: own ? (hollow ? c.waterLow(num(Math.abs(rel.mean), 1)) : c.waterOk(sgn(rel.mean, 1))) : (hollow ? c.waterAreaLow(num(rel.lowShare * 100, 0)) : c.waterAreaOk(num(rel.lowShare * 100, 0))) });
     // 6. radar: is something being built right now?
-    const rc = sel.cells.filter((i) => L8.s1_2017[i] && L8.s1_2024[i]).map((i) => (L8.s1_2024[i] - L8.s1_2017[i]) / 6);
-    const busy = rc.length ? rc.filter((d) => d >= 3).length / rc.length : 0;
-    items.push({ lvl: busy > 0.05 ? "warn" : "ok", t: c.radar, v: busy > 0.05 ? c.radarBusy(num(busy * 100, 0)) : c.radarQuiet });
-        let penalties = 0;
-    items.forEach((it) => {
-      if (it.lvl === "risk") penalties += 22;
-      else if (it.lvl === "warn") penalties += 10;
-    });
-    const spaceScore = Math.max(15, Math.min(100, 100 - penalties));
-    const scoreCol = spaceScore >= 75 ? "#4E9F3D" : (spaceScore >= 50 ? "#F2A31B" : "#E5602A");
-    const scoreWord = lang === "pl"
-      ? (spaceScore >= 75 ? "Wysoki potencjał (Niskie ryzyko geofizyczne)" : (spaceScore >= 50 ? "Umiarkowane ryzyko / Wymaga uwagi" : "Wysokie ryzyko środowiskowe"))
-      : (spaceScore >= 75 ? "High Potential (Low Geophysical Risk)" : (spaceScore >= 50 ? "Moderate Risk / Caution Needed" : "High Environmental Risk"));
-    const scoreBadge = `<div class="spacescore-banner" style="background:${scoreCol}15;border:1.5px solid ${scoreCol};border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:${scoreCol};text-transform:uppercase">SpaceScore · Audyt NASA</div>
-        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-top:2px">${scoreWord}</div>
-      </div>
-      <div style="font-size:24px;font-weight:800;color:${scoreCol};font-variant-numeric:tabular-nums">${spaceScore}<span style="font-size:13px;font-weight:600;opacity:0.7">/100</span></div>
-    </div>`;
-
-    return `${scoreBadge}<div class="check"><div class="check-h">${c.title}</div>${items.map((it) => {
+    if (sar && L8.sar_change) {
+      // v2: this season's passes (June-November 2026), plus wet ground and ground motion (InSAR)
+      const s = sarStats(sel.cells);
+      items.push(s.walls > 0.02 ? { lvl: "warn", t: c.radar26, v: c.radar26Busy(num(s.walls * 100, 0)) }
+        : s.up > 0.05 ? { lvl: "info", t: c.radar26, v: c.radar26Soft(num(s.up * 100, 0)) } : { lvl: "ok", t: c.radar26, v: c.radar26Quiet });
+      items.push({ lvl: s.wet > 0.3 ? "warn" : "ok", t: c.wetT, v: s.wet > 0.3 ? c.wetHigh(num(s.wet * 100, 0)) : c.wetLow(num((s.wet || 0) * 100, 0)) });
+      items.push(!s.egN ? { lvl: "info", t: c.egmsT, v: c.egmsNone }
+        : { lvl: s.egMed <= -3 ? "risk" : s.egMin <= -5 ? "warn" : "ok", t: c.egmsT, v: s.egMed <= -3 ? c.egmsSink(sgn(s.egMed, 0)) : c.egmsV(sgn(s.egMed, 0), s.egN, s.egMin <= -5 ? sgn(s.egMin, 0) : null) });
+    } else {
+      const rc = sel.cells.filter((i) => L8.s1_2017[i] && L8.s1_2024[i]).map((i) => (L8.s1_2024[i] - L8.s1_2017[i]) / 6);
+      const busy = rc.length ? rc.filter((d) => d >= 3).length / rc.length : 0;
+      items.push({ lvl: busy > 0.05 ? "warn" : "ok", t: c.radar, v: busy > 0.05 ? c.radarBusy(num(busy * 100, 0)) : c.radarQuiet });
+    }
+    return `<div class="check"><div class="check-h">${c.title}</div>${items.map((it) => {
       const [col, w0] = st(it.lvl), word = it.word || w0;
       return `<div class="ck"><span class="ck-dot" style="background:${col}"></span><div><div class="ck-t">${it.t} <span class="ck-s" style="color:${col}">${word}</span></div>
         <div class="ck-v">${it.v}${it.link ? ` <a href="https://wody.isok.gov.pl/imap_kzgw/?gpmap=gpMZP" target="_blank" rel="noopener">${c.isok}</a>` : ""}</div></div></div>`;
@@ -1322,7 +1551,25 @@
     const muni = Object.entries(land.municipalities).sort((a, b) => b[1].forest_loss_total_ha - a[1].forest_loss_total_ha);
     const totLoss = muni.reduce((x, [, m]) => x + m.forest_loss_total_ha, 0), lt = land.forest_loss_trend;
     const trendTxt = lt.p < 0.05 ? (lang === "pl" ? ` Tempo ${lt.slope_ha_per_decade > 0 ? "rośnie" : "spada"} istotnie (${fmtP(lt.p)}).` : ` The pace is ${lt.slope_ha_per_decade > 0 ? "rising" : "falling"} significantly (${fmtP(lt.p)}).`) : "";
+    const k = sar && sar.checks;
+    const radarD = k ? {
+      radar: { n: sar.s1.dates.length, ha: fmtInt(sar.s1.up3db_ha), wha: fmtInt(sar.s1.walls_ha || 0), ratio: k.wuia.ratio != null ? num(k.wuia.ratio, 1) : null, dec: num(k.wuia.share_decision * 100, 2), rest: num(k.wuia.share_rest * 100, 2),
+        sig: k.wuia.p != null && k.wuia.p < 0.05 && k.wuia.ratio >= 1.3, p: k.wuia.p != null ? fmtP(k.wuia.p) : "" },
+      wet: { share: num(k.wet.share_sig_study * 100, 0), flood: k.wet.share_sig_flood != null ? num(k.wet.share_sig_flood * 100, 0) : null, out: num(k.wet.share_sig_outside * 100, 0),
+        fsig: k.wet.p_flood_higher != null && k.wet.p_flood_higher < 0.05 },
+      ground: { med: sgn(k.egms.median, 0), n: fmtInt(k.egms.cells_le_minus5), min: sgn(k.egms.min, 0), share: num(k.egms.share_of_study * 100, 0) },
+      lband: { y0: sar.alos.years[0], y1: sar.alos.years[sar.alos.years.length - 1], nisar: !!sar.nisar,
+        n: sar.nisar ? sar.nisar.dates.length : 0, wd: sar.nisar && sar.nisar.checks.wetdry ? {
+          share: num(sar.nisar.checks.wetdry.share_study * 100, 0), flood: sar.nisar.checks.wetdry.share_flood != null ? num(sar.nisar.checks.wetdry.share_flood * 100, 0) : null,
+          out: num(sar.nisar.checks.wetdry.share_outside * 100, 0), ratio: sar.nisar.checks.wetdry.ratio != null ? num(sar.nisar.checks.wetdry.ratio, 1) : null,
+          sig: sar.nisar.checks.wetdry.p != null && sar.nisar.checks.wetdry.p < 0.05 && sar.nisar.checks.wetdry.ratio >= 1.2,
+          p: sar.nisar.checks.wetdry.p != null ? fmtP(sar.nisar.checks.wetdry.p) : "" } : null },
+      modelRadar: { ratio: num(k.model.ratio, 1), top: num(k.model.share_top5 * 100, 2), rest: num(k.model.share_rest * 100, 2), raw: k.model.ratio,
+        sig: k.model.p != null && k.model.p < 0.05 && k.model.ratio >= 1.3, p: k.model.p != null ? fmtP(k.model.p) : "",
+        wRatio: k.model_walls ? num(k.model_walls.ratio, 1) : null, wSig: !!(k.model_walls && k.model_walls.p < 0.05 && k.model_walls.ratio >= 1.3) },
+    } : {};
     return {
+      ...radarD,
       sprawl: { b1990: num(land.study_built_share_pct["1990"], 1), b2020: num(land.study_built_share_pct["2020"], 1), pozLoss: num(Math.abs(c.pop_change_pct_2000_2024), 0), top: big.map((a) => a.name).join(", ") },
       forecast: { hit: num(land.model.top_n_hit_rate * 100, 0), ha: fmtInt(land.model.demand_ha_per_5y) },
       prices: { pUp: num((P["2024"] / P["2015"] - 1) * 100, 0), wUp: num((Wg["2024"] / Wg["2015"] - 1) * 100, 0), r15: num(Wg["2015"] / P["2015"], 2), r24: num(Wg["2024"] / P["2024"], 2) },
@@ -1334,7 +1581,15 @@
   }
   const only = (...ks) => { Object.keys(state.lyr).forEach((k) => { state.lyr[k].on = ks.includes(k); }); };
   const fitAll = () => map.flyToBounds(borderLayer.getBounds(), { ...fitPad(), duration: 0.8 });
-  const FINDINGS = {
+  const showOnly = async (...ks) => { only(...ks); await Promise.all(ks.map(ensure)); };
+  const SAR_FINDINGS = {
+    radar: async () => { await showOnly("sarchange"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
+    wet: async () => { await showOnly("sarwet", "flood"); clearSelection(); fitAll(); },
+    ground: async () => { await showOnly("egms"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
+    lband: async () => { if (sar.nisar) { state.lyr.alos.y = 2026; await showOnly("alos", "nisarwet"); } else await showOnly("alos"); clearSelection(); fitAll(); renderDrawer(); },
+    modelRadar: async () => { await showOnly("built", "sarchange"); state.horizon = 10; setYear(2030); clearSelection(); map.flyTo(OLD_MARKET, 11, { duration: 0.8 }); },
+  };
+  const V1_FINDINGS = {
     sprawl: async () => { only("built"); await ensure("built"); setYear(2020); clearSelection(); fitAll(); },
     forecast: async () => { only("built"); await ensure("built"); state.horizon = 10; setYear(2035); fitAll(); },
     prices: async () => { only("built", "price"); await ensure("built"); setYear(2020); selectPoint(OLD_MARKET[0], OLD_MARKET[1], lang === "pl" ? "Stary Rynek, Poznań" : "Old Market, Poznań", { keep: true, zoom: 12 }); },
@@ -1343,18 +1598,25 @@
     days: async () => { only("day"); setYear(2020); clearSelection(); fitAll(); },
     station: async () => { only("night"); setYear(2020); selectPoint(LAWICA[0], LAWICA[1], "Poznań-Ławica (IMGW)", { keep: true, zoom: 12 }); },
   };
+  // v2: radar findings first, then the strongest history findings
+  const FIND = () => {
+    if (!sar) return V1_FINDINGS;
+    const F = SAR_FINDINGS, hist = { sprawl: V1_FINDINGS.sprawl, forecast: V1_FINDINGS.forecast, forest: V1_FINDINGS.forest };
+    // with NISAR pixels in, the NISAR finding leads (the challenge is about NISAR)
+    return sar.nisar ? { lband: F.lband, radar: F.radar, modelRadar: F.modelRadar, wet: F.wet, ground: F.ground, ...hist } : { ...F, ...hist };
+  };
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
     card.innerHTML = `<div class="collapse-head"><h2>${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold">${state.findingsOpen ? u.hide : u.show}</button></div>
       <p class="sub">${u.caseIntro}</p>
-      <ol class="findings">${Object.keys(FINDINGS).map((k, i) => { const x = t.f[k](d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
+      <ol class="findings">${Object.keys(FIND()).map((k, i) => { const x = t.f[k](d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
     $("#fold").addEventListener("click", () => { state.findingsOpen = !state.findingsOpen; renderFindings(); });
     card.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", async () => {
       state.finding = b.dataset.f;
-      await FINDINGS[state.finding]();
+      await FIND()[state.finding]();
       renderDrawer(); redraw();
       if (!state.sel) renderFindings();
     }));
@@ -1500,7 +1762,10 @@
     document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = u[el.dataset.i18nTitle]; el.setAttribute("aria-label", u[el.dataset.i18nTitle]); });
     document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", u[el.dataset.i18nAria] ?? t[el.dataset.i18nAria] ?? ""); });
     document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
-    $("#about-body").innerHTML = t.aboutHtml;
+    $("#about-body").innerHTML = t.aboutHtml + (sar && u.aboutSar ? u.aboutSar : "");
+    $("#radar-btn").hidden = !sar;
+    if (sar) $("#radar-body").innerHTML = u.radarHtml({ upHa: fmtInt(sar.s1.up3db_ha), wetShare: num(sar.checks.wet.share_sig_study * 100, 0),
+      bands: sar.nisar ? sar.nisar.checks.bands : null, fmt: (v) => num(v, 1) });
     stopPlay();
     renderDrawer(); renderTimeline(); renderLegend(); renderCard();
     if ($("#test-sheet").open) renderTest();
@@ -1521,15 +1786,21 @@
     $("#play").addEventListener("click", togglePlay);
     $("#test-close").addEventListener("click", () => $("#test-sheet").close());
     $("#about-close").addEventListener("click", () => $("#about-sheet").close());
+    $("#radar-btn").addEventListener("click", () => $("#radar-sheet").showModal());
+    $("#radar-close").addEventListener("click", () => $("#radar-sheet").close());
+    document.addEventListener("click", (e) => { if (e.target.closest("[data-radar-how]")) { e.preventDefault(); $("#radar-sheet").showModal(); } });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { redraw(); renderTimeline(); });
     window.addEventListener("resize", () => { map.invalidateSize(); renderTimeline(); });
   }
 
   async function main() {
-    const get = (f) => fetch(`data/${f}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
+    const get = (f) => fetch(`data/${f}?v=${DATA_V}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
     [study, gL, gN, areas, land, flood] = await Promise.all([get("study.json"), get("grid_lst.json"), get("grid_ndvi.json"), get("areas.geojson"), get("land/land.json"), get("podtopienia.geojson")]);
     NISAR_DATES = land.nisar_dates || [];
     state.lyr.nisar.i = Math.max(0, NISAR_DATES.length - 1);
+    // radar products (v2); without them the app falls back to the v1 layout
+    try { sar = await get("land/sar.json"); } catch (e) { sar = null; SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
+    if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
     gL.layers.night_mean = gL.layers.night_years.map((ys) => { const m = mean(ys.slice(0, 25)); return isFinite(m) ? m : null; });
     geo.L = buildGeometry(gL); geo.N = buildGeometry(gN);
     prepareHeatRanks();
@@ -1538,7 +1809,7 @@
     initSearch();
     wire();
     applyLang();
-    await ensure("built");
+    await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));
     redraw();
     PLACE_LAYERS().forEach((n) => loadGray(n).catch(() => {}));
     // open a shared place link: #52.40812,16.93350

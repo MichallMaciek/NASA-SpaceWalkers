@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Poznań Trend Detective</title>
-<meta name="description" content="Interactive map of how Poznań and 17 neighbouring municipalities changed from space: built-up growth 1975–2020 with a projection to 2035, forest loss, NISAR and Sentinel-1 radar, terrain, heat and greenness trends, and flat prices.">
-<meta property="og:title" content="Poznań Trend Detective: przegląd techniczny działki z kosmosu">
-<meta property="og:description" content="Wpisz adres lub obrysuj działkę: zabudowa 1975–2035, ryzyko zabudowy, wycinka, upał, podtopienia, radar NISAR i ceny za m². NASA Space Apps 2026.">
+<title>SARnik: radarowy przegląd terenu</title>
+<meta name="description" content="SARnik: a radar check-up for any piece of land around Poznań. NISAR and Sentinel-1 radar passes of 2026, how the ground reacts to wet weather, ground motion from InSAR, L-band history from ALOS, plus 50 years of building growth and a projection to 2035.">
+<meta property="og:title" content="SARnik: radarowy przegląd terenu przed zakupem">
+<meta property="og:description" content="Wpisz adres lub obrysuj działkę: co radar NISAR i Sentinel-1 widzi tu w 2026, czy grunt nasiąka wodą, czy osiada, ile tu zbudowano od 1975 i co prognoza mówi na 2035. NASA Space Apps 2026, Dancing with the SARs.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F1F0EB">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23F1F0EB%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%279%27 fill=%27%23F2A31B%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274.5%27 fill=%27%23E0332F%27/%3E%3Ccircle cx=%2724%27 cy=%278%27 r=%273%27 fill=%27%237357E8%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23F1F0EB%27/%3E%3Cpath d=%27M7 25a13 13 0 0 1 18-18%27 fill=%27none%27 stroke=%27%237357E8%27 stroke-width=%272.4%27 stroke-linecap=%27round%27/%3E%3Cpath d=%27M11 25a9 9 0 0 1 14-14%27 fill=%27none%27 stroke=%27%237357E8%27 stroke-width=%272.4%27 stroke-linecap=%27round%27 opacity=%27.6%27/%3E%3Ccircle cx=%2721%27 cy=%2721%27 r=%275%27 fill=%27%23F2A31B%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="styles.css?v=1794665275">
+<link rel="stylesheet" href="styles.css?v=1794677308">
 </head>
 <body>
 <div id="map" aria-label="Map"></div>
@@ -54,6 +54,9 @@
 <div class="topright">
   <button type="button" class="iconbtn card" id="menu-btn" aria-expanded="false" aria-controls="drawer" data-i18n-title="settings">
     <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13"/></svg>
+  </button>
+  <button type="button" class="iconbtn card" id="radar-btn" data-i18n-title="radarHow">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16a12 12 0 0 1 12-12"/><path d="M7 16a9 9 0 0 1 9-9" opacity=".7"/><path d="M10 16a6 6 0 0 1 6-6" opacity=".45"/><circle cx="15" cy="15" r="1.6"/></svg>
   </button>
   <button type="button" class="iconbtn card" id="theme-btn" data-i18n-title="themeToggle">
     <svg class="i-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 12.6A6.5 6.5 0 0 1 7.4 4.5a6.5 6.5 0 1 0 8.1 8.1z"/></svg>
@@ -129,6 +132,14 @@
   </div>
 </dialog>
 
+<dialog class="sheet" id="radar-sheet" aria-labelledby="radar-title">
+  <div class="sheet-head">
+    <h2 id="radar-title" data-i18n="radarHow">How radar sees the ground</h2>
+    <button type="button" class="x" id="radar-close" data-i18n-aria="close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+  </div>
+  <div class="sheet-body about radar-how" id="radar-body"></div>
+</dialog>
+
 <dialog class="sheet" id="about-sheet" aria-labelledby="about-title">
   <div class="sheet-head">
     <h2 id="about-title" data-i18n="about">About the data</h2>
@@ -142,7 +153,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="i18n.js?v=1794665275"></script>
-<script src="app.js?v=1794665275"></script>
+<script src="i18n.js?v=1794677308"></script>
+<script src="i18n_sar.js?v=1794677308"></script>
+<script src="app.js?v=1794677308"></script>
 </body>
 </html>
