@@ -456,3 +456,37 @@
   fp.ground = (d) => ({ t: "Czy ziemia pod Poznaniem osiada?", b: `Tam, gdzie satelity mierzą (${d.share}% obszaru, prawie cała zabudowa), typowy ruch gruntu to ${d.med} mm na rok, a ${d.n} ${plForm(d.n, "komórka osiada", "komórki osiadają", "komórek osiada")} o 5 mm na rok lub szybciej. Dane z lat 2016–2020.` });
   fe.ground = (d) => ({ t: "Is the ground under Poznań sinking?", b: `Where satellites measure (${d.share}% of the area, almost all built-up land), typical ground motion is ${d.med} mm a year, and ${d.n} cells sink by 5 mm a year or faster. Data from 2016–2020.` });
 })();
+
+/* ===== NISAR and OPERA products from the hand-downloaded zips (pipeline/build_from_zips.py) ===== */
+(() => {
+  const pl = window.I18N.pl.ui, en = window.I18N.en.ui;
+  Object.assign(pl.L, { nisarcoh: "NISAR: stabilność powierzchni", nisarsm: "NISAR: wilgotność gleby", dist: "Zaburzenia lasu z radaru (OPERA)" });
+  Object.assign(en.L, { nisarcoh: "NISAR: surface stability", nisarsm: "NISAR: soil moisture", dist: "Forest disturbance from radar (OPERA)" });
+  Object.assign(pl.Lsub, {
+    nisarcoh: "koherencja 12-dniowych par, orbita 158, VI–X 2026 (GUNW)",
+    nisarsm: "produkt NASA-ISRO SME2, 200 m, wersja wstępna",
+    dist: "NASA OPERA z Sentinel-1, styczeń–luty 2026, tylko lasy",
+  });
+  Object.assign(en.Lsub, {
+    nisarcoh: "coherence of 12-day pairs, track 158, Jun–Oct 2026 (GUNW)",
+    nisarsm: "NASA-ISRO SME2 product, 200 m, provisional",
+    dist: "NASA OPERA from Sentinel-1, Jan–Feb 2026, forests only",
+  });
+  Object.assign(pl.lg, {
+    nisarcoh: "Czy powierzchnia się zmienia (NISAR)", cohLow: "zmienia się", cohHigh: "stała",
+    cohNote: (n) => `Mediana z ${n} par przelotów co 12 dni. Pola, budowy i woda zmieniają się; budynki i drogi są stałe.`,
+    nisarsm: (d) => `Wilgotność gleby NISAR, ${d}`,
+    smNote: "Produkt wstępny, jeszcze nieskalibrowany. Woda i zabudowa bez wartości.",
+    dist: "Zaburzenia lasu z radaru, I–II 2026", distHi: "wysoka pewność", distLo: "niska pewność",
+    distNote: "Wycinka, wiatrołomy, ale też śnieg i mróz: sygnał do sprawdzenia.",
+  });
+  Object.assign(en.lg, {
+    nisarcoh: "Is the surface changing (NISAR)", cohLow: "changing", cohHigh: "stable",
+    cohNote: (n) => `Median of ${n} pairs of passes 12 days apart. Fields, building sites and water change; buildings and roads stay the same.`,
+    nisarsm: (d) => `NISAR soil moisture, ${d}`,
+    smNote: "Provisional product, not calibrated yet. No values on water or buildings.",
+    dist: "Forest disturbance from radar, Jan–Feb 2026", distHi: "high confidence", distLo: "low confidence",
+    distNote: "Felling or storm damage, but also snow and frost: a sign to check.",
+  });
+  pl.passDate = "Przelot"; en.passDate = "Pass";
+})();

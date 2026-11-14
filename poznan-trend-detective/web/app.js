@@ -38,6 +38,8 @@
     built: ["#FBE7B5", "#F6C25B", "#F2A31B", "#EE6B2D", "#E0332F"],
     price: ["#DCE6FD", "#9DB8F7", "#5B86F0", "#2F62E9", "#1B3FA8"],
     loss: ["#F6C25B", "#E5602A", "#B8261E"],
+    coh: ["#F2C35B", "#E7DCC0", "#8EA8C8", "#2F4F7F"],         // NISAR coherence: changing (warm) -> stable (deep blue)
+    dist: ["#E58BC4", "#B0157A"],                             // OPERA radar disturbance (low, high): magenta, apart from the orange Landsat forest loss
     radar: ["#3B3F45", "#7B8087", "#C9B98F", "#F2C14E", "#FFF1B8"],
     terrain: ["#BFE6E2", "#7FD0C9", "#2FB3AA", "#17A2A0", "#0E6F6D"],
     // radar (v2)
@@ -271,6 +273,10 @@
       egms: { on: false, op: 0.95, min: 2 },
       alos: { on: false, op: 0.85, y: 2021 },
       nisarwet: { on: false, op: 0.9, min: 2 },
+      // NISAR and OPERA products from the hand-downloaded zips (pipeline/build_from_zips.py); described in sar.json "zips"
+      nisarcoh: { on: false, op: 0.85 },
+      nisarsm: { on: false, op: 0.85, d: "0824" },
+      dist: { on: false, op: 0.95 },
       built: { on: true, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },
@@ -391,8 +397,10 @@
     document.body.appendChild(s);
   });
 
-  const LAND_KEYS =["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
-  const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
+  const LAND_KEYS =["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarsm", "nisarcoh", "nisarwet", "sarchange", "dist", "egms", "built"]; // draw order, bottom to top
+  const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet", "nisarcoh", "nisarsm", "dist"];
+  const ZIP_OF = { nisarcoh: "coh", nisarsm: "sme", dist: "dist" }; // layer -> its entry in sar.json "zips" (absent = not built)
+  const zipOk = (k) => !!(sar && sar.zips && sar.zips[ZIP_OF[k]]);
   // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
   const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
   const lbandNames = (y) => (y === 2026 ? ["nisar_hh_med", "nisar_hv_med"] : [`alos_hh_${y}`, `alos_hv_${y}`]);
@@ -422,8 +430,11 @@
     egms: () => ["sar_egms", "study"],
     alos: () => [...lbandNames(state.lyr.alos.y), "study"],
     nisarwet: () => ["nisar_wetdry", "study"],
+    nisarcoh: () => ["nisar_coh", "study"],
+    nisarsm: () => [state.lyr.nisarsm.d === "0625" ? "nisar_sm_0625" : "nisar_sm_0824", "study"],
+    dist: () => ["dist_forest", "study"],
   };
-  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
+  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) || (ZIP_OF[k] && !zipOk(k)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
     `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
   // decoders (sar.json "decode")
@@ -876,6 +887,27 @@
         const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3;
         put(i, [L[j], L[j + 1], L[j + 2]], 140 + t * 100);
       }
+    } else if (k === "nisarcoh") {
+      // NISAR coherence, median of the 12-day pairs: low = the surface changed between passes (fields, earthworks, water,
+      // vegetation), high = it stayed the same (buildings, roads, bare hard ground)
+      const a = L8.nisar_coh, L = lutFor(RAMPS.coh);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const t = clamp((a[i] / 250 - 0.2) / 0.6, 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 200);
+      }
+    } else if (k === "nisarsm") {
+      // NISAR L3 soil moisture (provisional, not calibrated yet), m3/m3
+      const a = L8[NEEDS.nisarsm()[0]], L = lutFor(RAMPS.wet);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const t = clamp((a[i] / 500 - 0.1) / 0.3, 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 120 + t * 110);
+      }
+    } else if (k === "dist") {
+      // OPERA vegetation disturbance from Sentinel-1, Jan-Feb 2026, on land that was forest in 2000
+      const a = L8.dist_forest, hi = hexRgb(RAMPS.dist[1]), lo = hexRgb(RAMPS.dist[0]);
+      for (let i = 0; i < n; i++) if (st[i] && a[i]) put(i, a[i] >= 150 ? hi : lo, a[i] >= 150 ? 235 : 190);
     } else if (k === "sarwet") {
       const a = L8.sar_wet, rc = sar.s1.r_crit, L = lutFor(RAMPS.wet);
       for (let i = 0; i < n; i++) {
@@ -1082,6 +1114,12 @@
     if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
+    if (sar && sar.zips) {
+      const z = sar.zips, lz = u.lg;
+      if (L_.nisarcoh.on && z.coh) blocks.push(`<div class="lt">${lz.nisarcoh}</div>${ramp_(RAMPS.coh, lz.cohLow, lz.cohHigh)}<div class="lrow">${lz.cohNote(z.coh.pairs.length)}</div>`);
+      if (L_.nisarsm.on && z.sme) blocks.push(`<div class="lt">${lz.nisarsm(L_.nisarsm.d === "0625" ? "25.06" : "24.08")}</div>${ramp_(RAMPS.wet, "0,10", "0,40 m³/m³")}<div class="lrow">${lz.smNote}</div>`);
+      if (L_.dist.on && z.dist) blocks.push(`<div class="lt">${lz.dist}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[1]}"></span>${lz.distHi}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[0]}"></span>${lz.distLo}</div><div class="lrow">${lz.distNote}</div>`);
+    }
     if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
     if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));
     if (L_.activity.on) blocks.push(`<div class="lt">${u.lg.activity}</div><div class="lrow"><span class="sw" style="background:${css("--c-terrain")}"></span>${u.lg.brighter}</div><div class="lrow"><span class="sw" style="background:#7A6FB0"></span>${u.lg.darker}</div>`);
@@ -1103,6 +1141,7 @@
     return `<span class="sar-tag" role="img" aria-label="${t}" title="${t}">${SAR_ICON(lvl === "part")}</span>`;
   }
   const LENS_SAR = { radar: "yes", build: "yes", water: "part", ground: "yes", trees: "no", history: "no" };
+  const lensSar = (k) => (k === "trees" && sar && sar.zips && sar.zips.dist ? "part" : LENS_SAR[k]); // OPERA (Sentinel-1) in the trees view
   const FIND_SAR = { lband: "yes", radar: "yes", wet: "yes", ground: "yes", modelRadar: "part" };
 
   /* ================= lenses (v3): one plain question per map view ================= */
@@ -1112,7 +1151,7 @@
       { k: "build", layers: ["sarchange"] },
       { k: "water", layers: sar && sar.nisar ? ["nisarwet", "flood"] : ["sarwet", "flood"] },
       { k: "ground", layers: ["egms"] },
-      { k: "trees", layers: ["forest"] },
+      { k: "trees", layers: sar && sar.zips && sar.zips.dist ? ["forest", "dist"] : ["forest"] },
       { k: "history", layers: ["built"] },
     ];
     return sar ? all : all.filter((l) => l.k === "trees" || l.k === "history");
@@ -1174,7 +1213,7 @@
     const box = $("#lenses"), u = U();
     if (!box) return;
     keepFocus(box, () => {
-      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${LENS_SAR[l.k] === "no" ? "" : ` (${LENS_SAR[l.k] === "yes" ? u.sarYes : u.sarPart})`}">${LENS_SAR[l.k] === "no" ? "" : SAR_ICON(LENS_SAR[l.k] === "part")}${u.lens[l.k]}</button>`).join("");
+      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${lensSar(l.k) === "no" ? "" : ` (${lensSar(l.k) === "yes" ? u.sarYes : u.sarPart})`}">${lensSar(l.k) === "no" ? "" : SAR_ICON(lensSar(l.k) === "part")}${u.lens[l.k]}</button>`).join("");
     });
     box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickLens(b.dataset.lens)));
     // narrow screens: the bar scrolls sideways; a fade on the right edge shows that more views follow
@@ -1191,7 +1230,7 @@
   }
 
   /* ================= drawer (map settings) ================= */
-  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", wuia: "--c-built", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
+  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", nisarcoh: "--c-nisar", nisarsm: "--c-nisar", dist: "--c-forest", wuia: "--c-built", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
   function rangeHTML(id, min, max, step, lo, hi, cls = "") {
     const a = ((lo - min) / (max - min)) * 100, b = hi == null ? a : ((hi - min) / (max - min)) * 100;
     return `<div class="rng ${cls}" data-rng="${id}"><div class="rail"></div><div class="fill" style="left:${hi == null ? 0 : a}%;width:${hi == null ? a : b - a}%"></div>
@@ -1222,6 +1261,8 @@
         ${layerRow("sarwet")}
         ${layerRow("sarwater", field(u.minWater, `${L_.sarwater.min}%`, rangeHTML("swa", 10, 90, 5, L_.sarwater.min)))}
         ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
+        ${zipOk("nisarsm") ? layerRow("nisarsm", `<div class="field"><div class="field-head"><span class="fl">${u.passDate}</span></div><div class="seg" role="group">${[["0625", "25.06"], ["0824", "24.08"]].map(([d, t]) => `<button type="button" data-smd="${d}" aria-pressed="${L_.nisarsm.d === d}">${t}</button>`).join("")}</div></div>`) : ""}
+        ${zipOk("nisarcoh") ? layerRow("nisarcoh") : ""}
         ${layerRow("nisar", nis)}
       </div></details>
       <details class="sec" data-sec="ground"><summary>${u.secGround}</summary><div class="sec-body">
@@ -1234,7 +1275,7 @@
       </div></details>`;
     const full = `
       <details class="sec" data-sec="history" open><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
-        ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${layerRow("price")}
+        ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${sar && zipOk("dist") ? layerRow("dist") : ""}${layerRow("price")}
       </div></details>
       ${radarSecs}
       <details class="sec" data-sec="pred" open><summary>${u.secPred}</summary><div class="sec-body">
@@ -1250,7 +1291,7 @@
     // v3: plain choices first (one map question at a time, background, expert switch); every layer and slider below
     const simpleTop = `
       <section class="simple-sec"><h3 class="sh">${u.showOnMap}</h3>
-        <div class="lens-list">${LENSES().map((l) => `<button type="button" class="lens-item" data-lens="${l.k}" aria-pressed="${state.lens === l.k}"><b>${u.lens[l.k]}${sarMark(LENS_SAR[l.k])}</b><span>${u.lensTip[l.k]}</span></button>`).join("")}</div></section>
+        <div class="lens-list">${LENSES().map((l) => `<button type="button" class="lens-item" data-lens="${l.k}" aria-pressed="${state.lens === l.k}"><b>${u.lens[l.k]}${sarMark(lensSar(l.k))}</b><span>${u.lensTip[l.k]}</span></button>`).join("")}</div></section>
       <section class="simple-sec"><h3 class="sh">${u.baseT}</h3>
         <div class="basegrid">${["map", "orto", "poz2025", "poz1940"].map((k) => `<button type="button" data-base="${k}" aria-pressed="${state.base === k}">${T().B[k] || u.baseMap}</button>`).join("")}</div></section>
       <div class="checkrow expert-row"><label for="expert-sw"><b>${u.expertT}</b><small>${u.expertSub}</small></label><span class="switch"><input type="checkbox" id="expert-sw" ${state.expert ? "checked" : ""}><span></span></span></div>`;
@@ -1325,6 +1366,12 @@
       body.querySelectorAll("[data-hz]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       setYear(state.yearF, { now: true }); // clamps the year to the new horizon and keeps slider, label and bar in step
       if (state.sel && state.sel.ready) renderCard();
+    }));
+    body.querySelectorAll("[data-smd]").forEach((b) => b.addEventListener("click", async () => {
+      state.lyr.nisarsm.d = b.dataset.smd;
+      body.querySelectorAll("[data-smd]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (state.lyr.nisarsm.on) await ensure("nisarsm");
+      redraw();
     }));
     body.querySelectorAll("[data-base]").forEach((b) => b.addEventListener("click", () => {
       setBase(b.dataset.base);

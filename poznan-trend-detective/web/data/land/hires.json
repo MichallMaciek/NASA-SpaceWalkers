@@ -14,6 +14,8 @@
   "alos_hv_2019",
   "alos_hv_2020",
   "alos_hv_2021",
+  "nisar_hh_med",
+  "nisar_hv_med",
   "sar_change",
   "sar_dratio"
  ],
@@ -64,5 +66,24 @@
   "sar_change": 4,
   "sar_dratio": "two levels: 200 = wall (ratio change >= 1.5 dB), 100 = no wall",
   "why": "grey levels rounded before PNG compression (4 levels = 0.67 dB for dB layers, 0.31 dB for change): display only"
+ },
+ "nisar": {
+  "source": "NISAR L2 GCOV gamma0, track 057 ascending, provisional (P05023), dual-pol, median of the passes",
+  "dates": [
+   "20260618",
+   "20260630",
+   "20260712",
+   "20260724",
+   "20260817",
+   "20260910",
+   "20260922",
+   "20261004",
+   "20261016"
+  ],
+  "offset_db_to_track158": {
+   "hh": 0.11,
+   "hv": 0.3
+  },
+  "why": "the 120 m layer is track 158; the sharp one is shifted by this offset so both use the same colours"
  }
 }
