@@ -287,6 +287,7 @@
     findingsOpen: innerWidth >= 760, finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
     lens: "radar",
+    ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];
   let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
@@ -295,6 +296,10 @@
   // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
   const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
   const lbandNames = (y) => (y === 2026 ? ["nisar_hh_med", "nisar_hv_med"] : [`alos_hh_${y}`, `alos_hv_${y}`]);
+  // radar time line (v3): in the radar views the timeline walks through the years that have radar data
+  const RADAR_LENSES = ["radar", "build", "water", "ground"];
+  const RY = () => (sar ? sar.alos.years.concat([2026]) : []);
+  const radarTL = () => !!sar && RADAR_LENSES.includes(state.lens);
   // keep the area clear of the floating cards: side card on the left (desktop) or at the bottom (phone)
   const fitPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 130] } : { paddingTopLeft: [420, 80], paddingBottomRight: [80, 150] });
   const selPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, Math.round(innerHeight * 0.42 + 120)] } : fitPad());
@@ -528,7 +533,9 @@
   // radar colour composite, shared by the map and its legend so they always agree.
   // Stretches from the 2nd-98th percentiles in the study area: 120 m cells mix surfaces, so contrast is narrower
   // than in single 10-20 m pixels. R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio.
-  const RGB_STRETCH = { s1rgb: [-13, -3, -19, -10, 4, 10], alos: [-16, -1, -26, -10, 4, 12] };
+  // NISAR (provisional) is about 3 dB brighter than the ALOS-2 mosaics, so it gets its own stretch, fitted so that the
+  // same share of the study area falls below each bound as for ALOS-2 2021 (percentile matching): classes stay comparable
+  const RGB_STRETCH = { s1rgb: [-13, -3, -19, -10, 4, 10], alos: [-16, -1, -26, -10, 4, 12], nisar: [-11.8, 2.2, -19.3, -9, 4.7, 9.8] };
   function radarRgb(k, co, cx) {
     const [c0, c1, x0, x1, r0, r1] = RGB_STRETCH[k], sc = (v, a, b) => clamp(((v - a) / (b - a)) * 255, 0, 255) | 0;
     return [sc(co, c0, c1), sc(cx, x0, x1), sc(co - cx, r0, r1)];
@@ -537,6 +544,7 @@
   const RADAR_LEGEND = {
     s1rgb: [["rgbBuilt", -5.8, -12.3], ["rgbStrong", -3, -13], ["rgbVeg", -8.2, -13.3], ["rgbBare", -9.5, -17], ["rgbWater", -20, -27]],
     alos: [["rgbBuilt", -6.8, -13.7], ["rgbStrong", -2, -12], ["rgbVeg", -6.3, -11.5], ["rgbBare", -13.8, -22.5], ["rgbWater", -24, -30]],
+    nisar: [["rgbBuilt", -4.5, -11.1], ["rgbStrong", 5.3, -10.3], ["rgbVeg", -4.7, -10.2], ["rgbBare", -9.9, -16.7], ["rgbWater", -15.5, -19.8]],
   };
 
   /* ================= rendering of the data layers ================= */
@@ -602,9 +610,10 @@
     } else if (k === "s1rgb" || k === "alos") {
       // classic radar colour composite: R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio
       const [hn, vn] = k === "alos" ? lbandNames(s.y) : ["sar_vv_med", "sar_vh_med"], co = L8[hn], cx = L8[vn];
+      const sk = k === "alos" && s.y === 2026 ? "nisar" : k;
       for (let i = 0; i < n; i++) {
         if (!st[i] || !co[i] || !cx[i]) continue;
-        const c = radarRgb(k, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
+        const c = radarRgb(sk, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
         px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
       }
     } else if (k === "sarchange") {
@@ -710,6 +719,25 @@
   function renderTimeline() {
     document.body.classList.remove("no-tl"); // the timeline stays in every view (team decision, 14.11)
     const u = U(), inp = $("#year"), end = horizonEnd();
+    $("#timeline").classList.toggle("radar", radarTL());
+    if (radarTL()) {
+      const ys = RY(), a = ys[0], b = ys[ys.length - 1], arch = ys[ys.length - 2], rp = (y) => ((y - a) / (b - a)) * 100;
+      inp.min = a; inp.max = b; inp.step = 1;
+      if (document.activeElement !== inp || playing) inp.value = state.ryear;
+      $("#tl-fill").style.width = `${rp(Math.min(state.ryear, arch))}%`;
+      $("#tl-future").style.left = `${rp(arch)}%`; $("#tl-future").innerHTML = "";
+      $("#tl-now").style.left = "100%";
+      $("#tl-real").textContent = u.radarYears;
+      $("#tl-pred").textContent = u.noRadarData; $("#tl-pred").style.left = `${rp(arch) + 1}%`;
+      $("#tl-year").textContent = state.ryear;
+      $("#tl-kind").textContent = state.ryear < 2026 ? u.tlKind.archive : u.tlKind[state.lens];
+      $("#timeline").classList.remove("future");
+      const ticks = innerWidth < 760 ? [a, arch] : ys.slice(0, -1).filter((y, i, arr) => i % 2 === 0 || i === arr.length - 1);
+      $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}${y === state.ryear ? " now" : ""}" style="left:${rp(y)}%">${y}</span>`).join("") +
+        `<span class="last${state.ryear === b ? " now" : ""}" style="left:100%">${b}</span>`;
+      return;
+    }
+    inp.step = 0.1;
     inp.max = end; inp.min = TL_MIN;
     if (state.year > end) state.year = end;
     if (document.activeElement !== inp || playing) inp.value = state.yearF;
@@ -731,7 +759,7 @@
     $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}" style="left:${pos(y)}%">${y}</span>`).join("") +
       `<span class="now" style="left:${nowP}%">${nowTxt}</span>${gap < 64 ? "" : `<span class="last" style="left:100%">${end}</span>`}`;
   }
-  let cardT = null, playing = false, playRaf = 0, playLast = 0;
+  let cardT = null, playing = false, playRaf = 0, playLast = 0, playTimer = 0;
   function setYear(y, opts = {}) {
     state.yearF = clamp(y, TL_MIN, horizonEnd());
     const prev = state.year;
@@ -746,11 +774,28 @@
   }
   const PLAY_SPEED = 7; // years per second: 1975 -> 2035 in about 9 s
   function stopPlay() {
-    playing = false; cancelAnimationFrame(playRaf);
+    playing = false; cancelAnimationFrame(playRaf); clearTimeout(playTimer);
     $("#play").classList.remove("on"); $("#play").setAttribute("aria-label", U().play);
   }
   function togglePlay() {
     if (playing) { stopPlay(); return; }
+    if (radarTL()) { // radar views: one radar year after another
+      const ys = RY();
+      let i = ys.indexOf(state.ryear);
+      if (i >= ys.length - 1) i = -1;
+      playing = true;
+      $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
+      const tick = async () => {
+        if (!playing) return;
+        i += 1;
+        await setRYear(ys[i]);
+        if (!playing) return;
+        if (i >= ys.length - 1) { stopPlay(); return; }
+        playTimer = setTimeout(tick, 900);
+      };
+      tick();
+      return;
+    }
     if (state.yearF >= horizonEnd() - 0.01) setYear(TL_MIN);
     playing = true; playLast = performance.now();
     $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
@@ -779,8 +824,8 @@
       if (L_.sarwater.on) blocks.push(`<div class="lt">${lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
       if (L_.egms.on) blocks.push(`<div class="lt">${lg.egms}</div>${sw(RAMPS.sink[2], lg.sinks)}${sw(RAMPS.cool[2], lg.rises)}`);
       if (L_.s1rgb.on || L_.alos.on) {
-        const kk = L_.alos.on && !L_.s1rgb.on ? "alos" : "s1rgb";
-        blocks.push(`<div class="lt">${kk === "alos" ? (L_.alos.y === 2026 ? lg.nisarL : lg.alos(L_.alos.y)) : lg.s1rgb}</div>` +
+        const kk = L_.alos.on && !L_.s1rgb.on ? (L_.alos.y === 2026 ? "nisar" : "alos") : "s1rgb";
+        blocks.push(`<div class="lt">${kk === "nisar" ? lg.nisarL : kk === "alos" ? lg.alos(L_.alos.y) : lg.s1rgb}</div>` +
           RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
       }
     }
@@ -812,7 +857,7 @@
   /* ================= lenses (v3): one plain question per map view ================= */
   const LENSES = () => {
     const all = [
-      { k: "radar", layers: ["s1rgb"] },
+      { k: "radar", layers: sar && sar.nisar ? ["alos"] : ["s1rgb"] }, // L-band: ALOS-2 2015-2021, then NISAR 2026
       { k: "build", layers: ["sarchange"] },
       { k: "water", layers: sar && sar.nisar ? ["nisarwet", "flood"] : ["sarwet", "flood"] },
       { k: "ground", layers: ["egms"] },
@@ -821,14 +866,34 @@
     ];
     return sar ? all : all.filter((l) => l.k === "trees" || l.k === "history");
   };
-  async function setLens(k) {
-    const lens = LENSES().find((l) => l.k === k);
+  // past radar years show the L-band archive (ALOS-2); 2026 shows each view's own radar product
+  const lensLayers = (l) => (sar && RADAR_LENSES.includes(l.k) && state.ryear < 2026 ? ["alos"] : l.layers);
+  async function applyLens() {
+    const lens = LENSES().find((l) => l.k === state.lens);
     if (!lens) return;
+    const layers = lensLayers(lens);
+    if (layers.includes("alos")) state.lyr.alos.y = state.ryear;
+    Object.keys(state.lyr).forEach((key) => { state.lyr[key].on = layers.includes(key); });
+    await Promise.all(layers.map(ensure));
+  }
+  async function setLens(k) {
+    if (!LENSES().some((l) => l.k === k)) return;
+    stopPlay();
     state.lens = k;
-    Object.keys(state.lyr).forEach((key) => { state.lyr[key].on = lens.layers.includes(key); });
-    await Promise.all(lens.layers.map(ensure));
+    await applyLens();
     if (k === "trees") setYear(2024); // forest loss up to the latest year
-    renderLenses(); renderDrawer(); renderTimeline(); redraw();
+    renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
+  }
+  // moving right picks the next year with data, moving left the previous one (keyboard arrows cross the 2022-2025 gap)
+  async function setRYear(y) {
+    const ys = RY(), cur = state.ryear;
+    const next = y >= cur ? (ys.find((v) => v >= y) ?? ys[ys.length - 1]) : ([...ys].reverse().find((v) => v <= y) ?? ys[0]);
+    if (next === cur) { renderTimeline(); return; }
+    state.ryear = next;
+    renderTimeline();
+    await applyLens();
+    if (!$("#drawer").hidden) renderDrawer();
+    renderLegend(); redraw();
   }
   function renderLenses() {
     const box = $("#lenses"), u = U();
@@ -933,7 +998,7 @@
       cb.closest(".lyr").classList.toggle("off", !cb.checked);
       if (cb.checked) await ensure(k);
       // a lens stays highlighted only while the map shows exactly its layers
-      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => state.lyr[key].on === l.layers.includes(key)));
+      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => state.lyr[key].on === lensLayers(l).includes(key)));
       state.lens = match ? match.k : null;
       renderLenses(); renderTimeline();
       body.querySelectorAll(".lens-item").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === state.lens)));
@@ -1752,6 +1817,7 @@
     $("#fold").addEventListener("click", () => { state.findingsOpen = !state.findingsOpen; renderFindings(); });
     card.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", async () => {
       state.finding = b.dataset.f;
+      state.ryear = 2026; // findings show the current radar data
       await FIND()[state.finding]();
       renderLenses(); renderDrawer(); renderTimeline(); redraw();
       if (!state.sel) renderFindings();
@@ -1917,8 +1983,11 @@
     $("#drawer-close").addEventListener("click", () => openDrawer(false));
     $("#zoom-in").addEventListener("click", () => map.zoomIn());
     $("#zoom-out").addEventListener("click", () => map.zoomOut());
-    $("#year").addEventListener("input", (e) => { stopPlay(); setYear(+e.target.value); });
-    $("#year").addEventListener("change", (e) => setYear(+e.target.value, { now: true }));
+    $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value); else setYear(+e.target.value); });
+    $("#year").addEventListener("change", (e) => {
+      if (radarTL()) setRYear(+e.target.value).then(() => { e.target.value = state.ryear; });
+      else setYear(+e.target.value, { now: true });
+    });
     $("#play").addEventListener("click", togglePlay);
     $("#test-close").addEventListener("click", () => $("#test-sheet").close());
     $("#about-close").addEventListener("click", () => $("#about-sheet").close());
@@ -1944,6 +2013,7 @@
     initDraw();
     initSearch();
     wire();
+    if (sar) await applyLens(); // start on the radar view: NISAR 2026 at the end of the L-band time line
     document.body.classList.toggle("expert", state.expert);
     applyLang();
     await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));

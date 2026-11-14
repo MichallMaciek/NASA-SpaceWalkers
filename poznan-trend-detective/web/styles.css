@@ -546,3 +546,8 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
 .pl-h.is-sar { color: var(--ink); }
 .verdict + .pl-h { margin-top: 12px; }
 .verdict { border-bottom: 0; padding-bottom: 0; }
+
+/* radar time line in the radar views: years with data, a dashed gap where there is none */
+.timeline.radar .tl-future { background: repeating-linear-gradient(90deg, var(--ink-3) 0 4px, transparent 4px 9px); opacity: .7; }
+.timeline.radar .tl-labels .tl-pred { color: var(--ink-3); }
+.timeline.radar .tl-kind { color: var(--ink-2); }
