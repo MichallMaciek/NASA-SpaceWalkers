@@ -12,7 +12,7 @@ for land: search an address or draw a plot around Poznań, and radar tells you w
 - **What happened before**: L-band history from ALOS-2 (2015–2021), 50 years of building growth from Landsat
   (GHSL) and a projection of where the city grows next, tested on years the model never saw.
 
-Live app: <https://poznan-trend-detective.web.app> (v1) · v2 preview: see the release notes of branch `v2`.
+Live app: <https://poznan-trend-detective.web.app> (v1, history and projection). SARnik v2 preview: <https://poznan-trend-detective--v2-v4vqg11d.web.app>.
 
 ## Why radar
 
@@ -39,7 +39,9 @@ The app explains this in "How radar sees the ground" (radar button, top right).
 | Water seen by radar | same | share of passes with VV < −17 dB |
 | Ground motion | EGMS 2016–2020 vertical (Copernicus), via PIG-PIB | mm/year per cell |
 | L-band history | ALOS-2 PALSAR-2 yearly mosaics 2015–2021 (JAXA) | HH, HV, HH/HV composite; HV change |
-| NISAR | NISAR GCOV (NASA-ISRO), 38 pass days since 18 June 2026 | GIBS mosaics in the app; GCOV pixels via `pipeline/fetch_nisar.py` |
+| NISAR L-band 2026 | NISAR GCOV (NASA-ISRO), HH + HV, 20 m, track 158 ascending, provisional release, 25 Jun – 11 Oct 2026 | Poznań window read from each HDF5 file (range requests), power-averaged to 120 m; median HH/HV/ratio composite as the last step of the L-band time line |
+| Wet minus dry (NISAR) | NISAR HH on 25 Jun (soil wetness 0.09, no rain) and 24 Aug (0.30, 23.5 mm in 3 days) | HH difference on open land; checked against PIG-PIB groundwater-flood areas |
+| L-band next to C-band | NISAR HH/HV and Sentinel-1 VV/VH medians | built-up land, forest and open land compared in “How radar sees the ground” |
 | History and projection | JRC GHSL 1975–2020, Hansen GFC, Copernicus DEM, OSM roads | logistic land-change model, trained 2005→2015, tested 2015→2020 |
 
 All radar layers sit on the same 120 m grid as the rest of the app. Linear power is averaged before conversion to dB.
@@ -76,11 +78,12 @@ NISAR GCOV pixels need a free NASA Earthdata account (put it in `~/.netrc`), the
 - A building permit is not a building site; radar sees walls and earthworks, not paperwork.
 - The radar series covers June–November 2026, so seasonal farming changes mix with building; the change layer says
   "brighter" or "darker", and the card explains the likely causes.
-- NISAR pixel analysis waits for an Earthdata login; until then NISAR is shown as NASA GIBS mosaics with pass dates.
+- NISAR data are the provisional release of its first months (June–October 2026, one track); calibration may still change, and we do not mix versions.
+- Five months of NISAR cannot show subsidence or a full wetland cycle; those are future work once a year or more of passes exists.
 
 ## Data sources and licences
 
-NASA-ISRO NISAR (ASF DAAC, NASA GIBS), NASA POWER, NASA MODIS (LP DAAC via Microsoft Planetary Computer),
+NASA-ISRO NISAR GCOV (ASF DAAC, read with earthaccess; NASA GIBS), NASA POWER, NASA MODIS (LP DAAC via Microsoft Planetary Computer),
 Landsat (via GHSL and Global Forest Change). Partners: Copernicus Sentinel-1 RTC and DEM GLO-30 (Planetary Computer),
 EGMS (Copernicus Land Monitoring Service, via PIG-PIB), JAXA ALOS-2 PALSAR-2 mosaics, JRC GHSL, Hansen/UMD GFC,
 IMGW-PIB, GUS BDL, PIG-PIB groundwater-flood areas, GEOPOZ (Poznań planning decisions, orthophotos), GUGiK Geoportal,
