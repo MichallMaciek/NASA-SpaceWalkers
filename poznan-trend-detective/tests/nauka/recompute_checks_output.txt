@@ -1,0 +1,367 @@
+grid 956 898 study cells 402502 city cells 48810 flood cells in study 8115
+ha per cell at grid centre 0.536 (nominal 120 m x 120 m would be 1.44)
+selected decisions (nowa budowa & decyzja & Jun-Aug): 461 {'Decyzja o warunkach zabudowy': 160, 'Decyzja o pozwoleniu na budowę i rozbiórkę': 125, 'Zgłoszenie z projektem': 138, 'Decyzja o ustaleniu lokalizacji inwestycji celu publicznego': 38}
+   of these, decisions whose plot covers no cell centre (dropped by the centre rule): 224
+
+== s1 area
+   up3db_ha               published=       693  ours=       713  DIFFER
+   walls_ha               published=       358  ours=       364  AGREE
+   (cells: up 1329, walls 678; nominal 1.44 ha cells would give 1913 / 976 ha)
+   cells outside study with change data: 455986
+
+== checks.wuia (centre rule)
+   cells                  published=       766  ours=       766  AGREE
+   hits                   published=        12  ours=        12  AGREE
+   share_a                published=    0.0157  ours=    0.0157  AGREE
+   share_b                published=    0.0035  ours=    0.0035  AGREE
+   ratio                  published=      4.46  ours=      4.43  AGREE
+   p                      published=       0.0  ours=       0.0  AGREE
+
+== checks.wuia_walls (centre rule)
+   cells                  published=       766  ours=       766  AGREE
+   hits                   published=         3  ours=         3  AGREE
+   share_a                published=    0.0039  ours=    0.0039  AGREE
+   share_b                published=    0.0024  ours=    0.0024  AGREE
+   ratio                  published=      1.63  ours=      1.63  AGREE
+   p                      published=    0.2811  ours=    0.2811  AGREE
+
+== variant: wuia, all-touched rule
+   cells                  published=       766  ours=      2647  DIFFER
+   hits                   published=        12  ours=        27  DIFFER
+   share_a                published=    0.0157  ours=    0.0102  DIFFER
+   share_b                published=    0.0035  ours=    0.0033  AGREE
+   ratio                  published=      4.46  ours=      3.13  DIFFER
+   p                      published=       0.0  ours=       0.0  AGREE
+
+== variant: wuia, only building permits + notifications (no WZ / lokalizacja)
+   cells                  published=      None  ours=       445  
+   hits                   published=      None  ours=        12  
+   share_a                published=      None  ours=     0.027  
+   share_b                published=      None  ours=    0.0035  
+   ratio                  published=      None  ours=      7.63  
+   p                      published=      None  ours=       0.0  
+
+== variant: wuia, decisions of all dates Jun-Nov
+   cells                  published=      None  ours=      1289  
+   hits                   published=      None  ours=        28  
+   share_a                published=      None  ours=    0.0217  
+   share_b                published=      None  ours=    0.0035  
+   ratio                  published=      None  ours=      6.15  
+   p                      published=      None  ours=       0.0  
+
+== variant: wuia, reference = rest of city incl. other cases
+   cells                  published=      None  ours=       766  
+   hits                   published=      None  ours=        12  
+   share_a                published=      None  ours=    0.0157  
+   share_b                published=      None  ours=    0.0042  
+   ratio                  published=      None  ours=      3.71  
+   p                      published=      None  ours=    0.0001  
+   hits in A form 4 connected clusters, from 4 distinct decisions
+     - 2026-06-01 Decyzja o pozwoleniu na budowę i rozbiór | Zmiana pozwolenia na budowę nr 1130/2022, sprawa UA-VII.6740.1138.2022
+     - 2026-07-05 Decyzja o pozwoleniu na budowę i rozbiór | Pozwolenie na budowę budynku mieszkalnego jednorodzinnego wolnostojące
+     - 2026-07-13 Decyzja o pozwoleniu na budowę i rozbiór | Pozwolenie na budowę ekranu akustycznego
+     - 2026-08-19 Decyzja o pozwoleniu na budowę i rozbiór | Pozwolenie na budowę obiektu stacji uzdatniania wody wraz ze zbiorniki
+   decision sites (connected groups of A cells): 213, of which with a hit: 4
+   spatial placebo (2986 random shifts of the decision mask, +-60 cells): share >= 3 dB median 0.0035, 95th pct 0.0113, 99th pct 0.0164; P(null >= observed 0.0157) = 0.0124
+   site-level: expected sites with a hit if cells were independent = 2.65 of 213; observed 4; Poisson P(X>=4) = 0.275
+   area of the 12 hit cells: 6.4 ha
+
+== checks.model (prob_2030, top = >= 95th percentile)
+   cells                  published=     17557  ours=     17566  AGREE
+   hits                   published=        99  ours=       101  DIFFER
+   share_a                published=    0.0056  ours=    0.0057  AGREE
+   share_b                published=    0.0026  ours=    0.0027  AGREE
+   ratio                  published=      2.13  ours=      2.09  AGREE
+   p                      published=       0.0  ours=       0.0  AGREE
+
+== checks.model_walls (prob_2030)
+   cells                  published=     17557  ours=     17566  AGREE
+   hits                   published=        77  ours=        78  AGREE
+   share_a                published=    0.0044  ours=    0.0044  AGREE
+   share_b                published=     0.001  ours=    0.0011  AGREE
+   ratio                  published=       4.3  ours=      4.21  DIFFER
+   p                      published=       0.0  ours=       0.0  AGREE
+   candidates 350487, threshold prob 0.0104, top share 0.0501 (ties at the cutoff: 371 cells)
+   built_2025 share of hit cells in top: mean 0.098; hits with built_2025>0.05: 101
+   built_2020 share in top cells: median 0.102; in rest: median 0.000
+
+== checks.model (prob_2025, top = >= 95th percentile)
+   cells                  published=      None  ours=     17559  
+   hits                   published=      None  ours=       101  
+   share_a                published=      None  ours=    0.0058  
+   share_b                published=      None  ours=    0.0027  
+   ratio                  published=      None  ours=       2.1  
+   p                      published=      None  ours=       0.0  
+
+== checks.model_walls (prob_2025)
+   cells                  published=      None  ours=     17559  
+   hits                   published=      None  ours=        78  
+   share_a                published=      None  ours=    0.0044  
+   share_b                published=      None  ours=    0.0011  
+   ratio                  published=      None  ours=      4.21  
+   p                      published=      None  ours=       0.0  
+   candidates 350487, threshold prob 0.0104, top share 0.0501 (ties at the cutoff: 368 cells)
+   built_2025 share of hit cells in top: mean 0.098; hits with built_2025>0.05: 101
+   built_2020 share in top cells: median 0.102; in rest: median 0.000
+
+== baseline: built_2020 share of the cell
+   cells                  published=      None  ours=     18172  
+   hits                   published=      None  ours=        99  
+   share_a                published=      None  ours=    0.0054  
+   share_b                published=      None  ours=    0.0028  
+   ratio                  published=      None  ours=      1.98  
+   p                      published=      None  ours=       0.0  
+
+== baseline walls: built_2020 share of the cell
+   cells                  published=      None  ours=     18172  
+   hits                   published=      None  ours=        77  
+   share_a                published=      None  ours=    0.0042  
+   share_b                published=      None  ours=    0.0011  
+   ratio                  published=      None  ours=       4.0  
+   p                      published=      None  ours=       0.0  
+   overlap with the model's top 5%: 0.893 of baseline cells; hit cells shared: 92 of 99
+
+== baseline: built_2020 share within 3x3
+   cells                  published=      None  ours=     17530  
+   hits                   published=      None  ours=       101  
+   share_a                published=      None  ours=    0.0058  
+   share_b                published=      None  ours=    0.0027  
+   ratio                  published=      None  ours=       2.1  
+   p                      published=      None  ours=       0.0  
+
+== baseline walls: built_2020 share within 3x3
+   cells                  published=      None  ours=     17530  
+   hits                   published=      None  ours=        78  
+   share_a                published=      None  ours=    0.0044  
+   share_b                published=      None  ours=    0.0011  
+   ratio                  published=      None  ours=      4.22  
+   p                      published=      None  ours=       0.0  
+   overlap with the model's top 5%: 0.684 of baseline cells; hit cells shared: 65 of 101
+
+open land (built2020<thr, forest<0.3, water<0.2): 238314 cells; with built2025: 233315; sar_wet valid in study: 237366; overlap 237366
+   r_crit from t.ppf(0.950, 24) = 0.330
+   r_crit from t.ppf(0.975, 24) = 0.388
+
+== checks.wet
+   open_share_of_study    published=      0.59  ours=      0.59  AGREE
+   median_r_open          published=      0.24  ours=      0.24  AGREE
+   share_sig_study        published=    0.2598  ours=     0.257  AGREE
+   share_sig_flood        published=     0.271  ours=    0.2678  AGREE
+   share_sig_outside      published=    0.2596  ours=    0.2568  AGREE
+   p_flood_higher         published=    0.0859  ours=    0.0911  DIFFER
+   open cells in flood 2886, outside 234480
+   share with r < -r_crit (significant DRYING with wetness): 0.0046
+   Spearman(soil wetness, pass order) = -0.249 (p=0.2205), n=26
+   block-4 open blocks: 11855; share r(VV,wet)>0.388: 0.359; share |r(VV,time)|>0.388: 0.627; share partial r(VV,wet|time)>0.396: 0.291
+   placebo (wetness series rolled by 1..25 passes): share significant median 0.036, max 0.236
+
+== nisar.checks.wetdry
+   share_study            published=    0.3742  ours=    0.3813  AGREE
+   share_flood            published=    0.1852  ours=    0.1959  DIFFER
+   share_outside          published=    0.3765  ours=    0.3836  AGREE
+   median_db_open         published=      1.39  ours=      1.37  AGREE
+   ratio                  published=      0.49  ours=      0.51  DIFFER
+   p                      published=       1.0  ours=       1.0  AGREE
+   nisar_wetdry valid cells in study 237420, of which on our open land 237420; valid outside our open land 0
+   share <= -2 dB (darker after rain): 0.0456
+   forest class forest2000_frac > 0.300: 116276 cells
+   forest class forest2000_frac > 0.500: 104943 cells
+   forest class forest2000_frac > 0.784: 90575 cells
+
+== nisar.checks.bands.built
+   HH                     published=     -4.49  ours=      -4.5  AGREE
+   HV                     published=    -11.13  ours=    -11.17  AGREE
+   VV                     published=     -5.88  ours=     -5.83  AGREE
+   VH                     published=    -12.31  ours=    -12.33  AGREE
+
+== nisar.checks.bands.forest
+   HH                     published=     -4.67  ours=     -4.67  AGREE
+   HV                     published=    -10.16  ours=    -10.17  AGREE
+   VV                     published=     -8.19  ours=     -8.17  AGREE
+   VH                     published=    -13.36  ours=    -13.33  AGREE
+
+== nisar.checks.bands.open
+   HH                     published=      -9.9  ours=     -9.83  AGREE
+   HV                     published=    -16.74  ours=    -16.67  AGREE
+   VV                     published=     -9.93  ours=     -10.0  AGREE
+   VH                     published=    -16.16  ours=    -16.17  AGREE
+   forest>0.3 instead: HV -10.33 VH -13.50
+
+== checks.sanity
+   vv_med_built_db        published=     -5.88  ours=     -5.83  AGREE
+   vv_med_open_db         published=     -9.24  ours=     -10.0  DIFFER
+   vh_med_forest_db       published=    -13.36  ours=    -13.33  AGREE
+   vv median on open_a (water excluded): -10.00
+
+== checks.egms
+   cells                  published=     97567  ours=     97567  AGREE
+   share_of_study         published=     0.242  ours=     0.242  AGREE
+   median                 published=       0.0  ours=       0.0  AGREE
+   p5                     published=      -1.0  ours=      -1.0  AGREE
+   min                    published=     -18.0  ours=     -18.0  AGREE
+   cells_le_minus5        published=       147  ours=       147  AGREE
+   EGMS cells that are built-up (built_2020>=thr): 0.459; study cells built-up: 0.116
+   EGMS value histogram (mm/yr): {np.int64(-18): 2, np.int64(-11): 4, np.int64(-9): 8, np.int64(-8): 12, np.int64(-7): 29, np.int64(-6): 21, np.int64(-5): 71, np.int64(-4): 278, np.int64(-3): 740, np.int64(-2): 3630, np.int64(-1): 24244, np.int64(0): 68305, np.int64(1): 172, np.int64(2): 48, np.int64(3): 3}
+   cells <= -5 mm/yr form 53 connected spots
+
+== checks.season_change_open_up3db_share (approximate, block-4 series, power vs dB medians)
+   published=0.0313  ours~0.0271
+
+   s1 aoi_vv_db from block series minus published: mean -0.00, max |d| 0.07 dB
+   NISAR median HH minus ALOS-2 2021 HH over study: 3.00 dB (median of per-cell diff 2.67); HV: 3.50 dB
+   NISAR HH cells clipped at 255 (>=12.5 dB): 299; nisar_hh_med zero cells: 0
+
+SUMMARY
+  s1 area                                          up3db_ha               693        713        DIFFER
+  s1 area                                          walls_ha               358        364        AGREE
+  checks.wuia (centre rule)                        cells                  766        766        AGREE
+  checks.wuia (centre rule)                        hits                   12         12         AGREE
+  checks.wuia (centre rule)                        share_a                0.0157     0.0157     AGREE
+  checks.wuia (centre rule)                        share_b                0.0035     0.0035     AGREE
+  checks.wuia (centre rule)                        ratio                  4.46       4.43       AGREE
+  checks.wuia (centre rule)                        p                      0.0        0.0        AGREE
+  checks.wuia_walls (centre rule)                  cells                  766        766        AGREE
+  checks.wuia_walls (centre rule)                  hits                   3          3          AGREE
+  checks.wuia_walls (centre rule)                  share_a                0.0039     0.0039     AGREE
+  checks.wuia_walls (centre rule)                  share_b                0.0024     0.0024     AGREE
+  checks.wuia_walls (centre rule)                  ratio                  1.63       1.63       AGREE
+  checks.wuia_walls (centre rule)                  p                      0.2811     0.2811     AGREE
+  variant: wuia, all-touched rule                  cells                  766        2647       DIFFER
+  variant: wuia, all-touched rule                  hits                   12         27         DIFFER
+  variant: wuia, all-touched rule                  share_a                0.0157     0.0102     DIFFER
+  variant: wuia, all-touched rule                  share_b                0.0035     0.0033     AGREE
+  variant: wuia, all-touched rule                  ratio                  4.46       3.13       DIFFER
+  variant: wuia, all-touched rule                  p                      0.0        0.0        AGREE
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) cells                  None       445        
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) hits                   None       12         
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) share_a                None       0.027      
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) share_b                None       0.0035     
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) ratio                  None       7.63       
+  variant: wuia, only building permits + notifications (no WZ / lokalizacja) p                      None       0.0        
+  variant: wuia, decisions of all dates Jun-Nov    cells                  None       1289       
+  variant: wuia, decisions of all dates Jun-Nov    hits                   None       28         
+  variant: wuia, decisions of all dates Jun-Nov    share_a                None       0.0217     
+  variant: wuia, decisions of all dates Jun-Nov    share_b                None       0.0035     
+  variant: wuia, decisions of all dates Jun-Nov    ratio                  None       6.15       
+  variant: wuia, decisions of all dates Jun-Nov    p                      None       0.0        
+  variant: wuia, reference = rest of city incl. other cases cells                  None       766        
+  variant: wuia, reference = rest of city incl. other cases hits                   None       12         
+  variant: wuia, reference = rest of city incl. other cases share_a                None       0.0157     
+  variant: wuia, reference = rest of city incl. other cases share_b                None       0.0042     
+  variant: wuia, reference = rest of city incl. other cases ratio                  None       3.71       
+  variant: wuia, reference = rest of city incl. other cases p                      None       0.0001     
+  checks.model (prob_2030, top = >= 95th percentile) cells                  17557      17566      AGREE
+  checks.model (prob_2030, top = >= 95th percentile) hits                   99         101        DIFFER
+  checks.model (prob_2030, top = >= 95th percentile) share_a                0.0056     0.0057     AGREE
+  checks.model (prob_2030, top = >= 95th percentile) share_b                0.0026     0.0027     AGREE
+  checks.model (prob_2030, top = >= 95th percentile) ratio                  2.13       2.09       AGREE
+  checks.model (prob_2030, top = >= 95th percentile) p                      0.0        0.0        AGREE
+  checks.model_walls (prob_2030)                   cells                  17557      17566      AGREE
+  checks.model_walls (prob_2030)                   hits                   77         78         AGREE
+  checks.model_walls (prob_2030)                   share_a                0.0044     0.0044     AGREE
+  checks.model_walls (prob_2030)                   share_b                0.001      0.0011     AGREE
+  checks.model_walls (prob_2030)                   ratio                  4.3        4.21       DIFFER
+  checks.model_walls (prob_2030)                   p                      0.0        0.0        AGREE
+  checks.model (prob_2025, top = >= 95th percentile) cells                  None       17559      
+  checks.model (prob_2025, top = >= 95th percentile) hits                   None       101        
+  checks.model (prob_2025, top = >= 95th percentile) share_a                None       0.0058     
+  checks.model (prob_2025, top = >= 95th percentile) share_b                None       0.0027     
+  checks.model (prob_2025, top = >= 95th percentile) ratio                  None       2.1        
+  checks.model (prob_2025, top = >= 95th percentile) p                      None       0.0        
+  checks.model_walls (prob_2025)                   cells                  None       17559      
+  checks.model_walls (prob_2025)                   hits                   None       78         
+  checks.model_walls (prob_2025)                   share_a                None       0.0044     
+  checks.model_walls (prob_2025)                   share_b                None       0.0011     
+  checks.model_walls (prob_2025)                   ratio                  None       4.21       
+  checks.model_walls (prob_2025)                   p                      None       0.0        
+  baseline: built_2020 share of the cell           cells                  None       18172      
+  baseline: built_2020 share of the cell           hits                   None       99         
+  baseline: built_2020 share of the cell           share_a                None       0.0054     
+  baseline: built_2020 share of the cell           share_b                None       0.0028     
+  baseline: built_2020 share of the cell           ratio                  None       1.98       
+  baseline: built_2020 share of the cell           p                      None       0.0        
+  baseline walls: built_2020 share of the cell     cells                  None       18172      
+  baseline walls: built_2020 share of the cell     hits                   None       77         
+  baseline walls: built_2020 share of the cell     share_a                None       0.0042     
+  baseline walls: built_2020 share of the cell     share_b                None       0.0011     
+  baseline walls: built_2020 share of the cell     ratio                  None       4.0        
+  baseline walls: built_2020 share of the cell     p                      None       0.0        
+  baseline: built_2020 share within 3x3            cells                  None       17530      
+  baseline: built_2020 share within 3x3            hits                   None       101        
+  baseline: built_2020 share within 3x3            share_a                None       0.0058     
+  baseline: built_2020 share within 3x3            share_b                None       0.0027     
+  baseline: built_2020 share within 3x3            ratio                  None       2.1        
+  baseline: built_2020 share within 3x3            p                      None       0.0        
+  baseline walls: built_2020 share within 3x3      cells                  None       17530      
+  baseline walls: built_2020 share within 3x3      hits                   None       78         
+  baseline walls: built_2020 share within 3x3      share_a                None       0.0044     
+  baseline walls: built_2020 share within 3x3      share_b                None       0.0011     
+  baseline walls: built_2020 share within 3x3      ratio                  None       4.22       
+  baseline walls: built_2020 share within 3x3      p                      None       0.0        
+  checks.wet                                       open_share_of_study    0.59       0.59       AGREE
+  checks.wet                                       median_r_open          0.24       0.24       AGREE
+  checks.wet                                       share_sig_study        0.2598     0.257      AGREE
+  checks.wet                                       share_sig_flood        0.271      0.2678     AGREE
+  checks.wet                                       share_sig_outside      0.2596     0.2568     AGREE
+  checks.wet                                       p_flood_higher         0.0859     0.0911     DIFFER
+  nisar.checks.wetdry                              share_study            0.3742     0.3813     AGREE
+  nisar.checks.wetdry                              share_flood            0.1852     0.1959     DIFFER
+  nisar.checks.wetdry                              share_outside          0.3765     0.3836     AGREE
+  nisar.checks.wetdry                              median_db_open         1.39       1.37       AGREE
+  nisar.checks.wetdry                              ratio                  0.49       0.51       DIFFER
+  nisar.checks.wetdry                              p                      1.0        1.0        AGREE
+  nisar.checks.bands.built                         HH                     -4.49      -4.5       AGREE
+  nisar.checks.bands.built                         HV                     -11.13     -11.17     AGREE
+  nisar.checks.bands.built                         VV                     -5.88      -5.83      AGREE
+  nisar.checks.bands.built                         VH                     -12.31     -12.33     AGREE
+  nisar.checks.bands.forest                        HH                     -4.67      -4.67      AGREE
+  nisar.checks.bands.forest                        HV                     -10.16     -10.17     AGREE
+  nisar.checks.bands.forest                        VV                     -8.19      -8.17      AGREE
+  nisar.checks.bands.forest                        VH                     -13.36     -13.33     AGREE
+  nisar.checks.bands.open                          HH                     -9.9       -9.83      AGREE
+  nisar.checks.bands.open                          HV                     -16.74     -16.67     AGREE
+  nisar.checks.bands.open                          VV                     -9.93      -10.0      AGREE
+  nisar.checks.bands.open                          VH                     -16.16     -16.17     AGREE
+  checks.sanity                                    vv_med_built_db        -5.88      -5.83      AGREE
+poznan-trend-detective/tests/nauka/recompute_checks.py:345: RuntimeWarning: invalid value encountered in divide
+  return (a * b).sum(0) / np.sqrt((a * a).sum(0) * (b * b).sum(0))
+  checks.sanity                                    vv_med_open_db         -9.24      -10.0      DIFFER
+  checks.sanity                                    vh_med_forest_db       -13.36     -13.33     AGREE
+  checks.egms                                      cells                  97567      97567      AGREE
+  checks.egms                                      share_of_study         0.242      0.242      AGREE
+  checks.egms                                      median                 0.0        0.0        AGREE
+  checks.egms                                      p5                     -1.0       -1.0       AGREE
+  checks.egms                                      min                    -18.0      -18.0      AGREE
+  checks.egms                                      cells_le_minus5        147        147        AGREE
+
+== where the 'new walls' (VV >= +3 dB and VV-VH >= +1.5 dB) lie
+   walls      cells 678: on built_2020>=thr 0.314 | open land 0.647 | forest>=0.3 0.044 | water-like>=0.2 0.000 | open AND no built cell within 2 cells (240 m) 0.178 | with water-like neighbour 0.004 | in city 0.202
+   up >= 3 dB cells 1329: on built_2020>=thr 0.205 | open land 0.770 | forest>=0.3 0.029 | water-like>=0.2 0.000 | open AND no built cell within 2 cells (240 m) 0.371 | with water-like neighbour 0.003 | in city 0.162
+   wall cells form 285 patches; patches of 1 cell: 135; median patch 2 cells; largest 21
+
+== PNG quantisation at the thresholds
+   sar_change v=166 (3 dB bin, holds 2.980..3.059 dB) cells in study: 98; up cells if v>=167: 1231 (x0.5358 = 659 ha)
+   nisar_wetdry v=153 (2 dB bin, 1.961..2.039 dB) cells: 3371 of 237420
+   v>=153: share_study 0.3813 share_flood 0.1959 share_outside 0.3836
+   v>=154: share_study 0.3671 share_flood 0.1786 share_outside 0.3694
+
+== NISAR HH on open blocks (block-4 sheet), track 158
+   pass        GWETTOP rain3  median HH-HH(25 Jun)  share >= 2 dB
+   2026-06-25  0.089    0.0    +0.00              0.000
+   2026-07-07  0.169   10.0    +1.17              0.185
+   2026-07-19  0.293   22.8    +0.67              0.167
+   2026-08-12  0.143    3.6    +0.67              0.154
+   2026-08-24  0.302   23.5    +1.67              0.417
+   2026-09-05  0.204    5.9    +1.50              0.407
+   2026-09-17  0.272   13.9    +1.83              0.470
+   2026-09-29  0.200    0.0    +0.67              0.208
+   2026-10-11  0.225    4.9    +0.67              0.228
+   24 Aug minus 12 Aug (both after the cereal harvest; wetness 0.14 -> 0.30): median +1.00 dB, share >= 2 dB 0.140
+   24 Aug minus 19 Jul (same wetness 0.29 vs 0.30): median +0.83 dB, share >= 2 dB 0.131
+   per-block Spearman HH vs GWETTOP over the 9 passes: median r 0.46; share r > 0.666 (two-sided 5%): 0.158
+
+== year-on-year change in open fields with no built cell within 240 m (122784 cells) vs elsewhere in study
+   far fields    up>=3 dB 493 (0.0040) | down<=-3 dB 21722 (0.1769) | walls 121 | mirror-walls (<=-3 dB and VV-VH<=-1.5) 5058
+   rest of study up>=3 dB 836 (0.0030) | down<=-3 dB 10583 (0.0378) | walls 557 | mirror-walls (<=-3 dB and VV-VH<=-1.5) 2917
+   median year-on-year VV change: far fields -1.37 dB, built_2020>=thr -0.35 dB, forest>=0.5 -0.27 dB, all study -0.59 dB
+   darker by >= 3 dB in study: 32305 cells = 17336 ha; of them on open land 0.984, on built_2020>=thr 0.013, forest>=0.3 0.003

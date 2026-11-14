@@ -1717,11 +1717,12 @@
     items.push(!rk ? { lvl: "ok", t: p.nextT, v: p.nextBuilt, src: p.nextSrc }
       : rk.level >= 4 ? { lvl: "warn", t: p.nextT, v: p.nextHigh(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc }
       : rk.level === 3 ? { lvl: "info", t: p.nextT, v: p.nextMid(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc } : { lvl: "ok", t: p.nextT, v: p.nextLow, src: p.nextSrc });
-    // 3. water: official groundwater-flood areas, hollows, how the ground soaks after rain (NISAR)
-    const wf = waterFacts(sel), nw = s && sar.nisar ? s.nisarWetUp : NaN;
+    // 3. water: official groundwater-flood areas and hollows. The NISAR June -> August change mixes rain with
+    //    harvest and tillage, so it is not a water verdict (science review N44); it stays on the map and in the details.
+    const wf = waterFacts(sel);
     items.push(wf.floodShare > (wf.own ? 0 : 0.05) ? { lvl: "risk", t: p.waterT, v: wf.own ? p.waterFlood : p.waterFloodArea(pctS(wf.floodShare)), src: p.waterSrcFlood, sar: "no" }
       : wf.hollow ? { lvl: "warn", t: p.waterT, v: wf.own ? p.waterHollow(num(wf.depth, 0)) : p.waterHollowArea(pctS(wf.lowShare)), src: p.waterSrcHollow, sar: "yes" }
-      : isFinite(nw) && nw > 0.5 ? { lvl: "info", t: p.waterT, v: p.waterSoaks(pctS(nw)), src: p.waterSrcSoak, sar: "yes" } : { lvl: "ok", t: p.waterT, v: p.waterOk, src: p.waterSrc, sar: "part" });
+      : { lvl: "ok", t: p.waterT, v: p.waterOk, src: p.waterSrc, sar: "part" });
     // 4. ground motion (EGMS)
     if (s) items.push(!s.egN ? { lvl: "info", t: p.groundT, v: p.groundNone, src: p.groundSrc }
       : s.egMed <= -3 ? { lvl: "risk", t: p.groundT, v: p.groundSinks(num(Math.abs(s.egMed), 0)), src: p.groundSrc }
@@ -1903,7 +1904,8 @@
     const k = sar && sar.checks;
     const radarD = k ? {
       radar: { n: sar.s1.dates.length, ha: fmtInt(sar.s1.up3db_ha), wha: fmtInt(sar.s1.walls_ha || 0), ratio: k.wuia.ratio != null ? num(k.wuia.ratio, 1) : null, dec: num(k.wuia.share_decision * 100, 2), rest: num(k.wuia.share_rest * 100, 2),
-        sig: k.wuia.p != null && k.wuia.p < 0.05 && k.wuia.ratio >= 1.3, p: k.wuia.p != null ? fmtP(k.wuia.p) : "" },
+        sig: k.wuia.p != null && k.wuia.p < 0.05 && k.wuia.ratio >= 1.3, p: k.wuia.p != null ? fmtP(k.wuia.p) : "",
+        wallsSig: !!(k.wuia_walls && k.wuia_walls.p != null && k.wuia_walls.p < 0.05 && k.wuia_walls.ratio >= 1.3) },
       wet: { share: num(k.wet.share_sig_study * 100, 0), flood: k.wet.share_sig_flood != null ? num(k.wet.share_sig_flood * 100, 0) : null, out: num(k.wet.share_sig_outside * 100, 0),
         fsig: k.wet.p_flood_higher != null && k.wet.p_flood_higher < 0.05 },
       ground: { med: sgn(k.egms.median, 0), n: fmtInt(k.egms.cells_le_minus5), min: sgn(k.egms.min, 0), share: num(k.egms.share_of_study * 100, 0) },
@@ -1956,8 +1958,9 @@
       forest: async () => { await setLens("trees"); setYear(2020); clearSelection(); fitAll(); },
     };
     // with NISAR pixels in, the NISAR finding leads (the challenge is about NISAR)
-    // plain mode skips the C-band wetness finding: NISAR already tells that story
-    return sar.nisar ? { lband: F.lband, radar: F.radar, modelRadar: F.modelRadar, ...(state.expert ? { wet: F.wet } : {}), ground: F.ground, ...hist } : { ...F, ...hist };
+    // plain mode skips the C-band wetness finding (NISAR already shows field change) and the projection-meets-radar
+    // finding (it does not test the model: ranking open land by existing building gives the same; science review N35)
+    return sar.nisar ? { lband: F.lband, radar: F.radar, ...(state.expert ? { modelRadar: F.modelRadar, wet: F.wet } : {}), ground: F.ground, ...hist } : { ...F, ...hist };
   };
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
@@ -2118,7 +2121,7 @@
     document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = u[el.dataset.i18nTitle]; el.setAttribute("aria-label", u[el.dataset.i18nTitle]); });
     document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", u[el.dataset.i18nAria] ?? t[el.dataset.i18nAria] ?? ""); });
     document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
-    $("#about-body").innerHTML = t.aboutHtml + (sar && u.aboutSar ? u.aboutSar : "");
+    $("#about-body").innerHTML = (u.aboutLink || "") + t.aboutHtml + (sar && u.aboutSar ? u.aboutSar : "");
     $("#radar-btn").hidden = !sar;
     if (sar) $("#radar-body").innerHTML = u.radarHtml({ upHa: fmtInt(sar.s1.up3db_ha), wetShare: num(sar.checks.wet.share_sig_study * 100, 0),
       bands: sar.nisar ? sar.nisar.checks.bands : null, fmt: (v) => num(v, 1) });
