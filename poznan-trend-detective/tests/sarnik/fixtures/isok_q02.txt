@@ -1,0 +1,18 @@
+Results for FeatureType 'http://inspire.ec.europa.eu/schemas/wms_nz-core/4.0:NZ.Fluvial':
+--------------------------------------------
+ifcid = 7562
+gml_location = null
+id_namespace = PL.ZIPGW.6453/MZP-MRP
+determinationmethod = modelling
+hazardcategory_cl = http://dd.eionet.europa.eu/vocabulary/inspire/NaturalHazardCategoryValue/fluvial
+hazardcategory = fluvial
+validityperiod_start = 2022-09-06T22:00:00Z
+validityperiod_start_ipos = null
+validityperiod_end = 2025-12-21T23:00:00Z
+validityperiod_end_ipos = null
+loo_qualitativelikelihood = scenariusz Q 0,2% (raz na 500 lat)
+loo_ql_probabilityofoccurrence = 0.002
+loo_ql_returnperiod = 500
+geom = [GEOMETRY (Polygon) with 28913 points]
+--------------------------------------------
+
