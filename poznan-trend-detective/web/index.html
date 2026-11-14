@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="styles.css?v=1794691459">
+<link rel="stylesheet" href="styles.css?v=1794691858">
 </head>
 <body>
 <div id="map" aria-label="Map"></div>
@@ -25,7 +25,7 @@
   <div class="search card">
     <svg class="ico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
     <label for="q" class="sr" data-i18n="searchLabel">Search an address</label>
-    <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh" placeholder="Szukaj adresu · Search an address">
     <ul class="suggest card" id="suggest" role="listbox" hidden></ul>
   </div>
   <div class="tools card" role="toolbar" data-i18n-aria="tools">
@@ -44,7 +44,7 @@
 </div>
 
 <!-- card under the search: findings, or the selected place / area -->
-<section class="sidecard card" id="sidecard" aria-live="polite"></section>
+<section class="sidecard card" id="sidecard" aria-live="polite"><p class="sub">Wczytuję dane… · Loading data…</p></section>
 
 <!-- drawing hint -->
 <div class="drawhint card" id="drawhint" hidden>
@@ -154,9 +154,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="i18n.js?v=1794691459"></script>
-<script src="i18n_sar.js?v=1794691459"></script>
-<script src="sarnik/manifest.js?v=1794691459"></script>
-<script src="app.js?v=1794691459"></script>
+<script src="i18n.js?v=1794691858"></script>
+<script src="i18n_sar.js?v=1794691858"></script>
+<script src="sarnik/manifest.js?v=1794691858"></script>
+<script src="app.js?v=1794691858"></script>
 </body>
 </html>

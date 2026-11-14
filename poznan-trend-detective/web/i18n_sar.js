@@ -124,11 +124,11 @@
   });
   pl.rb = {
     title: "Radar · 2026", how: "Jak widzi radar?",
-    src: (n, a, b) => `Sentinel-1 (pasmo C), ${n} przelotów, ${a}–${b}`,
+    src: (n, a, b) => `Sentinel-1 (pasmo C), ${n} ${plForm(n, "przelot", "przeloty", "przelotów")}, ${a}–${b}`,
     change: "Ślad nowych ścian w radarze", changeV: (u, d) => `terenu z podwójnym odbiciem, jesień 2025 → 2026; razem ${u} jaśniej i ${d} ciemniej o 3 dB+`,
     wet: "Reakcja na wilgoć", wetV: "otwartego terenu reaguje na wilgoć",
     water: "Woda w radarze", waterV: "terenu wygląda jak woda w ≥ 20% przelotów",
-    egms: "Ruch gruntu", egmsV: (n) => `EGMS 2016–2020, ${n} komórek z pomiarem`, egmsNone: "brak punktów EGMS",
+    egms: "Ruch gruntu", egmsV: (n) => `EGMS 2016–2020, ${n} ${plForm(n, "komórka", "komórki", "komórek")} z pomiarem`, egmsNone: "brak punktów EGMS",
     lband: "Pasmo L (HV)", lbandV: (a, b) => `ALOS-2, ${a} → ${b}`,
     lgWet: "wilgotność gleby (NASA POWER)", lgNisar: "przeloty NISAR",
     nisar: (n, a, b) => `<b>NISAR</b> (pasmo L, 20 m) przeleciał nad Poznaniem ${n} razy, ${a}–${b}. Obraz jest w warstwie „NISAR”; liczby z plików GCOV dojdą po pobraniu danych.`,
@@ -155,7 +155,7 @@
     wetHigh: (p) => `Na ${p}% otwartego terenu sygnał radaru rośnie razem z wilgotnością gleby: to reakcja powierzchni na mokrą pogodę, nie przepuszczalność gruntu ani pomiar wód gruntowych.`,
     wetLow: (p) => `Otwarty teren słabo reaguje na wilgoć (${p}%).`,
     egmsT: "Ruch gruntu (InSAR)",
-    egmsV: (m, n, worst) => `Typowo ${m} mm/rok w latach 2016–2020 (EGMS, ${n} komórek)${worst ? `; najszybciej ${worst} mm/rok` : ""}.`,
+    egmsV: (m, n, worst) => `Typowo ${m} mm/rok w latach 2016–2020 (EGMS, ${n} ${plForm(n, "komórka", "komórki", "komórek")})${worst ? `; najszybciej ${worst} mm/rok` : ""}.`,
     egmsSink: (m) => `Grunt osiada o ${m} mm/rok (EGMS 2016–2020). Sprawdź fundamenty i nasypy.`,
     egmsNone: "Brak punktów pomiarowych EGMS w tym miejscu, co jest typowe dla pól i lasów.",
   });
@@ -188,7 +188,7 @@
           ? ` W strefach podtopień PIG-PIB częściej: ${d.flood}% wobec ${d.out}%.`
           : ` W strefach podtopień PIG-PIB prawie tyle samo (${d.flood}% wobec ${d.out}%).`) }),
     ground: (d) => ({ t: "Tam, gdzie EGMS mierzy, grunt jest stabilny",
-      b: `Interferometria radarowa EGMS (2016–2020) mierzy ${d.share}% obszaru: prawie całą zabudowę, a pól i lasów niewiele. Typowy ruch to ${d.med} mm/rok; ${d.n} komórek osiada o 5 mm/rok lub szybciej, najszybciej ${d.min} mm/rok.` }),
+      b: `Interferometria radarowa EGMS (2016–2020) mierzy ${d.share}% obszaru: prawie całą zabudowę, a pól i lasów niewiele. Typowy ruch to ${d.med} mm/rok; ${d.n} ${plForm(d.n, "komórka osiada", "komórki osiadają", "komórek osiada")} o 5 mm/rok lub szybciej, najszybciej ${d.min} mm/rok.` }),
     lband: (d) => ({ t: "Pasmo L: wehikuł czasu przed NISAR",
       b: `Mozaiki ALOS-2 z lat ${d.y0}–${d.y1} mają to samo pasmo i te same polaryzacje co NISAR. Las wyróżnia się w HV, a pola są najciemniejsze w HH; duży spadek HV nad lasem oznacza utratę drzew.` }),
     modelRadar: (d) => ({ t: "Prognoza a radar",
@@ -225,7 +225,7 @@
 /* "About the data": radar sources (v2) */
 (() => {
   window.I18N.pl.ui.aboutSar = `
-    <h3>Radar (SARnik v2)</h3>
+    <h3>Radar SAR: źródła i metoda</h3>
     <ul>
       <li><b>NISAR GCOV</b> (NASA-ISRO, pasmo L, HH i HV, 20 m): przeloty orbity 158 (wznoszącej) z 25.06–11.10.2026, wersja provisional. Z każdego pliku HDF5 czytamy tylko okno Poznania i uśredniamy moc w komórkach 120 m. Para 25.06 i 24.08 daje warstwę „zmiana od czerwca do sierpnia” na otwartym terenie: to deszcz razem ze żniwami i uprawą pól. Wilgotność gleby 0–7 cm wg ERA5 (Open-Meteo): 0,09 m³/m³ 25.06 i 0,30 m³/m³ 24.08; 23,5 mm deszczu w 3 dni przed 24.08 (wartości dobowe). Obraz NASA GIBS (wszystkie orbity) służy tylko do podglądu, nie do liczb.</li>
       <li><b>Sentinel-1 RTC</b> (ESA/Copernicus, pasmo C, VV i VH): wszystkie przeloty orbity 73 (wznoszącej) od czerwca do listopada 2026 i jesienią 2025, przez Microsoft Planetary Computer, czytane z podglądu 80 m. Moc sygnału uśredniamy w komórkach 120 m (ok. 73 m w terenie).</li>
@@ -236,7 +236,7 @@
       <li><b>Pogoda w dni przelotów NISAR</b>: ERA5 (Copernicus C3S) przez Open-Meteo, licencja CC BY 4.0 (Weather data by Open-Meteo.com).</li>
     </ul>`;
   window.I18N.en.ui.aboutSar = `
-    <h3>Radar (SARnik v2)</h3>
+    <h3>SAR radar: sources and method</h3>
     <ul>
       <li><b>NISAR GCOV</b> (NASA-ISRO, L-band, HH and HV, 20 m): passes of track 158 (ascending), 25 Jun – 11 Oct 2026, provisional release. From each HDF5 file we read only the Poznań window and average power in 120 m cells. The pair 25 Jun and 24 Aug gives the “change from June to August” layer on open land: rain together with harvest and tillage. ERA5 0–7 cm soil moisture (Open-Meteo): 0.09 m³/m³ on 25 Jun and 0.30 m³/m³ on 24 Aug; 23.5 mm of rain in the 3 days before 24 Aug (daily values). The NASA GIBS picture (all tracks) is only a preview, not used in the numbers.</li>
       <li><b>Sentinel-1 RTC</b> (ESA/Copernicus, C-band, VV and VH): every pass of relative orbit 73 (ascending), June to November 2026 and autumn 2025, via Microsoft Planetary Computer, read from the 80 m overview. Power is averaged in 120 m cells (about 73 m on the ground).</li>
@@ -258,10 +258,10 @@
   Object.assign(pl.lg, { nisarwet: "NISAR HH: 24.08 minus 25.06", wetter: "jaśniej: deszcz, żniwa i uprawa razem", drier: "ciemniej: zmiana upraw albo żniwa", nisarL: "Radar NISAR, pasmo L, 2026" });
   Object.assign(en.lg, { nisarwet: "NISAR HH: 24 Aug minus 25 Jun", wetter: "brighter: rain, harvest and tillage together", drier: "darker: crop change or harvest", nisarL: "NISAR radar, L-band, 2026" });
   Object.assign(pl.rb, {
-    srcN: (n) => `NISAR (pasmo L), ${n} przelotów`,
+    srcN: (n) => `NISAR (pasmo L), ${n} ${plForm(n, "przelot", "przeloty", "przelotów")}`,
     nisarWet: "NISAR: zmiana VI → VIII", nisarWetV: (p) => `HH, 25.06 → 24.08, otwarty teren; ${p} terenu jaśniej o 2 dB+`,
     nisarNoOpen: "brak otwartego terenu w zaznaczeniu",
-    nisarUsed: (n, t, a, b, all) => `<b>NISAR</b> (pasmo L, 20 m): w obliczeniach ${n} przelotów orbity ${t} z plików GCOV (${a}–${b}, wersja provisional). Nad Poznaniem było ich razem ${all}.`,
+    nisarUsed: (n, t, a, b, all) => `<b>NISAR</b> (pasmo L, 20 m): w obliczeniach ${n} ${plForm(n, "przelot", "przeloty", "przelotów")} orbity ${t} z plików GCOV (${a}–${b}, wersja provisional). Nad Poznaniem było ich razem ${all}.`,
   });
   Object.assign(en.rb, {
     srcN: (n) => `NISAR (L-band), ${n} passes`,
@@ -271,7 +271,7 @@
   });
   const fPl = window.I18N.pl.f.lband, fEn = window.I18N.en.f.lband;
   window.I18N.pl.f.lband = (d) => !d.nisar ? fPl(d) : ({ t: "NISAR: pasmo L w liczbach",
-    b: `Oś czasu pasma L: ALOS-2 ${d.y0}–${d.y1}, potem NISAR 2026 (${d.n} przelotów).` + (d.wd
+    b: `Oś czasu pasma L: ALOS-2 ${d.y0}–${d.y1}, potem NISAR 2026 (${d.n} ${plForm(d.n, "przelot", "przeloty", "przelotów")}).` + (d.wd
       ? ` Między 25.06 a 24.08 HH wzrósł o 2 dB lub więcej na ${d.wd.share}% otwartego terenu: to deszcz razem ze żniwami i uprawą.` + (d.wd.flood == null ? "" : d.wd.sig
         ? ` W strefach podtopień PIG-PIB ${d.wd.ratio} razy częściej (${d.wd.flood}% wobec ${d.wd.out}%, ${d.wd.p}).`
         : ` W strefach podtopień PIG-PIB rzadziej (${d.wd.flood}% wobec ${d.wd.out}%). To głównie łąki, gdzie mniej się żnie, i więcej tu drzew; przyczyna nie jest jeszcze znana.`) : "") });
@@ -319,8 +319,8 @@
     buildNo: "Radar nie widzi tu w ostatnim roku śladu nowych ścian.",
     buildSrc: "Radar Sentinel-1, jesień 2025 i jesień 2026",
     nextT: "Co może powstać obok",
-    nextHigh: (p, s) => `Wolny teren obok najpewniej zostanie zabudowany: ok. ${p}% szans w 5 lat, więcej niż w ${s}% wolnych miejsc wokół Poznania. Sprawdź plan miejscowy.`,
-    nextMid: (p, s) => `Wolny teren obok może zostać zabudowany: ok. ${p}% szans w 5 lat, więcej niż w ${s}% wolnych miejsc wokół Poznania.`,
+    nextHigh: (p, s) => `Wolny teren obok ma jedną z najwyższych szans zabudowy wokół Poznania: ok. ${p}% w ciągu 5 lat (więcej niż ${s}% wolnych miejsc). Sprawdź plan miejscowy.`,
+    nextMid: (p, s) => `Wolny teren obok może zostać zabudowany: ok. ${p}% szans w ciągu 5 lat, więcej niż w ${s}% wolnych miejsc wokół Poznania.`,
     nextLow: "Raczej nic dużego tu nie powstanie w ciągu 5 lat.",
     nextBuilt: "Okolica jest już zabudowana, wolnego terenu prawie nie ma.",
     nextSrc: "Nasza prognoza (Landsat; uczona na latach 2005–2015, sprawdzona na 2015–2020)",
@@ -342,14 +342,14 @@
     groundSrc: "Radar Sentinel-1, pomiary ruchu gruntu EGMS 2016–2020",
     treesT: "Drzewa",
     treesCut: (ha) => `Od 2001 roku wycięto tu ok. ${ha} ha drzew.`,
-    treesOk: (ha) => `Drzewa w okolicy w większości stoją (od 2001 roku ubyło ok. ${ha} ha).`,
+    treesOk: (ha) => (/^0[.,]0$/.test(String(ha)) ? "Od 2001 roku nie ubyło tu drzew (mniej niż 0,1 ha)." : `Drzewa w okolicy w większości stoją (od 2001 roku ubyło ok. ${ha} ha).`),
     treesSrc: "Zdjęcia satelitarne Landsat, 2001–2024",
-    heatT: "Upał latem",
-    heatFast: (d) => `Lato robi się tu cieplejsze szybciej niż w okolicy, o ok. ${d} °C na 10 lat.`,
-    heatOk: "Lato nie ociepla się tu szybciej niż w okolicy.",
+    heatT: "Nagrzewanie powierzchni latem",
+    heatFast: (d) => `Latem dachy i grunt nagrzewają się tu z roku na rok szybciej niż w większości okolicy, o ok. ${d} °C na 10 lat.`,
+    heatOk: "Latem dachy i grunt nie nagrzewają się tu szybciej niż w okolicy.",
     heatSrc: "Satelita NASA MODIS, lata 2000–2024",
     priceT: "Cena",
-    priceV: (zl, w, y, city) => `Metr kwadratowy mieszkania kosztuje ${city ? "w Poznaniu" : "w powiecie poznańskim"} średnio ok. ${zl} zł, czyli ${w} przeciętnej pensji (${y}).`,
+    priceV: (zl, w, y, city) => `Metr kwadratowy mieszkania kosztuje ${city ? "w Poznaniu" : "w powiecie poznańskim"} typowo (mediana GUS) ok. ${zl} zł, czyli ${w} przeciętnej pensji (${y}).`,
     priceSrc: "GUS",
   };
   en.plain = {
@@ -363,7 +363,7 @@
     buildNo: "Radar sees no sign of new walls here in the last year.",
     buildSrc: "Sentinel-1 radar, autumn 2025 and autumn 2026",
     nextT: "What may be built next door",
-    nextHigh: (p, s) => `The open land next door is likely to be built on: about ${p}% chance in 5 years, more than ${s}% of open places around Poznań. Check the local plan.`,
+    nextHigh: (p, s) => `The open land next door has one of the highest chances of being built on around Poznań: about ${p}% within 5 years (higher than ${s}% of open places). Check the local plan.`,
     nextMid: (p, s) => `The open land next door may be built on: about ${p}% chance in 5 years, more than ${s}% of open places around Poznań.`,
     nextLow: "Nothing big is likely to go up here within 5 years.",
     nextBuilt: "The area is already built up; there is hardly any open land.",
@@ -385,15 +385,15 @@
     groundNone: "No measurements here, which is typical for fields and forests.",
     groundSrc: "Sentinel-1 radar, EGMS ground-motion measurements 2016–2020",
     treesT: "Trees",
-    treesCut: (ha) => `About ${ha} ha of trees were cut here since 2001.`,
-    treesOk: (ha) => `Most trees around are still standing (about ${ha} ha lost since 2001).`,
+    treesCut: (ha) => `About ${ha} ha of trees have been cut here since 2001.`,
+    treesOk: (ha) => (/^0[.,]0$/.test(String(ha)) ? "No tree loss here since 2001 (less than 0.1 ha)." : `Most trees around are still standing (about ${ha} ha lost since 2001).`),
     treesSrc: "Landsat satellite images, 2001–2024",
-    heatT: "Summer heat",
-    heatFast: (d) => `Summers here are warming faster than around, by about ${d} °C per 10 years.`,
-    heatOk: "Summers here are not warming faster than around.",
+    heatT: "Summer surface heat",
+    heatFast: (d) => `In summer, roofs and ground here are warming faster than most of the surrounding area, by about ${d} °C per 10 years.`,
+    heatOk: "In summer, roofs and ground here are not warming faster than the surrounding area.",
     heatSrc: "NASA MODIS satellite, 2000–2024",
     priceT: "Price",
-    priceV: (zl, w, y, city) => `A square metre of flat costs about ${zl} zł on average ${city ? "in Poznań" : "in Poznań county"}, which is ${w} average monthly wages (${y}).`,
+    priceV: (zl, w, y, city) => `A square metre of a flat costs typically (GUS median) about ${zl} zł ${city ? "in Poznań" : "in Poznań county"}, or ${w} times the average monthly wage (${y}).`,
     priceSrc: "Statistics Poland (GUS)",
   };
   Object.assign(pl, {
@@ -453,6 +453,6 @@
   fe.modelRadar = (d) => ({ t: "The projection and the radar",
     b: d.sig ? "Radar sees more change right next to existing estates, where the projection also expects building. That does not yet show the projection is right."
       : "Radar does not yet see more building where the projection expects it. One year is too short for building to show." });
-  fp.ground = (d) => ({ t: "Czy ziemia pod Poznaniem osiada?", b: `Tam, gdzie satelity mierzą (${d.share}% obszaru, prawie cała zabudowa), typowy ruch gruntu to ${d.med} mm na rok, a ${d.n} komórek osiada o 5 mm na rok lub szybciej. Dane z lat 2016–2020.` });
+  fp.ground = (d) => ({ t: "Czy ziemia pod Poznaniem osiada?", b: `Tam, gdzie satelity mierzą (${d.share}% obszaru, prawie cała zabudowa), typowy ruch gruntu to ${d.med} mm na rok, a ${d.n} ${plForm(d.n, "komórka osiada", "komórki osiadają", "komórek osiada")} o 5 mm na rok lub szybciej. Dane z lat 2016–2020.` });
   fe.ground = (d) => ({ t: "Is the ground under Poznań sinking?", b: `Where satellites measure (${d.share}% of the area, almost all built-up land), typical ground motion is ${d.med} mm a year, and ${d.n} cells sink by 5 mm a year or faster. Data from 2016–2020.` });
 })();
