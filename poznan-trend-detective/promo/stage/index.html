@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Promo stage</title>
+<!-- One page draws every frame of the video: build.py sets window.CUT, then calls renderAt(t) and takes a screenshot. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=block" rel="stylesheet">
+<style>
+:root {
+  --map: #F1F0EB; --card: #FFFFFF; --ink: #1B1C1E; --ink-2: #6B6F74; --ink-3: #9AA0A6; --line: #E6E6E2; --soft: #F4F4F1;
+  --pred: #7357E8; --pred-soft: #EDE8FD; --built: #F2A31B; --forest: #4E9F3D; --price: #2F62E9; --heat: #D9572B;
+  --warn: #F2A31B; --risk: #E5602A; --area: #2F62E9;
+  --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 28px rgba(20, 22, 26, .08);
+  --shadow-lg: 0 2px 4px rgba(20, 22, 26, .05), 0 22px 60px rgba(20, 22, 26, .13);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--map); }
+body { font-family: "Archivo", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased;
+  font-variation-settings: "wdth" 100; font-feature-settings: "tnum" 1; }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+.scene { position: absolute; inset: 0; overflow: hidden; background: var(--map); }
+.abs { position: absolute; }
+.card { position: absolute; background: var(--card); border-radius: 16px; box-shadow: var(--shadow-lg); }
+.wide { font-variation-settings: "wdth" 112; }
+.label { font-size: 30px; color: var(--ink-2); font-weight: 450; }
+.huge { font-size: 124px; font-weight: 760; letter-spacing: -0.035em; line-height: .95; font-variation-settings: "wdth" 112; }
+.big { font-size: 64px; font-weight: 720; letter-spacing: -0.02em; line-height: 1; font-variation-settings: "wdth" 108; }
+.h2 { font-size: 34px; font-weight: 650; letter-spacing: -0.01em; }
+.small { font-size: 22px; color: var(--ink-2); line-height: 1.35; }
+
+/* app window with real footage */
+.win { position: absolute; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); background: #fff; }
+.win canvas { position: absolute; inset: 0; }
+.veil { position: absolute; inset: 0; background: var(--map); opacity: 0; }
+
+/* checklist rows, as in the app's "Przegląd techniczny terenu" */
+.ck { display: grid; grid-template-columns: 18px 1fr auto; gap: 0 18px; align-items: baseline; padding: 22px 0;
+  border-top: 1px solid var(--line); }
+.ck:first-of-type { border-top: 0; }
+.ck i { width: 16px; height: 16px; border-radius: 50%; background: var(--line); display: block; transform: translateY(1px); }
+.ck b { font-size: 33px; font-weight: 600; }
+.ck em { font-style: normal; font-size: 28px; font-weight: 600; color: var(--ink-3); }
+
+.chip { display: inline-block; padding: 8px 16px; border-radius: 999px; font-size: 22px; font-weight: 600;
+  background: var(--pred-soft); color: var(--pred); }
+.src { display: inline-block; padding: 9px 18px; border-radius: 999px; font-size: 22px; font-weight: 550;
+  background: var(--card); box-shadow: var(--shadow); color: var(--ink); margin: 0 10px 12px 0; }
+
+/* stat card on top of footage */
+.stat { width: 470px; padding: 26px 30px 28px; }
+.stat .k { font-size: 21px; color: var(--ink-2); line-height: 1.35; }
+.stat .v { font-size: 78px; font-weight: 740; letter-spacing: -0.03em; line-height: 1; margin: 10px 0 12px;
+  font-variation-settings: "wdth" 108; }
+.stat .row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 0; border-top: 1px solid var(--line); }
+.stat .row:first-of-type { border-top: 0; }
+.stat .row span { font-size: 24px; color: var(--ink-2); }
+.stat .row strong { font-size: 40px; font-weight: 720; letter-spacing: -0.02em; }
+.stat .note { font-size: 20px; color: var(--ink-2); margin-top: 12px; line-height: 1.35; }
+
+/* subtitles */
+#sub { position: absolute; left: 0; right: 0; top: 946px; height: 134px; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 50; }
+#sub div { max-width: 1320px; text-align: center; font-size: 37px; line-height: 1.28; font-weight: 520; color: var(--ink);
+  text-wrap: balance; }
+
+.cursor { position: absolute; width: 34px; height: 34px; z-index: 40; left: 0; top: 0; }
+.ring { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--area); z-index: 39; opacity: 0; }
+.hl { position: absolute; border: 3px solid var(--area); border-radius: 12px; background: rgba(47, 98, 233, .06); opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="sub"><div></div></div>
+<script>
+"use strict";
+/* ---------------- helpers ---------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (t) => 1 - Math.pow(1 - t, 3);
+const eio = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const pop = (t, a, d = .5) => eo(ramp(t, a, a + d));
+const lerp = (a, b, k) => a + (b - a) * k;
+function el(tag, cls, parent, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function pos(e, x, y, w, h) {
+  e.style.left = x + "px"; e.style.top = y + "px";
+  if (w != null) e.style.width = w + "px";
+  if (h != null) e.style.height = h + "px";
+  return e;
+}
+/** opacity + translate + scale in one go */
+function tf(e, o = 1, dx = 0, dy = 0, s = 1) {
+  e.style.opacity = o;
+  e.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+}
+const appear = (e, t, a, d = .55, dy = 26) => { const k = pop(t, a, d); tf(e, k, 0, (1 - k) * dy); return k; };
+const fmtTime = (t) => t.toFixed(2);
+
+/* ---------------- images ---------------- */
+const BMP = new Map();
+async function bitmap(src, w = 2560, h = 1440) {
+  const key = src + "@" + w;
+  if (BMP.has(key)) return BMP.get(key);
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const b = await createImageBitmap(img, { resizeWidth: w, resizeHeight: h, resizeQuality: "high" });
+  BMP.set(key, b);
+  return b;
+}
+function dropBitmaps(srcs) { srcs.forEach((s) => { for (const k of [...BMP.keys()]) if (k.startsWith(s + "@")) { BMP.get(k).close(); BMP.delete(k); } }); }
+async function imgReady(src) { const i = new Image(); i.src = src; await i.decode(); return i; }
+
+/* ---------------- app window (real footage) ---------------- */
+// footage frames are the app at 1920x1080 CSS px; a camera {s, fx, fy} zooms into app coordinates
+const WIN = { x: 153.6, y: 26, w: 1612.8, h: 907.2 };
+class AppWindow {
+  constructor(parent, box = WIN) {
+    this.box = { ...box };
+    this.el = pos(el("div", "win", parent), box.x, box.y, box.w, box.h);
+    this.cv = el("canvas", "", this.el);
+    this.cv.width = Math.round(box.w); this.cv.height = Math.round(box.h);
+    this.ctx = this.cv.getContext("2d");
+    this.ctx.imageSmoothingQuality = "high";
+    this.veil = el("div", "veil", this.el);
+    this.cam = { s: 1, fx: 960, fy: 540 };
+  }
+  view(cam) {
+    const s = cam.s, hw = 960 / s, hh = 540 / s;
+    const fx = clamp(cam.fx, hw, 1920 - hw), fy = clamp(cam.fy, hh, 1080 - hh);
+    return { s, x0: fx - hw, y0: fy - hh };
+  }
+  /** layers: [[bitmap, alpha], ...] drawn in order */
+  draw(layers, cam = this.cam) {
+    this.cam = cam;
+    const v = this.view(cam), c = this.ctx, W = this.cv.width, H = this.cv.height;
+    c.globalAlpha = 1; c.fillStyle = "#F1F0EB"; c.fillRect(0, 0, W, H);
+    for (const [b, a] of layers) {
+      if (!b || a <= 0) continue;
+      const k = b.width / 1920;
+      c.globalAlpha = clamp(a);
+      c.drawImage(b, v.x0 * k, v.y0 * k, (1920 / v.s) * k, (1080 / v.s) * k, 0, 0, W, H);
+    }
+    c.globalAlpha = 1;
+  }
+  /** app CSS px -> stage px */
+  toStage(x, y) {
+    const v = this.view(this.cam), k = this.box.w / 1920;
+    return [this.box.x + (x - v.x0) * v.s * k, this.box.y + (y - v.y0) * v.s * k];
+  }
+  scaleK() { return (this.box.w / 1920) * this.cam.s; }
+}
+/** a footage sequence played as a float index: crossfade between neighbouring frames */
+function seqLayers(bmps, f) {
+  const i = clamp(Math.floor(f), 0, bmps.length - 1), j = Math.min(i + 1, bmps.length - 1), a = f - i;
+  return a > 0.001 && j !== i ? [[bmps[i], 1], [bmps[j], a]] : [[bmps[i], 1]];
+}
+
+const CURSOR_SVG = `<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 2.5l15 11.2-6.6 1.1 3.8 7.2-2.9 1.4-3.7-7.3L4.8 21z" fill="#1B1C1E" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+class Cursor {
+  constructor(parent) { this.el = el("div", "cursor", parent, CURSOR_SVG); this.ring = el("div", "ring", parent); this.el.style.opacity = 0; }
+  /** path: [[t, x, y], ...] stage coords; clicks: [t, ...] */
+  render(t, path, clicks = [], show = [0, 1e9]) {
+    let x = path[0][1], y = path[0][2];
+    for (let k = 1; k < path.length; k++) {
+      const [ta, xa, ya] = path[k - 1], [tb, xb, yb] = path[k];
+      if (t >= ta) { const q = eio(ramp(t, ta, tb)); x = lerp(xa, xb, q); y = lerp(ya, yb, q); }
+    }
+    const vis = t >= show[0] && t <= show[1];
+    let press = 1;
+    this.ring.style.opacity = 0;
+    for (const c of clicks) {
+      if (t >= c && t < c + .5) {
+        const q = ramp(t, c, c + .5);
+        this.ring.style.left = x - 30 + "px"; this.ring.style.top = y - 30 + "px";
+        this.ring.style.opacity = vis ? (1 - q) * .9 : 0;
+        this.ring.style.transform = `scale(${.4 + q * .9})`;
+        if (q < .3) press = .86;
+      }
+    }
+    this.el.style.opacity = vis ? 1 : 0;
+    this.el.style.transform = `translate(${x - 6}px, ${y - 3}px) scale(${press})`;
+    this.el.style.transformOrigin = "6px 3px";
+  }
+}
+
+/* ---------------- illustrations (line drawings, no stock imagery) ---------------- */
+const CAR_SVG = `<svg viewBox="0 0 330 120" width="330" height="120" fill="none" stroke="#1B1C1E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <path class="draw" pathLength="1" d="M22 88 L22 76 C22 68 28 63 38 62 L92 57 L124 33 C131 28 138 26 148 26 L212 26 C222 26 230 30 237 37 L262 59 L292 63 C304 65 310 71 310 80 L310 88"/>
+  <path class="draw" pathLength="1" d="M108 88 L222 88 M22 88 L52 88 M278 88 L310 88"/>
+  <path class="draw" pathLength="1" d="M130 57 L150 37 L176 37 L176 57 Z M188 37 L210 37 L232 57 L188 57 Z"/>
+  <circle class="draw" pathLength="1" cx="80" cy="88" r="21" fill="#fff"/><circle class="draw" pathLength="1" cx="250" cy="88" r="21" fill="#fff"/>
+  <circle cx="80" cy="88" r="6" fill="#1B1C1E" stroke="none"/><circle cx="250" cy="88" r="6" fill="#1B1C1E" stroke="none"/></svg>`;
+function houseSVG(tint) {
+  const sky = ["#DCE9F2", "#E8E2F3", "#F3E6D5"][tint % 3];
+  return `<svg viewBox="0 0 720 380" width="720" height="380" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="sky${tint}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="#FBF8F1"/></linearGradient></defs>
+  <rect width="720" height="380" fill="url(#sky${tint})"/>
+  <circle cx="${560 - tint * 90}" cy="${92 + tint * 8}" r="38" fill="#F6D58C" opacity=".9"/>
+  <path d="M0 300 C140 270 300 290 420 280 C540 270 640 285 720 276 L720 380 L0 380 Z" fill="#CFE3C2"/>
+  <path d="M0 330 C200 310 420 330 720 312 L720 380 L0 380 Z" fill="#B9D7A8"/>
+  <g transform="translate(${250 + tint * 30} 132)" stroke="#1B1C1E" stroke-width="3" stroke-linejoin="round">
+    <path d="M0 80 L110 6 L220 80" fill="#fff"/><rect x="18" y="74" width="184" height="104" fill="#fff"/>
+    <rect x="44" y="104" width="38" height="34" fill="#DCE9F2"/><rect x="138" y="104" width="38" height="34" fill="#DCE9F2"/>
+    <rect x="94" y="122" width="32" height="56" fill="#E9DCCB"/></g>
+  <g fill="#7FB069"><circle cx="${110 + tint * 20}" cy="236" r="44"/><circle cx="${150 + tint * 20}" cy="252" r="34"/></g>
+  <rect x="${128 + tint * 20}" y="262" width="8" height="40" fill="#8A6A4A"/>
+</svg>`;
+}
+
+/* ---------------- scenes ---------------- */
+const CUT = window.CUT;
+const STR = CUT.strings, NUM = CUT.nums, FT = CUT.footage;
+const SCENES = {};
+
+/* shared: a list card (title + rows of dot / name / status) */
+function listCard(parent, x, y, w, title, rows, extraTop = "") {
+  const c = pos(el("div", "card", parent), x, y, w);
+  c.style.padding = "30px 38px 18px";
+  const top = el("div", "", c, extraTop);
+  el("div", "h2", c, title).style.margin = "0 0 8px";
+  const rs = rows.map((r) => {
+    const e = el("div", "ck", c, `<i></i><b>${r[0]}</b><em>${r[1] || ""}</em>`);
+    return { e, dot: e.querySelector("i"), word: e.querySelector("em"), color: r[2] };
+  });
+  return { c, top, rs };
+}
+function rowIn(r, t, a) {
+  const k = pop(t, a, .45);
+  tf(r.e, .25 + .75 * k, 0, 0, 1);
+  r.dot.style.background = k > .05 ? r.color : "var(--line)";
+  r.dot.style.transform = `translateY(1px) scale(${.5 + .5 * k})`;
+  r.word.style.color = r.color; r.word.style.opacity = k;
+}
+
+/* --- hook: car inspection --- */
+SCENES.hook_car = {
+  build(root, sc) {
+    const L = el("div", "abs", root); pos(L, 150, 330, 860);
+    sc.lab = el("div", "label", L, STR.carLabel);
+    sc.price = el("div", "huge", L, STR.carPrice); sc.price.style.margin = "18px 0 26px";
+    sc.sub = el("div", "h2", L, STR.carSub); sc.sub.style.color = "var(--ink-2)"; sc.sub.style.fontWeight = 500;
+    sc.list = listCard(root, 1040, 200, 730, STR.carCardTitle, STR.carRows.map((r) => [r[0], r[1], "var(--forest)"]),
+      `<div style="margin:-6px 0 22px">${CAR_SVG}</div>`);
+    sc.paths = [...sc.list.top.querySelectorAll(".draw")];
+  },
+  render(t, sc) {
+    appear(sc.lab, t, .05); appear(sc.price, t, .15); appear(sc.sub, t, .3);
+    const k = pop(t, .2, .7); tf(sc.list.c, k, (1 - k) * 60, 0);
+    const d = eio(ramp(t, .4, 1.9));
+    sc.paths.forEach((p) => { p.style.strokeDasharray = "1 1"; p.style.strokeDashoffset = 1 - d; });
+    sc.list.rs.forEach((r, i) => rowIn(r, t, sc.at[`row${i}`]));
+  },
+};
+
+/* --- hook: house, nice photos, nobody inspects the land --- */
+SCENES.hook_house = {
+  build(root, sc) {
+    const L = el("div", "abs", root); pos(L, 150, 330, 860);
+    sc.lab = el("div", "label", L, STR.houseLabel);
+    sc.price = el("div", "huge", L, STR.housePrice); sc.price.style.margin = "18px 0 26px";
+    sc.sub = el("div", "h2", L, STR.houseSub); sc.sub.style.color = "var(--ink-2)"; sc.sub.style.fontWeight = 500;
+    // listing card with "nice photos"
+    const c = sc.listing = pos(el("div", "card", root), 1040, 170, 730); c.style.overflow = "hidden";
+    const ph = el("div", "", c); ph.style.cssText = "position:relative;height:380px;overflow:hidden";
+    sc.photos = [0, 1, 2].map((k) => { const p = el("div", "abs", ph, houseSVG(k)); pos(p, 0, 0, 720, 380); return p; });
+    const dots = el("div", "abs", ph); pos(dots, 0, 340, 730); dots.style.cssText += ";display:flex;gap:10px;justify-content:center";
+    sc.dots = [0, 1, 2].map(() => { const d = el("i", "", dots); d.style.cssText = "width:11px;height:11px;border-radius:50%;background:#fff;opacity:.6;display:block"; return d; });
+    const body = el("div", "", c); body.style.padding = "26px 36px 32px";
+    el("div", "h2", body, STR.listingTitle);
+    sc.quote = el("div", "", body, `<div class="small" style="margin-top:14px">${STR.listingBy}</div><div style="font-size:30px;margin-top:4px">${STR.listingQuote}</div>`);
+    // the empty land inspection
+    sc.list = listCard(root, 1040, 170, 730, STR.landCardTitle, STR.landRows.map((r) => [r, "?", "var(--ink-3)"]));
+  },
+  render(t, sc) {
+    appear(sc.lab, t, .05); appear(sc.price, t, .15); appear(sc.sub, t, .3);
+    const tEnd = sc.at.nobody - .25;
+    const kin = pop(t, sc.at.photos - .6, .7), kout = ramp(t, tEnd - .1, tEnd + .35);
+    tf(sc.listing, kin * (1 - kout), (1 - kin) * 60, -kout * 30, 1 - kout * .04);
+    // flick through three photos while the narrator says "nice photos"
+    const ph = clamp((t - sc.at.photos) / .9, 0, 2.2);
+    sc.photos.forEach((p, k) => { const o = clamp(ph - k + 1); p.style.opacity = k === 0 ? 1 : o; p.style.transform = `translateX(${(1 - eo(clamp(ph - k + 1))) * 80}px)`; });
+    sc.dots.forEach((d, k) => { d.style.opacity = Math.round(ph) === k ? 1 : .5; });
+    appear(sc.quote, t, sc.at.developer - .2, .5, 14);
+    const kl = pop(t, tEnd + .15, .6);
+    tf(sc.list.c, kl, 0, (1 - kl) * 40);
+    sc.list.rs.forEach((r, i) => { const k = pop(t, tEnd + .35 + i * .12, .4); tf(r.e, k, (1 - k) * 20); r.dot.style.background = "var(--line)"; r.word.style.color = "var(--ink-3)"; });
+  },
+};
+
+/* --- hook for the 30 s cut: car and house side by side --- */
+SCENES.hook = {
+  build(root, sc) {
+    const mk = (x, label, price) => {
+      const c = pos(el("div", "card", root), x, 190, 760); c.style.padding = "34px 40px 22px";
+      el("div", "label", c, label);
+      el("div", "big", c, price).style.margin = "10px 0 20px";
+      return c;
+    };
+    sc.car = mk(140, STR.carLabel, STR.carPrice);
+    el("div", "", sc.car, CAR_SVG).style.margin = "0 0 6px";
+    sc.carRows = STR.carRows.map((r) => { const e = el("div", "ck", sc.car, `<i></i><b>${r[0]}</b><em>${r[1]}</em>`); return { e, dot: e.querySelector("i"), word: e.querySelector("em"), color: "var(--forest)" }; });
+    sc.paths = [...sc.car.querySelectorAll(".draw")];
+    sc.house = mk(1020, STR.houseLabel, STR.housePrice);
+    const ph = el("div", "", sc.house); ph.style.cssText = "position:relative;height:300px;overflow:hidden;border-radius:12px;margin:0 0 18px";
+    sc.photos = [0, 1, 2].map((k) => { const p = el("div", "abs", ph, houseSVG(k)); pos(p, -20, -40, 720, 380); return p; });
+    sc.houseRows = STR.landRows.slice(0, 2).map((r) => { const e = el("div", "ck", sc.house, `<i></i><b>${r}</b><em>?</em>`); return { e }; });
+  },
+  render(t, sc) {
+    const k1 = pop(t, .0, .55); tf(sc.car, k1, 0, (1 - k1) * 40);
+    const d = eio(ramp(t, .2, 1.4));
+    sc.paths.forEach((p) => { p.style.strokeDasharray = "1 1"; p.style.strokeDashoffset = 1 - d; });
+    sc.carRows.forEach((r, i) => rowIn(r, t, .55 + i * .38));
+    const k2 = pop(t, sc.at.house - .3, .55); tf(sc.house, k2, 0, (1 - k2) * 40);
+    const ph = clamp((t - sc.at.photos) / .7, 0, 2.2);
+    sc.photos.forEach((p, k) => { p.style.opacity = k === 0 ? 1 : clamp(ph - k + 1); });
+    sc.houseRows.forEach((r, i) => { const k = pop(t, sc.at.house + .9 + i * .2, .4); tf(r.e, k * .9); });
+  },
+};
+
+/* --- brand over a clean map --- */
+SCENES.title = {
+  async load(sc) { sc.bg = await bitmap(FT.clean[sc.bgYear || "2020"], 2560, 1440); },
+  build(root, sc) {
+    sc.win = new AppWindow(root, { x: 0, y: 0, w: 1920, h: 1080 });
+    sc.win.el.style.borderRadius = 0; sc.win.el.style.boxShadow = "none";
+    const v = el("div", "abs", root); pos(v, 0, 0, 1920, 1080);
+    v.style.background = "linear-gradient(180deg, rgba(241,240,235,.30) 0%, rgba(241,240,235,.72) 50%, rgba(241,240,235,1) 87%)";
+    const box = el("div", "abs", root); pos(box, 0, 280, 1920); box.style.textAlign = "center";
+    sc.kick = el("div", "label", box, STR.titleKicker);
+    sc.brand = el("div", "huge", box, STR.brand); sc.brand.style.cssText += ";font-size:132px;margin:22px 0 26px";
+    sc.tag = el("div", "", box, STR.titleTag); sc.tag.style.cssText = "font-size:44px;font-weight:520;color:var(--ink-2)";
+  },
+  render(t, sc) {
+    sc.win.draw([[sc.bg, 1]], { s: 1.18 - .1 * eo(ramp(t, 0, sc.dur)), fx: 960, fy: 520 });
+    appear(sc.kick, t, .1);
+    appear(sc.brand, t, .35, .8, 40);
+    appear(sc.tag, t, sc.at.brand - .1, .6);
+  },
+};
+
+/* --- typing an address, picking it, the card appears --- */
+function searchFrames(meta, n) {
+  return { first: 0, focus: 1, typed: meta.typed, sug: meta.suggest, card: meta.card };
+}
+SCENES.search = {
+  async load(sc) {
+    sc.bmps = await Promise.all(FT.search.frames.map((f) => bitmap(f)));
+    if (sc.at.draw != null && FT.draw) sc.dbmps = await Promise.all(FT.draw.frames.map((f) => bitmap(f, 1920, 1080)));
+  },
+  build(root, sc) {
+    sc.win = new AppWindow(root);
+    sc.cur = new Cursor(root);
+    sc.m = FT.search.meta;
+    // "...or draw an area": the polygon tool, as a small inset
+    if (sc.dbmps) {
+      sc.inset = new AppWindow(root, { x: 1010, y: 410, w: 720, h: 405 });
+      sc.inset.el.style.transformOrigin = "100% 100%";
+      sc.inset.el.style.boxShadow = "0 0 0 6px #fff, 0 2px 4px rgba(20,22,26,.06), 0 26px 70px rgba(20,22,26,.22)";
+      sc.poly = el("div", "abs", sc.inset.el); pos(sc.poly, 0, 0, 720, 405);
+    }
+  },
+  times(sc) {
+    // typing must end before the narrator finishes the sentence
+    const d = sc.dur, ty = sc.m.typed.length;
+    const tType0 = .75, tType1 = Math.min(tType0 + ty * .055, d * .45);
+    const tSug = tType1 + .3, tPick = tSug + .55, tCard = tPick + .25;
+    return { tClick: .55, tType0, tType1, tSug, tPick, tCard };
+  },
+  render(t, sc) {
+    const T = SCENES.search.times(sc), m = sc.m;
+    let f;
+    if (t < T.tClick) f = 0;
+    else if (t < T.tType0) f = 1;
+    else if (t < T.tType1) f = m.typed[Math.min(m.typed.length - 1, Math.floor(ramp(t, T.tType0, T.tType1) * m.typed.length))];
+    else if (t < T.tSug) f = m.typed[m.typed.length - 1];
+    else if (t < T.tCard) f = m.suggest;
+    else f = m.card;
+    const layers = [[sc.bmps[f], 1]];
+    if (t >= T.tCard && t < T.tCard + .35) { layers[0] = [sc.bmps[m.suggest], 1]; layers.push([sc.bmps[m.card], ramp(t, T.tCard, T.tCard + .35)]); }
+    const z = eio(ramp(t, T.tCard + .2, sc.dur + .3));
+    sc.win.draw(layers, { s: 1 + .32 * z, fx: lerp(960, 420, z), fy: lerp(540, 470, z) });
+    const box = sc.win.toStage(230, 41), sug = sc.win.toStage(m.click[0], m.click[1]);
+    if (sc.inset) {
+      const a = sc.at.draw - .15, dm = FT.draw.meta, k = pop(t, a, .45), out = ramp(t, T.tCard - .1, T.tCard + .25);
+      tf(sc.inset.el, k * (1 - out), 0, 0, .92 + .08 * k);
+      // frames: before, tool on, one per click (the last click closes the shape), then the area card
+      const tc = (n) => a + .35 + n * .24, nClicks = dm.after_click.length;
+      let f = 0;
+      if (t >= a + .2) f = 1;
+      for (let n = 0; n < nClicks; n++) if (t >= tc(n)) f = dm.after_click[n];
+      const cardT = tc(nClicks) + .1;
+      const layers = [[sc.dbmps[f], 1]];
+      if (t >= cardT) layers.push([sc.dbmps[dm.card], ramp(t, cardT, cardT + .3)]);
+      sc.inset.draw(layers, { s: 1.45, fx: 1060, fy: 500 });
+      // trace the same corners in the app's selection blue, crisp at this size
+      const P = dm.pts.map(([x, y]) => { const [sx, sy] = sc.inset.toStage(x, y); return [sx - sc.inset.box.x, sy - sc.inset.box.y]; });
+      const done = dm.pts.filter((_, n) => t >= tc(n)).length, closed = t >= tc(nClicks - 1);
+      const pts = P.slice(0, done).map((p) => p.join(",")).join(" ");
+      sc.poly.innerHTML = `<svg width="720" height="405" style="position:absolute;inset:0">
+        ${closed ? `<polygon points="${pts}" fill="rgba(47,98,233,.10)" stroke="#2F62E9" stroke-width="3.5" stroke-linejoin="round"/>`
+                 : `<polyline points="${pts}" fill="none" stroke="#2F62E9" stroke-width="3.5" stroke-dasharray="7 6" stroke-linejoin="round"/>`}
+        ${P.slice(0, done).map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#2F62E9" stroke-width="3"/>`).join("")}</svg>`;
+      sc.poly.style.opacity = 1 - ramp(t, cardT, cardT + .3) * .6;
+    }
+    sc.cur.render(t, [[0, 900, 620], [.15, 900, 620], [T.tClick - .05, box[0], box[1]], [T.tSug, box[0], box[1]], [T.tPick - .05, sug[0], sug[1]], [sc.dur, sug[0] + 40, sug[1] + 60]],
+      [T.tClick, T.tPick], [.1, T.tCard + .6]);
+  },
+};
+
+/* --- the place card, enlarged and scrolled through its checks --- */
+SCENES.card = {
+  async load(sc) {
+    sc.bmp = await bitmap(FT.search.frames[FT.search.meta.card]);
+    sc.img = await imgReady(FT.search.cardImg);
+  },
+  build(root, sc) {
+    sc.win = new AppWindow(root);
+    sc.cardW = 640; sc.k = sc.cardW / FT.search.meta.card_box.width;
+    sc.vpH = 880;
+    const vp = sc.vp = pos(el("div", "card", root), 1100, 26, sc.cardW, sc.vpH);
+    vp.style.overflow = "hidden"; vp.style.borderRadius = "18px";
+    sc.inner = el("div", "abs", vp); pos(sc.inner, 0, 0, sc.cardW);
+    sc.img.style.width = sc.cardW + "px"; sc.img.style.display = "block"; sc.inner.appendChild(sc.img);
+    sc.hl = el("div", "hl", sc.inner);
+    sc.parts = FT.search.meta.card_box.parts;
+    // a target: [y, h] in card CSS px
+    const P = sc.parts, ck = P.filter((p) => p.cls === "ck"), find = (c) => P.find((p) => p.cls === c);
+    const span = (a, b) => [a.y, b.y + b.h - a.y];
+    sc.targets = {
+      history: span(find("rows"), find("minichart")), risk: [find("risk").y, find("risk").h],
+      price: [find("rows").y + find("rows").h * .66, find("rows").h * .34],
+      top: [0, 400],
+    };
+    ck.forEach((c, i) => { sc.targets["ck" + i] = [c.y, c.h]; });
+    sc.cardH = FT.search.meta.card_box.height;
+  },
+  render(t, sc) {
+    sc.win.draw([[sc.bmp, 1]], { s: 1.32, fx: 420, fy: 470 });
+    sc.win.veil.style.opacity = .35 * pop(t, 0, .5);
+    // the small card in the footage grows into the big one
+    const k = eo(ramp(t, 0, .6));
+    const small = sc.win.toStage(16, 78), sk = sc.win.scaleK();
+    const x = lerp(small[0], 1100, k), y = lerp(small[1], 26, k), w = lerp(380 * sk, sc.cardW, k);
+    sc.vp.style.left = x + "px"; sc.vp.style.top = y + "px"; sc.vp.style.width = sc.cardW + "px";
+    sc.vp.style.transformOrigin = "0 0"; sc.vp.style.transform = `scale(${w / sc.cardW})`;
+    sc.vp.style.opacity = clamp(k * 3);
+    // focus list: [time, target]
+    const seq = sc.focus.filter(([tt]) => tt != null);
+    let cur = null, prev = null, tStart = 0;
+    for (const [tt, key] of seq) if (t >= tt - .25) { prev = cur; cur = key; tStart = tt - .25; }
+    const scrollFor = (key) => { if (!key) return 0; const [yy, hh] = sc.targets[key]; const vis = sc.vpH / sc.k;
+      return clamp(yy + hh / 2 - vis * .42, 0, sc.cardH - vis); };
+    const q = eio(ramp(t, tStart, tStart + .5));
+    const sy = lerp(scrollFor(prev), scrollFor(cur), q);
+    sc.inner.style.transform = `translateY(${-sy * sc.k}px)`;
+    if (cur && cur !== "top") {
+      const [yy, hh] = sc.targets[cur];
+      pos(sc.hl, 8, (yy - 6) * sc.k, sc.cardW - 16, (hh + 12) * sc.k);
+      sc.hl.style.opacity = pop(t, tStart + .2, .3);
+    } else sc.hl.style.opacity = 0;
+  },
+};
+
+/* --- the 30 s cut: search and card in one scene --- */
+SCENES.inspect = {
+  async load(sc) { await SCENES.search.load(sc); sc.bmp = sc.bmps[FT.search.meta.card]; sc.img = await imgReady(FT.search.cardImg); },
+  build(root, sc) {
+    const a = sc.search = { ...sc, dur: sc.at.card - .1, bmps: sc.bmps }; a.root = el("div", "scene", root); a.root.style.background = "transparent";
+    SCENES.search.build(a.root, a);
+    const b = sc.card = { ...sc, img: sc.img, bmp: sc.bmp, focus: sc.focus }; b.root = el("div", "scene", root); b.root.style.background = "transparent";
+    SCENES.card.build(b.root, b);
+  },
+  render(t, sc) {
+    const tc = sc.at.card - .1;
+    sc.search.root.style.opacity = t < tc + .1 ? 1 : 0;
+    sc.card.root.style.opacity = t >= tc ? 1 : 0;
+    if (t < tc + .1) SCENES.search.render(t, sc.search);
+    if (t >= tc) SCENES.card.render(t - tc, { ...sc.card, focus: sc.focus.map(([tt, k]) => [tt == null ? null : tt - tc, k]) });
+  },
+};
+
+/* --- timeline 1975 -> 2035 with the built-up layer --- */
+function statCard(root, x, y) { const c = pos(el("div", "card stat", root), x, y); return c; }
+SCENES.timeline = {
+  async load(sc) { sc.bmps = await Promise.all(FT.timeline.frames.map((f) => bitmap(f))); },
+  build(root, sc) {
+    sc.win = new AppWindow(root);
+    const c = sc.stat = statCard(root, 1250, 60);
+    el("div", "k", c, STR.builtTitle);
+    sc.rows = sc.rowsDef.map((r) => { const e = el("div", "row", c, `<span>${r[0]}</span><strong style="color:${r[2] || "var(--ink)"}">${r[1]}</strong>`); return e; });
+    sc.chip = el("div", "", c, `<span class="chip">${STR.modelChip}</span>`); sc.chip.style.marginTop = "16px";
+    sc.note = el("div", "note", c, STR.verdict);
+  },
+  yearAt(t, sc) {
+    // the frames run from the first to the last year of each phase while the narrator talks about it
+    for (const [a, b, ya, yb] of sc.phases) { if (t < a) return ya; if (t <= b) return lerp(ya, yb, eio(ramp(t, a, b))); }
+    return sc.phases[sc.phases.length - 1][3];
+  },
+  render(t, sc) {
+    const years = FT.timeline.years, y = SCENES.timeline.yearAt(t, sc);
+    const f = clamp((y - years[0]) / (years[1] - years[0]), 0, years.length - 1);
+    sc.win.draw(seqLayers(sc.bmps, f), { s: 1 + .05 * eo(ramp(t, 0, sc.dur)), fx: 980, fy: 520 });
+    const k = pop(t, .1, .5); tf(sc.stat, k, (1 - k) * 40, 0);
+    sc.rows.forEach((r, i) => { const yr = sc.rowsDef[i][3]; const kk = pop(t, sc.rowAt[i], .45); tf(r, .15 + .85 * kk); });
+    sc.chip.style.display = sc.at.chip != null && t >= sc.at.chip - .2 ? "block" : "none";
+    sc.note.style.display = sc.at.verdict != null && t >= sc.at.verdict - .2 ? "block" : "none";
+    if (sc.at.chip != null) appear(sc.chip, t, sc.at.chip - .2, .5, 10);
+    if (sc.at.verdict != null) appear(sc.note, t, sc.at.verdict - .2, .5, 10);
+  },
+};
+
+/* --- heat: summer nights, then summer days (NASA MODIS) --- */
+SCENES.heat = {
+  async load(sc) { sc.night = await bitmap(FT.layers.night); sc.day = await bitmap(FT.layers.day); },
+  build(root, sc) {
+    sc.win = new AppWindow(root);
+    const mk = (big, k, note, color) => { const c = statCard(root, 1250, 60);
+      el("div", "k", c, k); const v = el("div", "v", c, big); v.style.color = color; el("div", "note", c, note); return c; };
+    sc.a = mk(NUM.nightShare, STR.nightK, STR.nightNote, "var(--heat)");
+    sc.b = mk(NUM.dayR, STR.dayK, STR.dayNote, "var(--heat)");
+  },
+  render(t, sc) {
+    const tb = sc.at.day - .3, x = ramp(t, tb, tb + .6);
+    sc.win.draw([[sc.night, 1], [sc.day, x]], { s: 1.02 + .06 * ramp(t, 0, sc.dur), fx: 980, fy: 520 });
+    const ka = pop(t, .15, .5) * (1 - ramp(t, tb - .1, tb + .25)); tf(sc.a, ka, (1 - pop(t, .15, .5)) * 40, 0);
+    const kb = pop(t, tb + .15, .5); tf(sc.b, kb, (1 - kb) * 40, 0);
+  },
+};
+
+/* --- one footage still with a caption card (NISAR in the 30 s cut) --- */
+SCENES.still = {
+  async load(sc) { sc.bmp = await bitmap(sc.src); },
+  build(root, sc) {
+    sc.win = new AppWindow(root);
+    const c = sc.cap = statCard(root, 1250, 60);
+    el("div", "k", c, sc.capK); const v = el("div", "v", c, sc.capV); v.style.color = sc.capColor || "var(--ink)"; v.style.fontSize = "64px";
+    el("div", "note", c, sc.capNote);
+  },
+  render(t, sc) {
+    sc.win.draw([[sc.bmp, 1]], { s: 1.02 + .08 * eo(ramp(t, 0, sc.dur)), fx: sc.fx || 960, fy: sc.fy || 520 });
+    const k = pop(t, .15, .5); tf(sc.cap, k, (1 - k) * 40, 0);
+  },
+};
+
+/* --- data sources and the trend test --- */
+SCENES.data = {
+  async load(sc) { sc.tiles = await Promise.all(sc.tileDefs.map((d) => d.src ? bitmap(d.src, 1920, 1080) : null)); },
+  build(root, sc) {
+    const W = 520, H = 250, gx = 40, x0 = (1920 - 3 * W - 2 * gx) / 2, y0 = sc.y0 || 150;
+    sc.head = el("div", "h2 abs", root, sc.title || STR.dataTitle); pos(sc.head, x0, y0 - 86); sc.head.style.fontSize = "40px";
+    sc.tileEls = sc.tileDefs.map((d, i) => {
+      const x = x0 + (i % 3) * (W + gx), y = y0 + Math.floor(i / 3) * (H + 130);
+      const c = pos(el("div", "card", root), x, y, W); c.style.overflow = "hidden";
+      if (d.src) { const cv = el("canvas", "", c); cv.width = W; cv.height = H; cv.style.display = "block"; c._cv = cv; }
+      else { const tx = el("div", "", c, d.text); tx.style.cssText = `height:${H}px;padding:34px 36px;font-size:30px;line-height:1.5;font-weight:550;background:var(--soft)`; }
+      const cap = el("div", "", c, `<div style="font-size:28px;font-weight:650">${d.name}</div><div class="small" style="margin-top:4px">${d.what}</div>`);
+      cap.style.padding = "18px 24px 22px";
+      return c;
+    });
+    if (sc.noChart) return;
+    // the trend test chart
+    const c = sc.chart = pos(el("div", "card", root), 300, 70, 1320); c.style.padding = "36px 44px 34px";
+    el("div", "h2", c, STR.chartTitle);
+    el("div", "small", c, STR.chartSrc).style.marginTop = "6px";
+    const T = sc.trend, w = 1230, h = 470, pad = 44;
+    const xs = (yr) => pad + ((yr - T.years[0]) / (T.years[T.years.length - 1] - T.years[0])) * (w - 2 * pad);
+    const ymax = Math.ceil(Math.max(...T.ha) / 100) * 100, ys = (v) => h - 30 - (v / ymax) * (h - 70);
+    let g = `<svg width="${w}" height="${h}" style="display:block;margin-top:18px;overflow:visible">`;
+    for (let v = 0; v <= ymax; v += 100) g += `<line x1="${pad}" x2="${w - pad}" y1="${ys(v)}" y2="${ys(v)}" stroke="#E6E6E2"/><text x="${pad - 12}" y="${ys(v) + 7}" font-size="19" fill="#9AA0A6" text-anchor="end">${v}</text>`;
+    [T.years[0], 2005, 2010, 2015, 2020, T.years[T.years.length - 1]].forEach((yr) => { g += `<text x="${xs(yr)}" y="${h + 2}" font-size="20" fill="#6B6F74" text-anchor="middle">${yr}</text>`; });
+    T.years.forEach((yr, i) => { g += `<circle class="pt" cx="${xs(yr)}" cy="${ys(T.ha[i])}" r="9" fill="#4E9F3D"/>`; });
+    const l0 = [xs(T.years[0]), ys(T.line[0])], l1 = [xs(T.years[T.years.length - 1]), ys(T.line[1])];
+    g += `<line class="ts" x1="${l0[0]}" y1="${l0[1]}" x2="${l1[0]}" y2="${l1[1]}" stroke="#1B1C1E" stroke-width="3.5" stroke-dasharray="12 9" pathLength="1"/></svg>`;
+    el("div", "", c, g);
+    sc.pts = [...c.querySelectorAll(".pt")]; sc.ts = c.querySelector(".ts");
+    const chips = el("div", "", c); chips.style.cssText = "margin-top:22px;display:flex;gap:14px";
+    sc.chips = [STR.chipSen, STR.chipMK].map((s) => el("span", "src", chips, s));
+  },
+  render(t, sc) {
+    const tB = sc.at.test - .35;
+    { const k = pop(t, .05, .5), out = ramp(t, tB - .2, tB + .3); tf(sc.head, k * (1 - out), 0, (1 - k) * 20); }
+    sc.tileEls.forEach((c, i) => {
+      const a = sc.at["tile" + i] - .25, k = pop(t, a, .5), out = ramp(t, tB - .2, tB + .3);
+      tf(c, k * (1 - out), 0, (1 - k) * 30 - out * 20, 1 - out * .03);
+      if (c._cv && sc.tiles[i] && !c._drawn) {
+        const b = sc.tiles[i], d = sc.tileDefs[i], ctx = c._cv.getContext("2d"), s = d.zoom || 2.2;
+        const kx = b.width / 1920, vw = 1920 / s, vh = vw * 250 / 520;
+        ctx.drawImage(b, (d.fx - vw / 2) * kx, (d.fy - vh / 2) * kx, vw * kx, vh * kx, 0, 0, 520, 250); c._drawn = true;
+      }
+    });
+    if (sc.noChart) return;
+    const kc = pop(t, tB, .6); tf(sc.chart, kc, 0, (1 - kc) * 40);
+    sc.pts.forEach((p, i) => { const k = pop(t, tB + .3 + i * .045, .3); p.setAttribute("r", 9 * k); });
+    const kl = eio(ramp(t, tB + 1.5, tB + 2.4)); sc.ts.style.strokeDasharray = kl < 1 ? `${kl} 1` : "0.012 0.009";
+    sc.ts.style.opacity = kl > 0 ? 1 : 0;
+    sc.chips.forEach((c, i) => appear(c, t, tB + 2.2 + i * .3, .45, 10));
+  },
+};
+
+/* --- end card --- */
+SCENES.close = {
+  async load(sc) { sc.bg = await bitmap(FT.clean["2035"], 2560, 1440); },
+  build(root, sc) {
+    sc.win = new AppWindow(root, { x: 0, y: 0, w: 1920, h: 1080 });
+    sc.win.el.style.borderRadius = 0; sc.win.el.style.boxShadow = "none";
+    const v = el("div", "abs", root); pos(v, 0, 0, 1920, 1080);
+    v.style.background = "linear-gradient(180deg, rgba(241,240,235,.22) 0%, rgba(241,240,235,.66) 50%, rgba(241,240,235,1) 87%)";
+    const box = el("div", "abs", root); pos(box, 0, 340, 1920); box.style.textAlign = "center";
+    sc.brand = el("div", "huge", box, STR.brand); sc.brand.style.fontSize = "132px";
+    sc.tag = el("div", "", box, STR.closeTag); sc.tag.style.cssText = "font-size:50px;font-weight:600;margin-top:30px";
+    sc.chips = el("div", "", box, STR.closeChips.map((c) => `<span class="src">${c}</span>`).join("")); sc.chips.style.marginTop = "48px";
+  },
+  render(t, sc) {
+    sc.win.draw([[sc.bg, 1]], { s: 1.05 + .08 * eo(ramp(t, 0, sc.dur)), fx: 960, fy: 520 });
+    appear(sc.brand, t, .1, .7, 40);
+    appear(sc.tag, t, sc.at.tag - .2, .6);
+    appear(sc.chips, t, sc.at.tag + .5, .6);
+  },
+};
+
+/* ---------------- timeline of the whole cut ---------------- */
+const XF = CUT.crossfade;
+const live = new Map();
+async function enter(i) {
+  const sc = Object.assign({}, CUT.scenes[i]);
+  sc.dur = sc.t1 - sc.t0;
+  const S = SCENES[sc.type];
+  if (S.load) await S.load(sc);
+  sc.root = el("div", "scene", $("#stage"));
+  sc.root.style.zIndex = i + 1;
+  S.build(sc.root, sc);
+  live.set(i, sc);
+}
+function leave(i) {
+  const sc = live.get(i);
+  sc.root.remove();
+  live.delete(i);
+}
+let subText = null;
+window.renderAt = async function (T) {
+  const want = [];
+  CUT.scenes.forEach((s, i) => { if (T >= s.t0 - XF && T < s.t1) want.push(i); });
+  for (const i of [...live.keys()]) if (!want.includes(i)) leave(i);
+  for (const i of want) if (!live.has(i)) await enter(i);
+  for (const i of want) {
+    const sc = live.get(i), t = T - sc.t0;
+    sc.root.style.opacity = i === 0 ? 1 : clamp((T - (sc.t0 - XF)) / XF);
+    SCENES[sc.type].render(t, sc);
+  }
+  // subtitles
+  const c = CUT.cues.find((q) => T >= q.show && T < q.hide);
+  const box = $("#sub div");
+  if (c) {
+    if (subText !== c.text) {
+      // never break a line inside hyphenated names (Sentinel-1, Manna-Kendalla, PIG-PIB)
+      const esc = c.text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      box.innerHTML = esc.replace(/(\S+-\S+)/g, '<span style="white-space:nowrap">$1</span>');
+      subText = c.text;
+    }
+    const k = Math.min(ramp(T, c.show, c.show + .12), 1 - ramp(T, c.hide - .12, c.hide));
+    box.style.opacity = k;
+  } else box.style.opacity = 0;
+  if (CUT.debug) document.title = fmtTime(T);
+  return true;
+};
+// click sounds for the mix: when the cursor clicks in the search scenes
+window.CLICKS = [];
+CUT.scenes.forEach((s) => {
+  if (s.type !== "search" && s.type !== "inspect") return;
+  const dur = s.type === "search" ? s.t1 - s.t0 : s.at.card - .1;
+  const T = SCENES.search.times({ dur, m: FT.search.meta });
+  window.CLICKS.push(s.t0 + T.tClick, s.t0 + T.tPick);
+});
+window.stageReady = (async () => {
+  await document.fonts.load('760 120px "Archivo"');
+  await document.fonts.load('500 37px "Archivo"');
+  await document.fonts.ready;
+  return true;
+})();
+</script>
+</body>
+</html>
