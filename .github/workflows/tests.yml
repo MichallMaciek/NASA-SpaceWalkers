@@ -1,0 +1,81 @@
+# Automatic checks of the SARnik web app on every push and pull request that touches it.
+#
+# What runs here (no browser, no network beyond installing Pillow, no secrets):
+#   1. node --check on every JS file under poznan-trend-detective/web (syntax errors break the whole page)
+#   2. node poznan-trend-detective/tests/i18n_parity.mjs, when that file exists (Polish and English strings match)
+#   3. python poznan-trend-detective/tests/data_contract.py (data files, keys, PNG layers, sizes, no keys or tokens)
+#   4. node docs/planwyd/kontrakt/selftest.mjs (contract of the place-card modules)
+#
+# The browser tests are NOT run here: they need Chrome and the network (OpenFreeMap, GEOPOZ, Nominatim).
+# Run them locally before switching versions (docs/poprawa_mapy.md point 12), for example:
+#   cd poznan-trend-detective/web && python3 -m http.server 8000      # in one terminal
+#   poznan-trend-detective/.venv/bin/python <browser test script>      # Playwright with channel="chrome",
+#                                                                       # see promo/capture.py for the Nominatim stub
+name: tests
+
+on:
+  push:
+    paths:
+      - "poznan-trend-detective/**"
+      - "docs/planwyd/kontrakt/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    paths:
+      - "poznan-trend-detective/**"
+      - "docs/planwyd/kontrakt/**"
+      - ".github/workflows/tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow (full PNG decode in the data contract)
+        run: python -m pip install --disable-pip-version-check "pillow>=10,<13"
+
+      # every later step runs even if an earlier one failed, so one push shows all problems at once
+      - name: JS syntax (node --check)
+        if: success() || failure()
+        run: |
+          status=0
+          while IFS= read -r -d '' f; do
+            echo "node --check $f"
+            node --check "$f" || status=1
+          done < <(find poznan-trend-detective/web -type f \( -name '*.js' -o -name '*.mjs' \) -not -path '*/node_modules/*' -print0)
+          exit $status
+
+      - name: Polish / English string parity
+        if: success() || failure()
+        run: |
+          if [ -f poznan-trend-detective/tests/i18n_parity.mjs ]; then
+            node poznan-trend-detective/tests/i18n_parity.mjs
+          else
+            echo "poznan-trend-detective/tests/i18n_parity.mjs not present yet, skipped"
+          fi
+
+      - name: Data contract
+        if: success() || failure()
+        run: python poznan-trend-detective/tests/data_contract.py
+
+      - name: Place-card module contract self-test
+        if: success() || failure()
+        run: node docs/planwyd/kontrakt/selftest.mjs

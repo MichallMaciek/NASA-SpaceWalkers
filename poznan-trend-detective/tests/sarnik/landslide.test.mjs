@@ -253,3 +253,4 @@ console.log("=== TESTY MODUŁU LANDSLIDE ===");
 
 console.log(failed ? `\nLANDSLIDE TESTY: NIE PRZESZŁO ${failed}` : "\nWszystkie testy modułu landslide przeszły pomyślnie.");
 process.exitCode = failed ? 1 : 0;
+

@@ -1,4 +1,9 @@
 /* UI text in English and Polish. Functions receive numbers already formatted for the language. */
+// Polish plural: plForm(n, "komórka", "komórki", "komórek") -> 1 komórka, 2 komórki, 5 komórek, 12 komórek, 22 komórki
+function plForm(n, one, few, many) {
+  const k = typeof n === "number" ? Math.abs(Math.round(n)) : +String(n).replace(/\D/g, "");
+  return k === 1 ? one : k % 10 >= 2 && k % 10 <= 4 && (k % 100 < 12 || k % 100 > 14) ? few : many;
+}
 window.I18N = {
   en: {
     about: "About the data",
@@ -27,7 +32,7 @@ window.I18N = {
       built: "Landsat-based GHSL + our projection", prob: "chance of becoming built in 5 years", forest: "Landsat, 30 m, by year",
       night: "°C per decade, 2000–2024", day: "°C per decade, 2000–2024", ndvi: "NDVI per decade, 250 m",
       year: "°C, with a time slider", mean: "°C, 2000–2024, heat island",
-      nisar: "calibrated L-band SAR (dry vs wet)", wuia: "2,420 permits & applications (GEOPOZ)", radar: "summer median, 2017–2024", radarchange: "new structures and clearings",
+      nisar: "NASA GIBS picture, all tracks; not used in the numbers", wuia: "2,420 building cases (GEOPOZ)", radar: "summer median, 2017–2024", radarchange: "new structures and clearings",
       dem: "with a water-level slider", growthpop: "% since 2000, GUS", none: "",
     },
     B: { map: "Map", streets: "Street map", orto: "Aerial photo, Poland (Geoportal)", poz2025: "Poznań 2025 aerial (GEOPOZ)", poz1940: "Poznań 2001 aerial (GEOPOZ)" },
@@ -47,7 +52,7 @@ window.I18N = {
     caseTitle: "What the data shows",
     caseIntro: "Satellite data from NASA and partners, turned into numbers for every place around Poznań. Pick a finding, or search any address.",
     f: {
-      sprawl: (d) => ({ t: "The city is spilling outwards", b: `Built-up land in the 18 municipalities grew from ${d.b1990}% to ${d.b2020}% of the area between 1990 and 2020. Poznań lost ${d.pozLoss}% of its residents since 2000; ${d.top} gained over 200%.` }),
+      sprawl: (d) => ({ t: "The city is spilling outwards", b: `Built-up land in the 18 municipalities grew from ${d.b1990}% to ${d.b2020}% of the area between 1990 and 2020. Poznań has lost ${d.pozLoss}% of its residents since 2000; ${d.top} gained over 200%.` }),
       forecast: (d) => ({ t: "Where the next estates will go", b: `Our model, tested on 2015–2020 data it never saw, ranks future building sites well (AUC ${d.auc}). At the recent pace, about ${d.ha} ha more will be built every 5 years.` }),
       prices: (d) => ({ t: "Flats got dearer, wages faster", b: `In Poznań the median price of a square metre rose ${d.pUp}% from 2015 to 2024 (GUS), while the average wage rose ${d.wUp}%. One month's pay bought ${d.r15} m² in 2015 and ${d.r24} m² in 2024.` }),
       forest: (d) => ({ t: "Where the trees fell", b: `About ${d.ha} ha of tree cover was lost across the area since 2001, most of it in ${d.top}.${d.trend}` }),
@@ -85,10 +90,10 @@ window.I18N = {
     },
     yearNote: "June–August mean of night overpasses",
     aboutHtml: `
-      <p>Pick any place around Poznań and see, from satellites, how it has changed and where it is heading: building, forest, heat, greenness and terrain, each with a proper trend test.</p>
+      <p>Pick any place around Poznań and get a land check-up from space. SAR radar (NISAR, Sentinel-1, ALOS-2, EGMS) shows signs of new walls, how the surface responds to rain and harvest, and ground motion; satellite history adds building, forest, heat, greenness and terrain, each with a proper trend test.</p>
       <h3>NASA data</h3>
       <ul>
-        <li>NISAR (NASA-ISRO) L-band radar: GCOV mosaics from NASA GIBS, every pass since June 2026.</li>
+        <li>NISAR (NASA-ISRO) L-band radar: GCOV pixels of track 158 (provisional release) read from the HDF5 files; NASA GIBS mosaics only as a preview.</li>
         <li>MODIS Terra MOD11A2 v061 (surface temperature, 1 km) and MOD13Q1 v061 (NDVI, 250 m), 2000–2024.</li>
         <li>Landsat (NASA/USGS) is the source behind the built-up history (JRC GHSL) and the forest loss data (University of Maryland Global Forest Change v1.12).</li>
         <li>NASA POWER (MERRA-2) air temperature, as a cross-check.</li>
@@ -97,19 +102,19 @@ window.I18N = {
       <ul>
         <li>Sentinel-1 radar (ESA/Copernicus), summer medians 2017, 2020, 2024; Copernicus DEM GLO-30 (from the TanDEM-X radar mission).</li>
         <li>IMGW-PIB Poznań-Ławica station; GUS Bank Danych Lokalnych: residents, dwellings, flat prices per m², average wages.</li>
-        <li>Aerial photos: Geoportal.gov.pl (GUGiK), GEOPOZ Poznań (2025, 1940). Roads and borders: OpenStreetMap (ODbL). Base map: Esri.</li>
+        <li>Aerial photos: Geoportal.gov.pl (GUGiK), GEOPOZ Poznań (2025, 2001). Roads and borders: OpenStreetMap (ODbL). Base map: OpenFreeMap (OpenStreetMap data).</li>
       </ul>
       <h3>Method</h3>
       <p>Trends: Theil-Sen slope; significance: two-sided Mann-Kendall test, α = 0.05. Growth projection: logistic regression on 120 m cells (nearby building, distance to main roads and to the Old Market, terrain, tree cover), trained on 2005–2015, tested on 2015–2020, then rolled forward in 5-year steps at the 2010–2020 pace.</p>
       <h3>Limits</h3>
       <ul>
-        <li>Free radar sees 10–20 m, not single houses; built-up maps work at the scale of estates and streets.</li>
+        <li>Map cells are about 73 m on the ground (120 m in Web Mercator): they show estates and streets, not single houses.</li>
         <li>The projection assumes the next years look like 2010–2020: no new roads, plans or crises are known to the model.</li>
         <li>Flat prices exist only per county (Poznań city, Poznań county), not per address.</li>
         <li>Surface temperature is roofs and ground, not air. Mann-Kendall assumes independent years.</li>
       </ul>
-      <h3>Use of SI tools</h3>
-      <p>The team used Claude (an SI assistant) to write the data pipeline and this app and to draft text. Every number is computed by the pipeline from the sources above; the statistics were checked against SciPy.</p>`,
+      <h3>Use of AI tools</h3>
+      <p>The team used Claude (an AI assistant) to write the data pipeline and this app and to draft text. Every number is computed by the pipeline from the sources above; the statistics were checked against SciPy.</p>`,
   },
 
   pl: {
@@ -132,14 +137,14 @@ window.I18N = {
       built: "Zabudowa 1975–2035", prob: "Gdzie miasto urośnie", forest: "Wycinka lasu 2001–2024",
       night: "Letnie noce: trend", day: "Letnie dni: trend", ndvi: "Zieleń: trend",
       year: "Letnie noce rok po roku", mean: "Letnie noce: średnia",
-      nisar: "Przeloty radaru NISAR (NASA-ISRO)", radar: "Jasność radaru (Sentinel-1)", radarchange: "Zmiana radaru 2017–2024",
+      nisar: "Przeloty radaru NISAR (NASA-ISRO)", wuia: "Decyzje budowlane (WUIA)", radar: "Jasność radaru (Sentinel-1)", radarchange: "Zmiana radaru 2017–2024",
       dem: "Wysokość terenu (radar TanDEM-X)", growthpop: "Zmiana liczby mieszkańców", none: "Nic",
     },
     Lsub: {
       built: "GHSL z Landsata + nasza prognoza", prob: "szansa zabudowy w 5 lat", forest: "Landsat, 30 m, rok po roku",
       night: "°C na dekadę, 2000–2024", day: "°C na dekadę, 2000–2024", ndvi: "NDVI na dekadę, 250 m",
       year: "°C, z suwakiem czasu", mean: "°C, 2000–2024, wyspa ciepła",
-      nisar: "skalibrowany radar pasma L (sucho/mokro)", wuia: "2 420 pozwoleń i wniosków (GEOPOZ)", radar: "mediana z lata, 2017–2024", radarchange: "nowe budynki i wycinki",
+      nisar: "obraz NASA GIBS, wszystkie orbity; nie do liczb", wuia: "2 420 spraw budowlanych (GEOPOZ)", radar: "mediana z lata, 2017–2024", radarchange: "nowe budynki i wycinki",
       dem: "z suwakiem poziomu wody", growthpop: "% od 2000, GUS", none: "",
     },
     B: { map: "Mapa", streets: "Mapa ulic", orto: "Ortofotomapa Polski (Geoportal)", poz2025: "Poznań 2025, ortofoto (GEOPOZ)", poz1940: "Poznań 2001, ortofoto (GEOPOZ)" },
@@ -163,7 +168,7 @@ window.I18N = {
       forecast: (d) => ({ t: "Gdzie staną kolejne osiedla", b: `Nasz model, sprawdzony na danych 2015–2020, których nie widział, dobrze wskazuje przyszłe miejsca zabudowy (AUC ${d.auc}). W ostatnim tempie przybywa ok. ${d.ha} ha zabudowy co 5 lat.` }),
       prices: (d) => ({ t: "Mieszkania drożeją, pensje szybciej", b: `W Poznaniu mediana ceny m² wzrosła o ${d.pUp}% w latach 2015–2024 (GUS), a przeciętna pensja o ${d.wUp}%. Za miesięczną pensję można było kupić ${d.r15} m² w 2015 r. i ${d.r24} m² w 2024 r.` }),
       forest: (d) => ({ t: "Gdzie ubyło drzew", b: `Od 2001 r. w okolicy zniknęło ok. ${d.ha} ha pokrycia drzewami, najwięcej w gminach: ${d.top}.${d.trend}` }),
-      nights: (d) => ({ t: "Każda noc jest coraz cieplejsza", b: `Letnie noce ociepliły się istotnie w ${d.share}% z ${d.n} kwadratów kilometrowych. Żaden się nie ochłodził. Poznań: ${d.city} °C na dekadę.` }),
+      nights: (d) => ({ t: "Każda noc jest coraz cieplejsza", b: `Letnie noce ociepliły się istotnie w ${d.share}% z ${d.n} ${plForm(d.n, "kwadratu kilometrowego", "kwadratów kilometrowych", "kwadratów kilometrowych")}. Żaden się nie ochłodził. Poznań: ${d.city} °C na dekadę.` }),
       days: (d) => ({ t: "W dzień ciepło idzie za ludźmi", b: `Im szybciej rosła gmina, tym szybciej ocieplały się jej letnie dni (Spearman r = ${d.r}, ${d.p}, 18 gmin).` }),
       station: (d) => ({ t: "Satelita zgadza się z termometrem", b: `Nad stacją Ławica letnie noce mierzone z kosmosu i minimum na stacji idą w parze: r = ${d.r} w ${d.n} latach.` }),
     },
@@ -197,10 +202,10 @@ window.I18N = {
     },
     yearNote: "Średnia z nocnych przelotów, czerwiec–sierpień",
     aboutHtml: `
-      <p>Wybierz dowolne miejsce wokół Poznania i zobacz z satelitów, jak się zmieniało i dokąd zmierza: zabudowa, las, ciepło, zieleń i teren, każde z rzetelnym testem trendu.</p>
+      <p>Wybierz dowolne miejsce wokół Poznania i zrób mu przegląd z kosmosu. Radar SAR (NISAR, Sentinel-1, ALOS-2, EGMS) pokazuje ślady nowych ścian, reakcję powierzchni na deszcz i żniwa oraz ruch gruntu; historia z satelitów dodaje zabudowę, las, ciepło, zieleń i teren, każde z rzetelnym testem trendu.</p>
       <h3>Dane NASA</h3>
       <ul>
-        <li>NISAR (NASA-ISRO), radar w paśmie L: mozaiki GCOV z NASA GIBS, każdy przelot od czerwca 2026.</li>
+        <li>NISAR (NASA-ISRO), radar w paśmie L: piksele GCOV orbity 158 (wersja provisional) czytane z plików HDF5; mozaiki NASA GIBS tylko do podglądu.</li>
         <li>MODIS Terra MOD11A2 v061 (temperatura powierzchni, 1 km) i MOD13Q1 v061 (NDVI, 250 m), 2000–2024.</li>
         <li>Landsat (NASA/USGS) to źródło historii zabudowy (JRC GHSL) i danych o wycince (University of Maryland, Global Forest Change v1.12).</li>
         <li>NASA POWER (MERRA-2): temperatura powietrza, do porównania.</li>
@@ -209,13 +214,13 @@ window.I18N = {
       <ul>
         <li>Radar Sentinel-1 (ESA/Copernicus), mediany z lata 2017, 2020, 2024; Copernicus DEM GLO-30 (z misji radarowej TanDEM-X).</li>
         <li>Stacja IMGW-PIB Poznań-Ławica; GUS Bank Danych Lokalnych: mieszkańcy, mieszkania, ceny m², przeciętne płace.</li>
-        <li>Ortofotomapy: Geoportal.gov.pl (GUGiK), GEOPOZ Poznań (2025, 1940). Drogi i granice: OpenStreetMap (ODbL). Podkład: Esri.</li>
+        <li>Ortofotomapy: Geoportal.gov.pl (GUGiK), GEOPOZ Poznań (2025, 2001). Drogi i granice: OpenStreetMap (ODbL). Podkład: OpenFreeMap (dane OpenStreetMap).</li>
       </ul>
       <h3>Metoda</h3>
       <p>Trendy: nachylenie Theila-Sena; istotność: dwustronny test Manna-Kendalla, α = 0,05. Prognoza zabudowy: regresja logistyczna na komórkach 120 m (zabudowa w pobliżu, odległość od głównych dróg i od Starego Rynku, rzeźba terenu, pokrycie drzewami), uczona na latach 2005–2015, sprawdzona na 2015–2020, potem rzutowana co 5 lat w tempie z lat 2010–2020.</p>
       <h3>Ograniczenia</h3>
       <ul>
-        <li>Darmowy radar widzi 10–20 m, nie pojedyncze domy; mapy zabudowy działają w skali osiedli i ulic.</li>
+        <li>Komórki mapy mają w terenie ok. 73 m (120 m w odwzorowaniu Web Mercator): pokazują osiedla i ulice, nie pojedyncze domy.</li>
         <li>Prognoza zakłada, że kolejne lata będą jak 2010–2020: model nie zna nowych dróg, planów ani kryzysów.</li>
         <li>Ceny mieszkań są tylko dla powiatów (Poznań, powiat poznański), nie dla adresów.</li>
         <li>Temperatura powierzchni to dachy i grunt, nie powietrze. Test Manna-Kendalla zakłada niezależne lata.</li>
@@ -248,7 +253,7 @@ window.I18N.pl.ui = {
   Lsub: {
     built: "GHSL (Landsat) 1975–2020 + prognoza", forest: "Landsat, Global Forest Change", price: "GUS, powiaty, 2010–2025",
     activity: "zmiana radaru Sentinel-1 2017→2024", dem: "Copernicus DEM z radaru TanDEM-X", radar: "Sentinel-1, mediana z lata",
-    nisar: "mozaiki GCOV z NASA GIBS", night: "MODIS, °C na dekadę", day: "MODIS, °C na dekadę", ndvi: "MODIS, NDVI na dekadę", nightyear: "MODIS, rok z osi czasu",
+    nisar: "mozaiki NASA GIBS, wszystkie orbity; tylko podgląd", night: "MODIS, °C na dekadę", day: "MODIS, °C na dekadę", ndvi: "MODIS, NDVI na dekadę", nightyear: "MODIS, rok z osi czasu",
   },
   opacity: "Krycie", demRange: "Wysokość terenu", asl: "n.p.m.", radarRange: "Jasność odbicia", to: "do",
   radarHint: (y) => `Lato ${y}, najbliższe roku na osi czasu`, minChange: "Pokaż zmiany większe niż", pass: "Przelot",
@@ -259,7 +264,7 @@ window.I18N.pl.ui = {
   footer: "NASA MODIS, NISAR, Landsat (GHSL, GFC) · Sentinel-1 · GUS · stan danych 11.2026",
   lossYear: "Wycinka", dec: "dekadę",
   hintFree: "Obrysuj obszar na mapie. Puść, aby zamknąć kształt.", hintPoly: "Klikaj, aby dodać wierzchołki. Kliknij dwukrotnie, aby zamknąć.",
-  selectedArea: "Zaznaczony obszar", selectedPlace: "Wybrane miejsce", loading: "Liczę dane dla tego miejsca…", clear: "Wyczyść zaznaczenie",
+  selectedArea: "Zaznaczony obszar", selectedPlace: "Wybrane miejsce", loading: "Liczę dane dla tego miejsca…", loadFail: "Nie udało się pobrać części danych dla tego miejsca. Sprawdź połączenie i spróbuj ponownie.", retry: "Spróbuj ponownie", clear: "Wyczyść zaznaczenie",
   radius1km: "1 km wokół punktu", forecastFor: (y) => `prognoza na ${y}`, untilYear: (y) => `do ${y}`,
   sinceYear: (b, s) => `od ${b} · ${s}% terenu`, shareOfLand: "terenu zabudowane",
   forestAtRisk: "las w miejscach prognozowanej zabudowy", forestFrom2001: "dane od 2001 r.",
@@ -272,7 +277,7 @@ window.I18N.pl.ui = {
   risk1: "niskie", risk2: "umiarkowane", risk3: "podwyższone", risk4: "wysokie", risk5: "bardzo wysokie",
   riskText: (c, s, open) => `${c}% szans, że wolny teren zostanie zabudowany w latach 2025–2030. To więcej niż w ${s}% wolnych miejsc w 18 gminach.${open != null ? ` Wolny teren to ${open}% zaznaczenia.` : ""} Ranking z modelu, nie wyrok.`,
   rowBuilt: "Zabudowa", rowForest: "Las", rowPrice: "Cena za m²", builtShare: "Udział zabudowy",
-  heatH: (n) => `Ciepło i zieleń (${n} ${n === 1 ? "kwadrat" : "kwadratów"} MODIS 1 km)`, moreData: "Więcej danych",
+  heatH: (n) => `Ciepło i zieleń (${n} ${plForm(n, "kwadrat", "kwadraty", "kwadratów")} MODIS 1 km)`, moreData: "Więcej danych",
   terrainH: "Teren i radar", elevMean: "Średnia wysokość", radarChange: "Zmiana jasności radaru 2017→2024",
   hide: "Zwiń", show: "Rozwiń",
   caseIntro: "Dane satelitarne zamienione na liczby dla każdego miejsca wokół Poznania. Wyszukaj adres, kliknij mapę albo obrysuj obszar.",
@@ -299,7 +304,7 @@ window.I18N.en.ui = {
   Lsub: {
     built: "GHSL (Landsat) 1975–2020 + projection", forest: "Landsat, Global Forest Change", price: "GUS, counties, 2010–2025",
     activity: "Sentinel-1 radar change 2017→2024", dem: "Copernicus DEM from TanDEM-X radar", radar: "Sentinel-1, summer median",
-    nisar: "GCOV mosaics from NASA GIBS", night: "MODIS, °C per decade", day: "MODIS, °C per decade", ndvi: "MODIS, NDVI per decade", nightyear: "MODIS, year from the timeline",
+    nisar: "NASA GIBS mosaics, all tracks; preview only", night: "MODIS, °C per decade", day: "MODIS, °C per decade", ndvi: "MODIS, NDVI per decade", nightyear: "MODIS, year from the timeline",
   },
   opacity: "Opacity", demRange: "Terrain height", asl: "a.s.l.", radarRange: "Radar brightness", to: "to",
   radarHint: (y) => `Summer ${y}, closest to the timeline year`, minChange: "Show changes larger than", pass: "Pass",
@@ -310,7 +315,7 @@ window.I18N.en.ui = {
   footer: "NASA MODIS, NISAR, Landsat (GHSL, GFC) · Sentinel-1 · GUS · data as of 11.2026",
   lossYear: "Trees lost", dec: "decade",
   hintFree: "Trace an area on the map. Release to close the shape.", hintPoly: "Click to add corners. Double-click to close.",
-  selectedArea: "Selected area", selectedPlace: "Selected place", loading: "Computing this place…", clear: "Clear selection",
+  selectedArea: "Selected area", selectedPlace: "Selected place", loading: "Computing this place…", loadFail: "Some data for this place did not load. Check your connection and try again.", retry: "Try again", clear: "Clear selection",
   radius1km: "1 km around the point", forecastFor: (y) => `forecast for ${y}`, untilYear: (y) => `by ${y}`,
   sinceYear: (b, s) => `since ${b} · ${s}% of land`, shareOfLand: "of land built up",
   forestAtRisk: "forest where building is projected", forestFrom2001: "data from 2001",

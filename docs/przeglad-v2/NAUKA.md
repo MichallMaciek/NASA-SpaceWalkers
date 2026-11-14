@@ -16,6 +16,21 @@ Wagi:
 Skróty ścieżek (względem `poznan-trend-detective/`; „README główne” to `README.md` w katalogu repozytorium):
 B = `pipeline/build_sar.py`, FS = `pipeline/fetch_sar.py`, FN = `pipeline/fetch_nisar.py`, FU = `pipeline/fetch_urban.py`, I = `web/i18n_sar.js`, A = `web/app.js`. Zapis „I:440/442” znaczy: linia 440 po polsku, 442 po angielsku.
 
+## 0. Aktualizacja po przebudowie danych (14.11, ok. 22:45)
+
+Po przeglądzie dane Sentinel-1 przeczytano od nowa **w pełnej rozdzielczości 10 m** (wcześniej z podglądu 80 m, bo łącze było wolne). To usuwa problem z N10 i część N45: sąsiednie komórki nie dzielą już pikseli. Warstwy i `sar.json` przebudowano, a skrypty z `tests/nauka/` uruchomiono ponownie na nowych danych (`recompute_checks_output.txt` jest zaktualizowany). **Tabele w rozdziałach 2–8 opisują wersję sprzed przebudowy; tam, gdzie liczba się zmieniła, obowiązuje ten rozdział.**
+
+| Test | Przed (80 m) | Teraz (10 m) | Co to zmienia w brzmieniu |
+|---|---|---|---|
+| Decyzje o nowej budowie (`wuia`) | 12 z 766 komórek, 4,46 raza; 4 budowy; przedział 0,6–10 | 16 z 766 (2,1% wobec 0,5%), ok. 4,2 raza (przeliczenie 4,06); **8 decyzji, 9 skupisk**; bootstrap blokowy 0,6 km: **1,7–7,1** (P(≤1) = 0,003), 1,2 km: 1,4–7,5 | T11: „Silne pojaśnienie jest ok. 4 razy częstsze na działkach z decyzją o nowej budowie (16 z 766 komórek z 8 decyzji; przedział ok. 1,7–7).” Nadal bez p dla komórek. Wśród trafień są 3 zmiany wcześniejszych pozwoleń i 2 budowy sieci. |
+| Sam ślad ścian (`wuia_walls`) | 3 z 766, 1,63 raza, p = 0,28 | 9 z 766, ok. 3,5–3,7 raza; bootstrap 0,6 km: 1,2–6,4, 1,2 km: **0,7–7,1** | T13: ślad ścian „też częstszy, ale wynik na granicy”. Nadal nie mówimy „nowe budynki”. |
+| Hektary pojaśnienia | 693 ha (≥ 3 dB), 358 ha (ściany) | 1 086 ha, 506 ha; ok. 34% komórek ścian na terenie zabudowanym w 2020 | Górna granica, każda przyczyna. |
+| Prognoza a radar (`model`) | 2,13 raza; ściany 4,3 | 1,78; ściany 3,83; po wyrównaniu odległości od zabudowy (≤ 150 m): 1,27 (1,00–1,60), ściany 1,62 (1,20–2,14) | T16 bez zmian: bez krotności, „głównie skraj osiedli”; przewaga prognozy wyraźna tylko dla śladu ścian. |
+| Ciemnienie rok do roku | 17 310 ha, 98% na polach | 20 759 ha, 97,6% na otwartym terenie | N32 bez zmian. |
+| Reakcja na wilgoć (pasmo C) | 26%; podtopienia 27% wobec 26% | 23%; podtopienia 25% wobec 23% (p = 0,005 dla komórek, ale bootstrap 0,95–1,27) | T7 bez zmian: „prawie taka sama”. Aplikacja wymaga teraz efektu ≥ 1,2, zanim napisze „częściej”. |
+| Sezon a rok do roku | 3,1% wobec 0,3% | 4,0% wobec ok. 0,5% | Liczby w T18. |
+| NISAR (mokro/sucho, podtopienia) i EGMS | 37%; 19% wobec 38%; EGMS 24%, 147 komórek | bez zmian | — |
+
 ## 1. W skrócie
 
 - **Werdykt:** obróbka danych jest poprawna (moc uśredniana liniowo, warstwy na jednej siatce, dobre filtry NISAR, kalibracja ALOS-2 wg JAXA), a liczby z `sar.json` dają się odtworzyć. Słaba jest interpretacja kilku nagłówkowych zdań.

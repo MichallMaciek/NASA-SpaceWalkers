@@ -32,6 +32,10 @@ from common import BBOX, RAW, USER_AGENT
 from fetch_urban import TR, W, H, warp
 
 S1_ORBIT = 73  # ascending; 27 passes covering the whole study area between 3 Jun and 13 Nov 2026
+# Read Sentinel-1 at full 10 m resolution and average the power of all ~50 pixels in each 73 m cell.
+# Until 14.11.2026 evening the series was read from the COG's 80 m overview (level 2) because the network was slow;
+# that overview is coarser than our cells, so neighbouring cells shared pixels (science review N10, N45).
+S1_LEVEL = None
 PERIOD = "2026-06-01/2026-11-14"
 POZNAN = (16.93, 52.41)
 
@@ -41,9 +45,9 @@ def stac():
     return pystac_client.Client.open("https://planetarycomputer.microsoft.com/api/stac/v1")
 
 
-def warp_ovr(href, level=2, nodata=0):
-    """Read a COG through its internal overview (Sentinel-1 RTC level 2 = 8x = 80 m) and average onto the 120 m grid.
-    About 60x less data than the full 10 m image, and the same result on our coarser grid."""
+def warp_ovr(href, level=None, nodata=0):
+    """Read a COG at full resolution (level=None) or through an internal overview (Sentinel-1 RTC level 2 = 8x = 80 m)
+    and average the linear power onto the 120 m grid (about 73 m on the ground)."""
     with rasterio.open(href, overview_level=level) as src:
         with WarpedVRT(src, crs="EPSG:3857", transform=TR, width=W, height=H,
                        resampling=Resampling.average, src_nodata=nodata) as vrt:
@@ -76,7 +80,7 @@ def fetch_s1_series(period=PERIOD, out="sar_s1_2026.npz"):
         for it in by_date[d]:
             href = pc.sign(it.assets[pol].href)
             try:
-                v = retry(lambda: warp_ovr(href, level=2, nodata=0))
+                v = retry(lambda: warp_ovr(href, level=S1_LEVEL, nodata=0))
             except Exception as e:
                 print("  failed", d, pol, str(e)[:80], flush=True)
                 continue
