@@ -779,9 +779,12 @@
     if (k === "built") {
       // Smooth time: blend the two surrounding 5-year epochs, so dragging or playing the timeline flows year by year.
       const yf = clamp(state.yearF, land.epochs[0], horizonEnd());
-      const yo = Math.min(yf, NOW_YEAR);
-      const { e0, e1, t } = epochPair(yo);
+      // Base layer represents the measured city up to 2025/2026.
+      // We cap the base layer interpolation at 2025 so it never pre-draws the future 2030 projection in orange!
+      const yBase = Math.min(yf, 2025);
+      const { e0, e1, t } = epochPair(yBase);
       const a0 = smoothed(e0), a1 = smoothed(e1), lut = lutFor(RAMPS.built);
+      const thr = THR(), b25 = L8.built_2025;
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
         const v = a0[i] + (a1[i] - a0[i]) * t;
@@ -790,20 +793,24 @@
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
       }
       if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
-        const purple = hexRgb(css("--pred"));
+        const predColor = hexRgb(css("--pred"));
         const P25 = projSmoothed(2025), P30 = projSmoothed(2030);
         const P35 = horizonEnd() > 2030 ? projSmoothed(2035) : P30;
         const tp30 = clamp((yf - NOW_YEAR) / (2030 - NOW_YEAR), 0, 1);
         const tp35 = yf > 2030 ? clamp((yf - 2030) / 5, 0, 1) : 0;
         for (let i = 0; i < n; i++) {
           if (!st[i]) continue;
+          // Established existing buildings (b25 >= thr) are never changed or overwritten!
+          // Only newly converted open land shows the distinct prediction color.
+          if (b25[i] >= thr) continue;
+
           const diff30 = Math.max(0, P30[i] - P25[i]);
           const diff35 = Math.max(0, P35[i] - P30[i]);
           const v = diff30 * tp30 + diff35 * tp35;
           if (v > 0.05) {
             const q = i * 4;
-            px[q] = purple[0]; px[q + 1] = purple[1]; px[q + 2] = purple[2];
-            px[q + 3] = 70 + v * 170;
+            px[q] = predColor[0]; px[q + 1] = predColor[1]; px[q + 2] = predColor[2];
+            px[q + 3] = Math.round(clamp(110 + v * 220, 0, 240));
           }
         }
       }
@@ -964,7 +971,9 @@
       $("#tl-future").style.left = `${rp(arch)}%`; $("#tl-future").innerHTML = "";
       $("#tl-now").style.left = "100%";
       $("#tl-real").textContent = u.radarYears;
-      $("#tl-pred").textContent = u.noRadarData; $("#tl-pred").style.left = `${rp(arch) + 1}%`;
+      $("#tl-real").style.left = `${rp(arch) / 2}%`;
+      $("#tl-pred").textContent = u.noRadarData;
+      $("#tl-pred").style.left = `${(rp(arch) + 100) / 2}%`;
       $("#tl-year").textContent = state.ryear;
       $("#tl-kind").textContent = state.ryear < 2026 ? u.tlKind.archive : u.tlKind[state.lens];
       inp.setAttribute("aria-valuetext", `${state.ryear}, ${$("#tl-kind").textContent}`);
@@ -984,8 +993,9 @@
     $("#tl-future").innerHTML = state.yearF > NOW_YEAR ? `<span class="on" style="width:${((curP - nowP) / (100 - nowP)) * 100}%"></span>` : "";
     $("#tl-now").style.left = `${nowP}%`;
     $("#tl-real").textContent = u.measured;
+    $("#tl-real").style.left = `${nowP / 2}%`;
     $("#tl-pred").textContent = u.predicted;
-    $("#tl-pred").style.left = `${nowP}%`;
+    $("#tl-pred").style.left = `${(nowP + 100) / 2}%`;
     $("#tl-year").textContent = state.year;
     $("#tl-kind").textContent = isFuture() ? u.modelForecast : u.fromMeasurements;
     inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
@@ -2411,8 +2421,26 @@
       e.target.value = y; setYear(y, { now: true });
     });
     $("#year").addEventListener("change", (e) => {
-      if (radarTL()) e.target.value = state.ryear; // the input event already moved to the year with data
-      else setYear(+e.target.value, { now: true });
+      if (radarTL()) {
+        e.target.value = state.ryear; // the input event already moved to the year with data
+      } else {
+        let y = +e.target.value;
+        if (Math.abs(y - NOW_YEAR) <= 0.5) y = NOW_YEAR;
+        else y = Math.round(y);
+        setYear(y, { now: true });
+      }
+    });
+    $("#year").addEventListener("keydown", (e) => {
+      if (radarTL()) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+        e.preventDefault(); stopPlay(); setYear(Math.round(state.yearF - 1), { now: true });
+      } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+        e.preventDefault(); stopPlay(); setYear(Math.round(state.yearF + 1), { now: true });
+      } else if (e.key === "PageDown") {
+        e.preventDefault(); stopPlay(); setYear(Math.round(state.yearF - 5), { now: true });
+      } else if (e.key === "PageUp") {
+        e.preventDefault(); stopPlay(); setYear(Math.round(state.yearF + 5), { now: true });
+      }
     });
     // "Today" on the time line; on the radar time line the class "now" only marks the selected year
     $("#tl-ticks").addEventListener("click", (e) => {
