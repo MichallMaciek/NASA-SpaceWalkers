@@ -1,23 +1,14 @@
-"""NISAR and OPERA products downloaded by hand (ASF Vertex) and unpacked to data/raw/zips/<name>/, turned into map layers.
+"""Sharp NISAR picture of 2026 from hand-downloaded GCOV GeoTIFFs (ASF Vertex), unpacked to data/raw/zips/nisar_gcov/.
 
-The team cut each product to the study area and saved it as GeoTIFF (band names in Polish) in four zip files:
-  nisar_gcov/        NISAR L2 GCOV, gamma0 in linear power, bands HHHH and HVHV, 20 m (tracks 057, 158, 008, 080)
-  nisar_gunw/        NISAR L2 GUNW, track 158: coherence 20 m; unwrapped phase, coherence and ionosphere 80 m
-  nisar_sme2/        NISAR L3 SME2, track 158: soil moisture, its uncertainty and water fraction, 200 m
-  opera_dist_alert/  OPERA L3 DIST-ALERT-S1 (Sentinel-1), status and first date of a vegetation disturbance, 30 m
+The team cut the NISAR L2 GCOV product to the study area and saved it as GeoTIFF (bands HHHH and HVHV, gamma0 in
+linear power, 20 m). Track 057 ascending, provisional (P05023), the 9 dual-pol passes 18 Jun - 16 Oct 2026, median.
+Output: web/data/land/hr_nisar_hh_med.png and hr_nisar_hv_med.png on the window grid of build_hires.py (about 24 m),
+shifted by the median offset to the track-158 120 m layer so both use the same colours; listed in hires.json.
 
-Run with an isolated interpreter, from anywhere:   .venv/bin/python -I pipeline/build_from_zips.py [nisar] [coh] [sme] [dist]
-(no argument = all). Unpack first:  mkdir -p data/raw/zips/<name> && unzip -j <name>.zip -d data/raw/zips/<name>
-
-Outputs (web/data/land/, the same grey-level encodings as build_sar.py; written down in sar.json "zips"):
-  hr_nisar_hh_med, hr_nisar_hv_med   sharp NISAR picture of 2026 (track 057, provisional, 9 dual-pol passes),
-                                    window of build_hires.py; added to hires.json, display only
-  nisar_coh                         median 12-day coherence of track 158 (7 pairs, 25 Jun - 11 Oct 2026): v/250
-  nisar_sm_0625, nisar_sm_0824      NISAR soil moisture on 25 Jun and 24 Aug, the pair of the app's NISAR change map, on the
-                                    120 m grid: v/500 m3/m3; medians of all 9 dates in sar.json (SME2 is not calibrated yet)
-  dist_forest                       OPERA disturbance on land that was forest in 2000 (Hansen, >= 50% cover):
-                                    200 = high confidence, 100 = low confidence
-web/data must stay under 40 MB (tests/data_contract.py), so the new layers are 120 m only and grey levels are rounded.
+Run with an isolated interpreter:  .venv/bin/python -I pipeline/build_from_zips.py
+Unpack first:  mkdir -p data/raw/zips/nisar_gcov && unzip -j nisar_gcov.zip -d data/raw/zips/nisar_gcov
+Coherence (GUNW), soil moisture (SME2) and OPERA disturbance belong to computers 1, 2 and 4 of docs/planwyd_sar/PLAN.md;
+a worked version of them is in docs/planwyd_sar/przekazanie_design/.
 """
 import glob
 import json
@@ -35,7 +26,7 @@ from PIL import Image
 from rasterio.enums import Resampling
 from rasterio.warp import reproject
 
-from common import RAW, WEB_DATA
+from common import RAW, WEB_DATA  # noqa: E402
 
 OUT = WEB_DATA / "land"
 ZIPS = RAW / "zips"
@@ -131,93 +122,5 @@ def do_nisar():
     json.dump(hi, open(mp, "w"), indent=1)
 
 
-# ---------------------------------------------------------------- 2. coherence (GUNW, track 158)
-def do_coh():
-    import build_hires as bh
-    files = sorted(glob.glob(str(ZIPS / "nisar_gunw" / "*coherence_20m.tif")))
-    pairs = [re.findall(r"_(\d{8})T\d{6}", os.path.basename(f)) for f in files]
-    pairs = [(p[0], p[2]) for p in pairs]
-    print("GUNW coherence pairs:", pairs, flush=True)
-    coarse = np.stack([warp(f, 1, GRID, GW, GH) for f in files])
-    with np.errstate(all="ignore"):
-        c120 = np.nanmedian(coarse, 0)
-    enc = lambda c: np.where(np.isfinite(c), np.clip(c * 250, 1, 250), 0)   # v / 250 = coherence 0..1
-    png("nisar_coh", quant(np.where(STUDY, enc(c120), 0), 2))
-    v = c120[STUDY & np.isfinite(c120)]
-    meta_update("coh", {"source": "NISAR L2 GUNW coherence, track 158 ascending, provisional (P05023), 12-day pairs",
-                        "pairs": [f"{a}-{b}" for a, b in pairs], "decode": "v/250", "stat": "median over the pairs",
-                        "study_p10_p50_p90": [round(float(x), 3) for x in np.percentile(v, [10, 50, 90])]},
-                {"nisar_coh": "v/250 = median 12-day NISAR coherence 0..1 (0 = no data)"})
-
-
-# ---------------------------------------------------------------- 3. soil moisture (SME2, track 158)
-def do_sme():
-    files = sorted(glob.glob(str(ZIPS / "nisar_sme2" / "*soilmoisture_200m.tif")))
-    by_date = {}
-    for f in files:   # one file per date: the latest product counter (…_002 over …_001)
-        d, ctr = parse(f)["date"], parse(f)["counter"]
-        if d not in by_date or ctr > by_date[d][0]:
-            by_date[d] = (ctr, f)
-    dates = sorted(by_date)
-    print("SME2 dates:", dates, flush=True)
-    series, dry_d, wet_d = [], "20260625", "20260824"   # the pair of the app's NISAR change map (named "dry" and "wet" by the team)
-    for d in dates:
-        f = by_date[d][1]
-        sm = warp(f, 1, GRID, GW, GH, Resampling.bilinear)
-        water = warp(f, 3, GRID, GW, GH, Resampling.bilinear)
-        sm[(water > 0.5) | ~STUDY] = np.nan
-        v = sm[np.isfinite(sm)]
-        series.append(round(float(np.median(v)), 3))
-        if d in (dry_d, wet_d):   # v / 500 = m3/m3 in 0.004 steps (display: two grey levels per step)
-            png(f"nisar_sm_{d[4:]}", quant(np.where(np.isfinite(sm), np.clip(sm * 500, 1, 255), 0), 2))
-    meta_update("sme", {"source": "NISAR L3 SME2 soil moisture, track 158 ascending, provisional (P05023), 200 m; "
-                                  "the project says it is not fully calibrated yet",
-                        "dates": [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in dates], "decode": "v/500", "unit": "m3/m3",
-                        "study_median": series, "maps": {"nisar_sm_0625": "2026-06-25", "nisar_sm_0824": "2026-08-24"}},
-                {f"nisar_sm_{d[4:]}": f"v/500 = NISAR soil moisture on {d[:4]}-{d[4:6]}-{d[6:]} in m3/m3 (0 = no data or open water)"
-                 for d in (dry_d, wet_d)})
-
-
-# ---------------------------------------------------------------- 4. OPERA disturbance on forest land
-def do_dist():
-    """Share of each 120 m cell where OPERA flags a disturbance, on land that was forest in 2000.
-    Status codes (dist_s1 constants.DISTLABEL2VAL): 1-3 first / provisional / confirmed low confidence, 4-6 the same
-    with high confidence, 7-8 confirmed and finished (low / high). First detections (1, 4) are not used: one pass only."""
-    files = sorted(glob.glob(str(ZIPS / "opera_dist_alert" / "*GEN-DIST-STATUS.tif")))
-    hi_f = np.zeros((GH, GW), np.float32)
-    any_f = np.zeros((GH, GW), np.float32)
-    for f in files:   # four MGRS tiles that overlap: the largest share per cell wins
-        with rasterio.open(f) as src:
-            st = src.read(1)
-            valid = st != 255
-            for target, codes in ((hi_f, [5, 6, 8]), (any_f, [2, 3, 5, 6, 7, 8])):
-                m = np.where(valid, np.isin(st, codes).astype(np.float32), np.nan)
-                dst = np.full((GH, GW), np.nan, np.float32)
-                reproject(m, dst, src_transform=src.transform, src_crs=src.crs, src_nodata=np.nan,
-                          dst_transform=GRID, dst_crs="EPSG:3857", dst_nodata=np.nan, resampling=Resampling.average)
-                np.fmax(target, np.nan_to_num(dst, nan=0), out=target)
-    tc = np.array(Image.open(OUT / "treecover2000.png")).astype(float)   # v/255 = tree cover in 2000
-    forest = (tc >= 128) & STUDY
-    SHARE = 0.25   # at least a quarter of the cell (about 1300 m2) flagged
-    out = np.where(forest & (hi_f >= SHARE), 200, np.where(forest & (any_f >= SHARE), 100, 0))
-    png("dist_forest", out)
-    first = []
-    for p in sorted(glob.glob(str(ZIPS / "opera_dist_alert" / "*_GEN-DIST-DATE.tif"))):
-        with rasterio.open(p) as src:
-            a = src.read(1).astype(np.int32)
-            if (a > 0).any():
-                first.append(int(a[a > 0].min()))
-    import datetime as dt
-    day0 = dt.date(2020, 12, 31)
-    meta_update("dist", {"source": "OPERA L3 DIST-ALERT-S1 v1.0 (Sentinel-1, NASA/JPL), last acquisition 2026-02-28, 30 m",
-                         "window": [str(day0 + dt.timedelta(days=min(first))), "2026-02-28"],
-                         "decode": "200 = high confidence, 100 = low confidence, at least 25% of the cell; forest land (2000) only",
-                         "forest_cells": int(forest.sum()), "flagged_hi": int((out == 200).sum()), "flagged_lo": int((out == 100).sum())},
-                {"dist_forest": "200 = OPERA disturbance (Sentinel-1) with high confidence, 100 = low confidence, forest land only (0 = none)"})
-
-
 if __name__ == "__main__":
-    what = set(sys.argv[1:]) or {"nisar", "coh", "sme", "dist"}
-    for k, fn in (("nisar", do_nisar), ("coh", do_coh), ("sme", do_sme), ("dist", do_dist)):
-        if k in what:
-            fn()
+    do_nisar()
