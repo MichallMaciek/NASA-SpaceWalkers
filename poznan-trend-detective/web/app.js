@@ -289,6 +289,7 @@
     ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];
+  let hires = null; // data/land/hires.json: radar pictures on a 3x finer grid (build_hires.py); null if not built
   let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
   const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
   const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
@@ -558,8 +559,75 @@
   };
 
   /* ================= rendering of the data layers ================= */
+  // Sharp radar pictures: the same grey-level products on a grid `hires.scale` times finer (about 24 m on the ground).
+  // Only the drawing uses them; every number in the card still comes from the 120 m products.
+  const HIRES_SRC = {
+    alos: () => lbandNames(state.lyr.alos.y),
+    sarchange: () => ["sar_change", "sar_dratio"],
+    nisarwet: () => ["nisar_wetdry"],
+  };
+  function hiresArrays(k) {
+    if (!hires || !HIRES_SRC[k]) return null;
+    const names = HIRES_SRC[k]();
+    if (!names.every((nm) => hires.layers.includes(nm))) return null;
+    const arrs = names.map((nm) => L8[`hr_${nm}`]);
+    if (arrs.every(Boolean)) return arrs;
+    Promise.all(names.map((nm) => loadGray(`hr_${nm}`))).then(redraw).catch(() => {}); // draw the coarse picture meanwhile
+    return null;
+  }
+  function renderLandHi(k, arrs) {
+    const o = overlays[k], S = hires.scale, w = land.width, W2 = w * S, H2 = land.height * S, st = L8.study, s = state.lyr[k];
+    if (o.canvas.width !== W2) { o.canvas.width = W2; o.canvas.height = H2; }
+    if (!o.imgHi) o.imgHi = o.ctx.createImageData(W2, H2);
+    const px = o.imgHi.data;
+    px.fill(0);
+    if (k === "alos") {
+      const [co, cx] = arrs, sk = s.y === 2026 ? "nisar" : "alos";
+      for (let y = 0; y < H2; y++) {
+        const row = ((y / S) | 0) * w;
+        for (let x = 0; x < W2; x++) {
+          const i = y * W2 + x;
+          if (!co[i] || !cx[i] || !st[row + ((x / S) | 0)]) continue;
+          const c = radarRgb(sk, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
+          px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
+        }
+      }
+    } else if (k === "sarchange") {
+      const [a, r] = arrs, wall = lutFor(RAMPS.up), soft = lutFor(RAMPS.upSoft), dn = lutFor(RAMPS.down), wd = sar.s1.wall_db || 1.5;
+      for (let y = 0; y < H2; y++) {
+        const row = ((y / S) | 0) * w;
+        for (let x = 0; x < W2; x++) {
+          const i = y * W2 + x;
+          if (!a[i] || !st[row + ((x / S) | 0)]) continue;
+          const d = changeOf(a[i]);
+          if (Math.abs(d) < s.min) continue;
+          const isWall = d > 0 && r[i] && changeOf(r[i]) >= wd;
+          const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d < 0 ? dn : isWall ? wall : soft, j = ((t * 255) | 0) * 3, q = i * 4;
+          px[q] = L[j]; px[q + 1] = L[j + 1]; px[q + 2] = L[j + 2]; px[q + 3] = (isWall ? 190 : 130) + t * 60;
+        }
+      }
+    } else if (k === "nisarwet") {
+      const [a] = arrs, wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown);
+      for (let y = 0; y < H2; y++) {
+        const row = ((y / S) | 0) * w;
+        for (let x = 0; x < W2; x++) {
+          const i = y * W2 + x;
+          if (!a[i] || !st[row + ((x / S) | 0)]) continue;
+          const d = changeOf(a[i]);
+          if (Math.abs(d) < s.min) continue;
+          const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3, q = i * 4;
+          px[q] = L[j]; px[q + 1] = L[j + 1]; px[q + 2] = L[j + 2]; px[q + 3] = 140 + t * 100;
+        }
+      }
+    }
+    o.ctx.putImageData(o.imgHi, 0, 0);
+  }
+
   function renderLand(k) {
+    const hi = hiresArrays(k);
+    if (hi) return renderLandHi(k, hi);
     const o = overlays[k], px = o.img.data, n = land.width * land.height, st = L8.study, s = state.lyr[k];
+    if (o.canvas.width !== land.width) { o.canvas.width = land.width; o.canvas.height = land.height; }
     px.fill(0);
     const put = (i, c, a) => { const q = i * 4; px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = a; };
     if (k === "built") {
@@ -2052,6 +2120,7 @@
     NISAR_DATES = land.nisar_dates || [];
     state.lyr.nisar.i = Math.max(0, NISAR_DATES.length - 1);
     // radar products (v2); without them the app falls back to the v1 layout
+    try { hires = await get("land/hires.json"); } catch (e) { hires = null; }
     try { sar = await get("land/sar.json"); } catch (e) { sar = null; SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
     if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
     gL.layers.night_mean = gL.layers.night_years.map((ys) => { const m = mean(ys.slice(0, 25)); return isFinite(m) ? m : null; });
