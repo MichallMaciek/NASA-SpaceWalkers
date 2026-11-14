@@ -1,0 +1,132 @@
+/* Three pitches for Poznań Trend Detective, each with its own look:
+   .ov  overview         Archivo, neutral
+   .p1  Przegląd         Archivo, light consumer product, the app's status dots as the motif
+   .p2  Ziemia pamięta   Bricolage Grotesque, dark, full-bleed satellite layers, a chapter line at the foot
+   .p3  Ryzyko ma adres  Public Sans, Swiss report: grid, hairlines, tables, one real chart
+   Colour only where it means something: status, data, the one statement slide per pitch. */
+:root {
+  --ov-bg: #F4F3EF; --ov-ink: #17181A; --ov-ink2: #5B5F64; --ov-rule: #D8D6CF;
+  --p1-bg: #FAF8F3; --p1-bg2: #F0EEE7; --p1-ink: #17181A; --p1-ink2: #5B5F64; --p1-rule: #DCD9D0;
+  --ok: #2F8A4F; --warn-dot: #E3A21A; --warn: #9A6200; --risk: #C4442A; --go: #1F4D36; --go-ink: #F3F1EA;
+  --p2-bg: #0E1012; --p2-ink: #EEECE6; --p2-ink2: #B9B7AF; --p2-dim: #75736D; --p2-hot: #FFB27A; --p2-pred: #B7A6FF;
+  --p3-bg: #F7F7F4; --p3-bg2: #ECEDE8; --p3-ink: #121417; --p3-ink2: #555A60; --p3-rule: #D3D4CE; --p3-dark: #121417; --p3-dark-ink: #ECEDE8;
+}
+section { padding: 128px 128px 160px; display: flex; flex-direction: column; gap: 40px; counter-increment: page; }
+.foot { position: absolute; left: 128px; bottom: 64px; width: 1664px; display: flex; justify-content: space-between; gap: 40px; }
+.ft { font-size: 24px; line-height: 1.3; }
+.pg::after { content: counter(page); }
+.grow { flex: 1; }
+.in { animation: up 520ms cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 120ms); }
+@keyframes up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0px); } }
+.fragment { opacity: 0.12; transition: opacity 300ms ease; }
+.fragment.visible { opacity: 1; }
+.bleed { position: absolute; left: 0px; top: 0px; width: 1920px; height: 1080px; object-fit: cover; }
+.qr { width: 340px; height: 340px; object-fit: contain; border-radius: 10px; }
+
+/* ---------- overview ---------- */
+.ov { background: var(--ov-bg); color: var(--ov-ink); font-family: 'Archivo', Arial, sans-serif; }
+.ov .ft { color: var(--ov-ink2); }
+.ov-h { font-size: 64px; font-weight: 760; font-stretch: 112%; letter-spacing: -0.02em; line-height: 1.02; }
+.ov-list { display: flex; flex-direction: column; }
+.ov-row { display: grid; grid-template-columns: 90px 520px 1fr; gap: 32px; padding: 26px 0; border-top: 1px solid var(--ov-rule); align-items: baseline; }
+.ov-n { font-size: 40px; font-weight: 760; font-stretch: 112%; color: var(--ov-ink2); }
+.ov-name { font-size: 40px; font-weight: 700; font-stretch: 108%; line-height: 1.12; }
+.ov-for { font-size: 24px; color: var(--ov-ink2); line-height: 1.4; }
+.ov-what { font-size: 30px; line-height: 1.35; }
+.ov-note { font-size: 24px; color: var(--ov-ink2); line-height: 1.4; }
+
+/* ---------- pitch 1: Przegląd techniczny działki ---------- */
+.p1 { background: var(--p1-bg); color: var(--p1-ink); font-family: 'Archivo', Arial, sans-serif; }
+.p1.alt { background: var(--p1-bg2); }
+.p1.go { background: var(--go); color: var(--go-ink); }
+.p1 .ft { color: var(--p1-ink2); }
+.p1.go .ft { color: #B9CBBE; }
+.p1-brand { font-size: 32px; font-weight: 700; font-stretch: 112%; letter-spacing: -0.01em; }
+.p1-xl { font-size: 96px; font-weight: 760; font-stretch: 112%; letter-spacing: -0.025em; line-height: 0.98; }
+.p1-h { font-size: 64px; font-weight: 760; font-stretch: 112%; letter-spacing: -0.02em; line-height: 1.04; }
+.p1-lead { font-size: 40px; font-weight: 400; line-height: 1.25; }
+.p1-body { font-size: 32px; font-weight: 400; line-height: 1.35; }
+.p1-body2 { font-size: 32px; font-weight: 400; line-height: 1.35; color: var(--p1-ink2); }
+.p1-small { font-size: 24px; line-height: 1.4; color: var(--p1-ink2); }
+.p1-split { display: flex; gap: 96px; align-items: center; flex: 1; }
+.p1-col { display: flex; flex-direction: column; gap: 36px; flex: 1; }
+.p1-card { width: 640px; height: 481px; object-fit: contain; border: 1px solid var(--p1-rule); border-radius: 16px; background: #FFFFFF; }
+.p1-rows { display: flex; flex-direction: column; }
+.p1-row { display: flex; align-items: center; gap: 28px; padding: 20px 0; border-top: 1px solid var(--p1-rule); }
+.p1-row-text { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.p1-name { font-size: 40px; font-weight: 680; font-stretch: 106%; line-height: 1.12; }
+.p1-name-s { font-size: 32px; font-weight: 640; line-height: 1.2; }
+.dot { width: 30px; height: 30px; border-radius: 15px; flex: none; }
+.dot-ok { background: var(--ok); }
+.dot-warn { background: var(--warn-dot); }
+.dot-risk { background: var(--risk); }
+.dot-none { border: 3px solid #A9ABA5; width: 24px; height: 24px; }
+.st { font-size: 32px; font-weight: 720; line-height: 1.2; }
+.st-ok { color: var(--ok); } .st-warn { color: var(--warn); } .st-risk { color: var(--risk); } .st-none { color: var(--p1-ink2); }
+.p1-shot { width: 1060px; height: 596px; object-fit: contain; border: 1px solid var(--p1-rule); border-radius: 12px; }
+.p1-demo { display: flex; gap: 64px; align-items: flex-start; }
+.p1-finds { display: flex; flex-direction: column; flex: 1; }
+.mock { width: 720px; display: flex; flex-direction: column; gap: 18px; padding: 40px; border: 1px solid var(--p1-rule); border-radius: 20px; background: #FFFFFF; }
+.mock-price { font-size: 64px; font-weight: 760; font-stretch: 108%; line-height: 1; }
+.mock-btn { align-self: flex-start; font-size: 32px; font-weight: 700; color: #F3F1EA; background: var(--ok); padding: 16px 30px; border-radius: 999px; }
+.p1-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.p1-place { display: flex; flex-direction: column; gap: 6px; padding-bottom: 22px; }
+.p1-src { font-size: 24px; line-height: 1.35; color: var(--p1-ink2); width: 620px; text-align: right; }
+.p1-close-title { font-size: 96px; font-weight: 760; font-stretch: 112%; letter-spacing: -0.025em; line-height: 0.98; color: var(--go-ink); }
+.p1-url { font-size: 24px; color: var(--go-ink); }
+
+/* ---------- pitch 2: Ziemia pamięta ---------- */
+.p2 { background: var(--p2-bg); color: var(--p2-ink); font-family: 'Bricolage Grotesque', Arial, sans-serif; }
+.p2 .ft { color: var(--p2-dim); }
+.p2 .on { color: var(--p2-ink); }
+.shade { position: absolute; left: 0px; top: 0px; width: 1920px; height: 1080px;
+  background: linear-gradient(90deg, rgba(14,16,18,0.94) 0%, rgba(14,16,18,0.86) 38%, rgba(14,16,18,0.35) 68%, rgba(14,16,18,0.05) 100%); }
+.p2 .bleed { filter: brightness(0.6); }
+.shade-b { position: absolute; left: 0px; top: 760px; width: 1920px; height: 320px;
+  background: linear-gradient(180deg, rgba(14,16,18,0) 0%, rgba(14,16,18,0.88) 70%, rgba(14,16,18,0.95) 100%); }
+.p2-col { display: flex; flex-direction: column; gap: 32px; width: 860px; flex: 1; }
+.p2-year { font-size: 160px; font-weight: 700; letter-spacing: -0.04em; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.p2-h { font-size: 72px; font-weight: 640; letter-spacing: -0.02em; line-height: 1.04; }
+.p2-lead { font-size: 40px; font-weight: 400; line-height: 1.25; color: var(--p2-ink); }
+.p2-body { font-size: 30px; font-weight: 400; line-height: 1.4; color: var(--p2-ink2); }
+.p2-src { font-size: 24px; line-height: 1.4; color: var(--p2-dim); }
+.hot { color: var(--p2-hot); }
+.pred2 { color: var(--p2-pred); }
+.p2-close { display: flex; gap: 120px; align-items: center; flex: 1; }
+.p2-url { font-size: 24px; color: var(--p2-ink2); }
+
+/* ---------- pitch 3: Ryzyko terenu ma adres ---------- */
+.p3 { background: var(--p3-bg); color: var(--p3-ink); font-family: 'Public Sans', Arial, sans-serif; }
+.p3.alt { background: var(--p3-bg2); }
+.p3.dark { background: var(--p3-dark); color: var(--p3-dark-ink); }
+.p3 .ft { color: var(--p3-ink2); }
+.p3.dark .ft { color: #8E9399; }
+.p3-xl { font-size: 96px; font-weight: 750; letter-spacing: -0.035em; line-height: 1; }
+.p3-h { font-size: 64px; font-weight: 720; letter-spacing: -0.025em; line-height: 1.05; }
+.p3-lead { font-size: 40px; font-weight: 400; line-height: 1.25; }
+.p3-body { font-size: 30px; font-weight: 400; line-height: 1.4; }
+.p3-body2 { font-size: 30px; font-weight: 400; line-height: 1.4; color: var(--p3-ink2); }
+.p3-small { font-size: 24px; line-height: 1.4; color: var(--p3-ink2); }
+.p3-label { font-size: 24px; font-weight: 650; line-height: 1.3; }
+.p3-num { font-size: 96px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.p3-risk { color: var(--risk); }
+.p3-panel { position: absolute; left: 1000px; top: 0px; width: 920px; height: 1080px; object-fit: cover; }
+.p3-left { display: flex; flex-direction: column; gap: 36px; width: 760px; flex: 1; }
+.p3-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 56px; }
+.p3-c { display: flex; flex-direction: column; gap: 18px; border-top: 3px solid var(--p3-ink); padding-top: 24px; }
+.p3-demo { display: flex; gap: 64px; align-items: flex-start; }
+.p3-shot { width: 1060px; height: 596px; object-fit: contain; border: 1px solid var(--p3-rule); }
+.p3-side { display: flex; flex-direction: column; flex: 1; }
+.p3-item { display: flex; flex-direction: column; gap: 6px; padding: 18px 0; border-top: 1px solid var(--p3-rule); }
+.p3-table { font-size: 28px; color: var(--p3-ink); width: 1664px; }
+.p3-chart { display: flex; gap: 72px; align-items: flex-end; }
+.p3-stats { display: flex; flex-direction: column; gap: 28px; width: 560px; }
+.p3-two { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; }
+.p3-close { display: flex; gap: 120px; align-items: center; flex: 1; }
+.p3-url { font-size: 24px; color: var(--p3-dark-ink); }
+.foot.narrow { width: 760px; }
+.p3-chartcol { display: flex; flex-direction: column; gap: 12px; width: 1008px; }
+.p3-head-row { display: flex; justify-content: space-between; gap: 24px; }
+.qr-col { display: flex; flex-direction: column; gap: 22px; align-items: center; width: 380px; }
+.p3.dark .p3-xl { color: var(--p3-dark-ink); }
+.p3.dark .p3-lead { color: #B8BCC1; }
