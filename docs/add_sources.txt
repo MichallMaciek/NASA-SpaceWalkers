@@ -1,0 +1,5 @@
+https://donnees-data.asc-csa.gc.ca/en/dataset/rcm
+https://github.com/asc-csa/Synthetic_Aperture_Radar_Tutorial
+https://donnees-data.asc-csa.gc.ca/en/dataset/radarsat1
+https://catalogos.conae.gov.ar/catalogo/catalogoSaocomInfo.html
+https://www.argentina.gob.ar/noticias/la-informacion-saocom-cada-vez-mas-accesible
