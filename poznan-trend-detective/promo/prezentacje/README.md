@@ -1,5 +1,11 @@
 # Prezentacje na pitch: trzy gotowe wersje
 
+> **Najnowsze:** interaktywny pitch SARnika na 3 minuty (spacja = kolejny krok, kamera przybliża zrzuty aplikacji):
+> https://raw.githack.com/MichallMaciek/NASA-SpaceWalkers/main/poznan-trend-detective/promo/prezentacje/interaktywna/index.html
+> (po włączeniu GitHub Pages także https://michallmaciek.github.io/NASA-SpaceWalkers/pitch/), źródło w
+> [interaktywna/](interaktywna/README.md). Każdy push do `main` aktualizuje stronę, bez logowania i bez kluczy. Trzy pitche poniżej powstały przed zmianą aplikacji w SARnika
+> (radar SAR w centrum), więc ich treść warto zestawić z aktualnym README repo.
+
 Trzy kompletne pitche na żywo (po 3–4 minuty) dla aplikacji Poznań Trend Detective, NASA Space Apps Challenge 2026,
 Poznań. Każdy ma inny sens produktu, inną publiczność i inny design. Na scenę wybieracie jeden.
 
