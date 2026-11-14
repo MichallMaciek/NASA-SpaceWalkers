@@ -76,9 +76,9 @@ Zasady:
 
 Znaczenie poziomów jest takie samo jak w istniejących wierszach: `ok` zielony, `warn` żółty, `risk` czerwony, `info` szary (brak danych, błąd usługi, poza zasięgiem danych). **Brak danych to zawsze `info`, nigdy `ok`.**
 
-Karta w wersji `v3` zaczyna się od prostego przeglądu z nagłówkiem „N rzeczy do sprawdzenia”. Rdzeń dba o to, żeby:
+Karta miejsca (od scalenia gałęzi `v3` z `main`, 14.11 o 19:27) zaczyna się od prostego przeglądu z nagłówkiem „N rzeczy do sprawdzenia”. Rdzeń dba o to, żeby:
 - nagłówek liczył wiersze `warn` i `risk` ze wszystkich źródeł, także modułowych (wiersze `pending` nie są liczone);
-- wiersz modułu pojawił się w prostym przeglądzie, w grupie wskazanej przez `sar`, oraz w trybie eksperckim.
+- wiersz modułu pojawił się w prostym przeglądzie, w grupie wskazanej przez `sar`. Prosty przegląd jest na górze karty także w trybie eksperckim, więc osobnego miejsca dla ekspertów nie trzeba.
 
 Treść `v` to jedno albo dwa proste zdania dla kupującego, bez żargonu i bez dB. Moduły z tego planu (`flood`, `landslide`, `wuia`) nie korzystają z radaru, więc ustawiają `sar: "no"`.
 
