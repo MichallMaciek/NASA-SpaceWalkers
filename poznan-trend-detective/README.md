@@ -13,6 +13,14 @@ for land: search an address or draw a plot around Poznań, and radar tells you w
   (GHSL) and a projection of where the city grows next, tested on years the model never saw.
 
 Live app: <https://poznan-trend-detective.web.app> (v1, history and projection). SARnik v2 preview: <https://poznan-trend-detective--v2-v4vqg11d.web.app>.
+SARnik v3 preview (plain language for everyone): <https://poznan-trend-detective--v3-5tz04dp8.web.app>.
+
+**v3 in short:** the card opens with a plain check-up, one sentence per question with no dB or statistics. It is split
+into "From SAR radar" (new buildings, water, ground motion) and "Background from other sources (no radar)" (projection,
+trees, summer heat, price). A radar mark shows which map views and findings come from SAR. Six map views replace the long list of
+switches. Expert mode (menu, "Expert mode") brings back every layer, slider, dB chart and statistical test. In the radar views the timeline
+walks through the years with radar data: the ALOS-2 L-band archive 2015–2021, then 2026 (NISAR, Sentinel-1, EGMS);
+Play animates the L-band time line from 2015 to NISAR 2026.
 
 ## Why radar
 
@@ -79,6 +87,9 @@ NISAR GCOV pixels need a free NASA Earthdata account (put it in `~/.netrc`), the
 - The radar series covers June–November 2026, so seasonal farming changes mix with building; the change layer says
   "brighter" or "darker", and the card explains the likely causes.
 - NISAR data are the provisional release of its first months (June–October 2026, one track); calibration may still change, and we do not mix versions.
+- NISAR is on average about 3 dB brighter than the ALOS-2 mosaics over our area (calibration, season, viewing angle), so the
+  L-band time line stretches each sensor separately (same share of the area below each colour bound) and its legend uses
+  each sensor's own typical values: compare surface classes between ALOS-2 and NISAR, not raw brightness.
 - Five months of NISAR cannot show subsidence or a full wetland cycle; those are future work once a year or more of passes exists.
 
 ## Data sources and licences
