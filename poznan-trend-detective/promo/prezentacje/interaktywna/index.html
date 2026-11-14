@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SARnik pitch</title>
+<meta name="description" content="SARnik: interaktywny pitch na 3 minuty. Spacja: kolejny krok.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+/* SARnik pitch. Wygląd aplikacji: Archivo, papier mapy, dwa odcienie tekstu, kolor tylko w danych.
+   Układ: zrzut aplikacji jako scena, kamera przybliża fragmenty, podpis z lewej albo na dole. */
+:root {
+  --paper: #F1F0EB; --ink: #1B1C1E; --ink-2: #5F6368; --line: #D6D4CC;
+  --veil: rgba(241, 240, 235, 0.78); --warn: #9A6200; --risk: #C4302B; --ok: #3E8E41;
+  --ease: cubic-bezier(.6, .05, .2, 1);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); overflow: hidden; }
+body { font-family: "Archivo", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; cursor: default; }
+#stage { position: fixed; inset: 0; overflow: hidden; background: var(--paper); }
+
+.plane { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0; will-change: transform, opacity;
+  transition: transform 1100ms var(--ease), opacity 600ms ease; }
+.plane img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
+.plane.on { opacity: 1; }
+
+#scrim { position: absolute; inset: 0; opacity: 0; transition: opacity 600ms ease; pointer-events: none; }
+#scrim.bottom { background: linear-gradient(0deg, rgba(241,240,235,.96) 0%, rgba(241,240,235,.88) 26%, rgba(241,240,235,0) 52%); }
+#scrim.left { background: linear-gradient(90deg, rgba(241,240,235,.97) 0%, rgba(241,240,235,.9) 34%, rgba(241,240,235,0) 66%); }
+#scrim.on { opacity: 1; }
+#veil { position: absolute; inset: 0; background: rgba(241,240,235,.86); opacity: 0; transition: opacity 600ms ease; }
+#veil.on { opacity: 1; }
+
+#spot { position: absolute; left: 50%; top: 50%; width: 0; height: 0; border-radius: 14px; opacity: 0; pointer-events: none;
+  box-shadow: 0 0 0 300vmax var(--veil);
+  transition: left 1100ms var(--ease), top 1100ms var(--ease), width 1100ms var(--ease), height 1100ms var(--ease),
+    border-radius 600ms ease, opacity 500ms ease; }
+#spot.on { opacity: 1; }
+
+/* captions */
+#cap { position: absolute; display: flex; flex-direction: column; gap: .5em; opacity: 0; transform: translateY(10px);
+  transition: opacity 450ms ease, transform 450ms ease; }
+#cap.on { opacity: 1; transform: none; }
+#cap .kicker { margin: 0; font-size: clamp(14px, 1.15vw, 22px); color: var(--ink-2); font-weight: 520; }
+#cap .title { margin: 0; font-size: clamp(26px, 3.2vw, 62px); line-height: 1.04; font-weight: 760; letter-spacing: -0.02em;
+  font-variation-settings: "wdth" 112; text-wrap: balance; }
+#cap .title.brand { font-size: clamp(56px, 9vw, 168px); letter-spacing: -0.035em; font-variation-settings: "wdth" 118; }
+#cap .sub { margin: 0; font-size: clamp(16px, 1.45vw, 28px); line-height: 1.38; color: var(--ink-2); max-width: 62ch; text-wrap: pretty; }
+#cap .title.brand + .sub { color: var(--ink); font-size: clamp(20px, 2.1vw, 40px); font-weight: 560; }
+
+/* text steps */
+#textscene { position: absolute; inset: 0; background: var(--paper); display: flex; flex-direction: column; justify-content: center;
+  gap: .6em; padding: 0 max(6vw, env(safe-area-inset-right, 0px)) 0 max(6vw, env(safe-area-inset-left, 0px));
+  opacity: 0; pointer-events: none; transition: opacity 500ms ease; }
+#textscene.on { opacity: 1; }
+#textscene p { margin: 0; max-width: 22ch; font-weight: 760; letter-spacing: -0.03em; line-height: 1; font-variation-settings: "wdth" 114;
+  font-size: clamp(40px, 7.4vw, 150px); text-wrap: balance; opacity: 0; transform: translateY(16px);
+  transition: opacity 500ms ease, transform 500ms var(--ease); }
+#textscene p.l2 { color: var(--ink-2); transition-delay: 350ms; }
+#textscene p.l2.accent { color: var(--risk); }
+#textscene.small p.l2 { font-size: clamp(20px, 2.3vw, 44px); font-weight: 450; letter-spacing: -0.005em; line-height: 1.3; max-width: 46ch;
+  font-variation-settings: "wdth" 100; color: var(--ink-2); }
+#textscene.on p { opacity: 1; transform: none; }
+
+/* big number */
+#big { position: absolute; font-weight: 800; font-variation-settings: "wdth" 112; letter-spacing: -0.05em; line-height: .82;
+  font-size: clamp(120px, 24vw, 460px); color: var(--ink); opacity: 0; transform: scale(.94); transition: opacity 500ms ease, transform 700ms var(--ease); }
+#big.on { opacity: 1; transform: none; }
+
+/* double bounce drawing */
+#bounce { position: absolute; opacity: 0; transition: opacity 500ms ease; }
+#bounce.on { opacity: 1; }
+#bounce .ray { fill: none; stroke: var(--risk); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; }
+#bounce.on .ray { animation: draw 1.6s var(--ease) .45s forwards; }
+#bounce.on .ray.back { animation-delay: 1.9s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+#bounce text { font-family: "Archivo", Arial, sans-serif; font-size: 22px; fill: var(--ink-2); }
+#bounce .lbl-strong { fill: var(--ink); font-weight: 650; }
+
+/* close */
+#close { position: absolute; inset: 0; display: flex; align-items: center; gap: 6vw; padding: 0 7vw; opacity: 0; pointer-events: none;
+  transition: opacity 500ms ease; background: var(--paper); }
+#close.on { opacity: 1; pointer-events: auto; }
+#close .txt { display: flex; flex-direction: column; gap: 1.2em; flex: 1; min-width: 0; }
+#close h2 { margin: 0; font-size: clamp(38px, 6.2vw, 120px); line-height: .98; font-weight: 780; letter-spacing: -0.035em;
+  font-variation-settings: "wdth" 114; text-wrap: balance; }
+#close .foot { margin: 0; font-size: clamp(14px, 1.15vw, 22px); color: var(--ink-2); }
+#close .qrbox { display: flex; flex-direction: column; align-items: center; gap: 1em; }
+#close .qrbox img { width: clamp(160px, 22vw, 420px); height: auto; border-radius: 12px; border: 1px solid var(--line); }
+#close .qrbox p { margin: 0; font-size: clamp(15px, 1.35vw, 26px); font-weight: 600; }
+#close .qrbox .l { font-weight: 450; color: var(--ink-2); }
+
+/* presenter chrome */
+#bar { position: fixed; left: 0; bottom: 0; height: 4px; width: 0; background: var(--ink); opacity: .55; transition: width 600ms var(--ease); z-index: 20; }
+#count { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 12px; font-size: 13px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; z-index: 20; }
+#timer { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px));
+  font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; z-index: 20; padding: 4px 10px; border-radius: 8px;
+  background: var(--paper); border: 1px solid var(--line); }
+#timer.late { color: var(--warn); } #timer.over { color: var(--risk); }
+#hint { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); font-size: 14px; color: var(--ink-2); z-index: 20;
+  transition: opacity 600ms ease; white-space: nowrap; }
+#notes { position: fixed; left: 0; right: 0; top: 0; padding: 14px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px));
+  padding-top: calc(14px + env(safe-area-inset-top, 0px)); background: var(--ink); color: var(--paper); font-size: clamp(15px, 1.25vw, 22px);
+  line-height: 1.4; z-index: 25; }
+#help { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(241,240,235,.94); z-index: 30; }
+#help div { max-width: 520px; padding: 0 16px; font-size: 18px; line-height: 1.7; }
+#help b { display: inline-block; min-width: 9em; }
+#loading { position: fixed; left: 16px; bottom: 12px; font-size: 13px; color: var(--ink-2); z-index: 20; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plane, #spot, #cap, #textscene, #textscene p, #big, #close, #scrim, #veil { transition: none !important; }
+  #bounce.on .ray { animation: none; stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+<div id="stage" aria-live="polite">
+  <div class="plane" id="p0"><img alt=""></div>
+  <div class="plane" id="p1"><img alt=""></div>
+  <div id="scrim"></div>
+  <div id="veil"></div>
+  <div id="spot"></div>
+  <svg id="bounce" viewBox="0 0 800 520" role="img" aria-label="Schemat: fala radaru odbija się od gruntu, potem od ściany i wraca do satelity">
+    <g fill="none" stroke="#1B1C1E" stroke-width="3" stroke-linejoin="round">
+      <line x1="30" y1="430" x2="780" y2="430"/>
+      <rect x="452" y="230" width="230" height="200" fill="#FFFFFF"/>
+      <line x1="452" y1="230" x2="682" y2="230" stroke-width="5"/>
+      <g transform="translate(64 40) rotate(28)"><rect x="-18" y="-12" width="36" height="24" fill="#FFFFFF"/>
+        <rect x="-70" y="-7" width="46" height="14" fill="#D6D4CC"/><rect x="24" y="-7" width="46" height="14" fill="#D6D4CC"/></g>
+    </g>
+    <path class="ray" pathLength="1" d="M 92 76 L 418 430 L 452 330"/>
+    <path class="ray back" pathLength="1" d="M 452 330 L 126 -24"/>
+    <text x="300" y="470">1. odbicie od gruntu</text>
+    <text x="474" y="320">2. odbicie od ściany</text>
+    <text x="268" y="118" class="lbl-strong">wraca prosto do satelity</text>
+    <text x="40" y="505">pole przed budową: fala odbija się w bok i nie wraca</text>
+  </svg>
+  <div id="textscene"><p class="l1"></p><p class="l2"></p></div>
+  <div id="big"></div>
+  <div id="cap"><p class="kicker"></p><h1 class="title"></h1><p class="sub"></p></div>
+  <div id="close">
+    <div class="txt"><h2></h2><p class="foot"></p></div>
+    <div class="qrbox"><img alt="Kod QR do aplikacji SARnik"><p class="l"></p><p class="u"></p></div>
+  </div>
+</div>
+<div id="bar"></div>
+<div id="count"></div>
+<div id="timer" hidden>0:00</div>
+<div id="hint">Spacja: dalej · ←: wstecz · F: pełny ekran · N: notatki · T: czas · ?: pomoc</div>
+<div id="notes" hidden></div>
+<div id="help" hidden><div>
+  <b>Spacja, →, Enter</b> dalej<br><b>←, Backspace</b> wstecz<br><b>Home / End</b> początek / koniec<br>
+  <b>F</b> pełny ekran<br><b>N</b> notatki prelegenta<br><b>T</b> licznik 3 minut<br><b>Klik</b> dalej (lewa część ekranu: wstecz)<br>
+  <b>?</b> ta pomoc
+</div></div>
+<div id="loading">Ładowanie zrzutów…</div>
+
+<script src="steps.js"></script>
+<script>
+"use strict";
+(() => {
+  const STEPS = window.STEPS || [], IM = window.IMAGES || {};
+  const $ = (s) => document.querySelector(s);
+  const planes = [$("#p0"), $("#p1")];
+  const cap = $("#cap"), spot = $("#spot"), scrim = $("#scrim"), veil = $("#veil"), big = $("#big");
+  const textscene = $("#textscene"), bounce = $("#bounce"), closeEl = $("#close");
+  const nat = {};
+  let cur = -1, front = 0, planeImg = [null, null], t0 = null, timerOn = false;
+
+  // preload every picture once, so the camera never waits
+  const loaded = Promise.all(Object.entries(IM).map(([k, v]) => new Promise((res) => {
+    const im = new Image();
+    im.onload = () => { nat[k] = [im.naturalWidth, im.naturalHeight]; res(); };
+    im.onerror = () => { nat[k] = [1920, 1080]; res(); };
+    im.src = v.src;
+  })));
+
+  const vw = () => window.innerWidth, vh = () => window.innerHeight;
+  const pad = () => Math.round(Math.min(vw(), vh()) * 0.045);
+  const portrait = () => vw() < vh() * 1.05;
+
+  function layoutBox(layout) {
+    const W = vw(), H = vh(), p = pad();
+    if (layout === "cover") return { x: 0, y: 0, w: W, h: H, cover: true };
+    if (layout === "side" && !portrait()) return { x: W * 0.42, y: p, w: W * 0.58 - p, h: H - 2 * p };
+    return { x: p, y: p, w: W - 2 * p, h: H * 0.76 - p };
+  }
+
+  function camera(key, view, layout) {
+    const k = nat[key][0] / IM[key].base;
+    const [x, y, w, h] = view.map((v) => v * k);
+    const b = layoutBox(layout);
+    const s = b.cover ? Math.max(b.w / w, b.h / h) : Math.min(b.w / w, b.h / h);
+    let tx = b.x + (b.w - w * s) / 2 - x * s, ty = b.y + (b.h - h * s) / 2 - y * s;
+    if (b.cover) {   // never show past the edge of the picture
+      tx = Math.min(0, Math.max(vw() - nat[key][0] * s, tx));
+      ty = Math.min(0, Math.max(vh() - nat[key][1] * s, ty));
+    }
+    return { s, tx, ty, k };
+  }
+
+  function setPlane(idx, key, cam, instant) {
+    const pl = planes[idx], img = pl.querySelector("img");
+    if (planeImg[idx] !== key) { img.src = IM[key].src; img.style.width = nat[key][0] + "px"; planeImg[idx] = key; }
+    if (instant) { pl.style.transition = "none"; void pl.offsetWidth; }
+    pl.style.transform = `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.s})`;
+    if (instant) { void pl.offsetWidth; pl.style.transition = ""; }
+  }
+
+  function showImage(key, view, layout, instant) {
+    const cam = camera(key, view, layout);
+    if (planeImg[front] === key && planes[front].classList.contains("on")) {
+      setPlane(front, key, cam, instant);
+    } else {
+      const back = 1 - front;
+      // enter from a little further out, then glide in
+      const from = { ...cam, s: cam.s * 0.94 };
+      setPlane(back, key, from, true);
+      requestAnimationFrame(() => setPlane(back, key, cam, instant));
+      planes[back].classList.add("on");
+      planes[front].classList.remove("on");
+      front = back;
+    }
+    return cam;
+  }
+
+  function hideImages() { planes.forEach((p) => p.classList.remove("on")); }
+
+  function setSpot(st, cam) {
+    if (!st.focus || !cam) { spot.classList.remove("on"); return; }
+    const [fx, fy, fw, fh] = st.focus.map((v) => v * cam.k * cam.s);
+    spot.style.left = cam.tx + fx + "px"; spot.style.top = cam.ty + fy + "px";
+    spot.style.width = fw + "px"; spot.style.height = fh + "px";
+    spot.style.borderRadius = st.round ? "50%" : "14px";
+    spot.classList.add("on");
+  }
+
+  function placeCaption(mode) {
+    const W = vw(), H = vh(), p = pad();
+    const s = cap.style;
+    s.left = s.top = s.right = s.bottom = s.width = s.maxWidth = s.justifyContent = "";
+    if (mode === "left") { s.left = p * 1.6 + "px"; s.top = "0"; s.bottom = "0"; s.width = W * 0.36 + "px"; s.justifyContent = "center"; }
+    else if (mode === "band") { s.left = p + "px"; s.top = H * 0.79 + "px"; s.width = (W - 2 * p) + "px"; s.maxWidth = "1500px"; }
+    else if (mode === "scrim-left") { s.left = p * 1.6 + "px"; s.top = "0"; s.bottom = "0"; s.width = Math.min(W * 0.5, 900) + "px"; s.justifyContent = "center"; }
+    else { s.left = p * 1.2 + "px"; s.bottom = p * 1.2 + "px"; s.width = Math.min(W - 2 * p, 1300) + "px"; }
+  }
+
+  function setCaption(st, mode) {
+    cap.classList.remove("on");
+    cap.querySelector(".kicker").textContent = st.kicker || "";
+    cap.querySelector(".kicker").hidden = !st.kicker;
+    const t = cap.querySelector(".title");
+    t.textContent = st.title || ""; t.className = "title " + (st.titleClass || "");
+    cap.querySelector(".sub").textContent = st.sub || "";
+    placeCaption(mode);
+    requestAnimationFrame(() => requestAnimationFrame(() => cap.classList.add("on")));
+  }
+
+  function render(instant) {
+    const st = STEPS[cur];
+    if (!st) return;
+    if (st.img && !nat[st.img]) { loaded.then(() => render(true)); return; }   // pictures still loading
+    [textscene, bounce, closeEl, big, veil].forEach((e) => e.classList.remove("on"));
+    scrim.className = "";
+    let cam = null;
+
+    if (st.kind === "text") {
+      textscene.classList.toggle("small", !!st.small);
+      const [a, b] = st.lines || [];
+      textscene.querySelector(".l1").textContent = a || "";
+      const l2 = textscene.querySelector(".l2");
+      l2.textContent = b || ""; l2.classList.toggle("accent", st.accent === 1);
+      textscene.classList.remove("on"); void textscene.offsetWidth; textscene.classList.add("on");
+      cap.classList.remove("on"); spot.classList.remove("on"); hideImages();
+    } else if (st.kind === "shot") {
+      cam = showImage(st.img, st.view, st.layout || "full", instant);
+      const mode = st.layout === "side" && !portrait() ? "left" : st.layout === "cover" ? (st.scrim === "left" ? "scrim-left" : "bottom") : "band";
+      if (st.layout === "cover") scrim.className = "on " + (st.scrim === "left" ? "left" : "bottom");
+      setSpot(st, cam);
+      setCaption(st, mode);
+    } else if (st.kind === "stat") {
+      cam = showImage(st.img, st.view, "cover", instant);
+      veil.classList.add("on"); spot.classList.remove("on");
+      big.textContent = st.big || "";
+      const p = pad();
+      big.style.left = p * 1.4 + "px"; big.style.top = vh() * 0.08 + "px";
+      requestAnimationFrame(() => big.classList.add("on"));
+      setCaption(st, "bottom");
+    } else if (st.kind === "bounce") {
+      hideImages(); spot.classList.remove("on");
+      const W = vw(), H = vh(), p = pad();
+      const side = !portrait();
+      const bw = side ? W * 0.55 : W - 2 * p, bh = side ? H - 2 * p : H * 0.55;
+      Object.assign(bounce.style, { left: (side ? W * 0.42 : p) + "px", top: p + "px", width: bw + "px", height: bh + "px" });
+      bounce.classList.remove("on"); void bounce.getBoundingClientRect(); bounce.classList.add("on");
+      setCaption(st, side ? "left" : "band");
+    } else if (st.kind === "close") {
+      hideImages(); spot.classList.remove("on"); cap.classList.remove("on");
+      closeEl.querySelector("h2").textContent = st.title || "";
+      closeEl.querySelector(".foot").textContent = st.foot || "";
+      closeEl.querySelector(".qrbox img").src = (IM.qr && IM.qr.src) || "img/qr.png";
+      closeEl.querySelector(".qrbox .l").textContent = st.sub || "";
+      closeEl.querySelector(".qrbox .u").textContent = st.url || "";
+      closeEl.classList.add("on");
+    }
+    $("#bar").style.width = ((cur + 1) / STEPS.length) * 100 + "%";
+    $("#count").textContent = `${cur + 1} / ${STEPS.length}`;
+    $("#notes").textContent = st.note || "";
+    try { history.replaceState(null, "", "#" + (cur + 1)); } catch (e) { /* file:// or sandbox */ }
+  }
+
+  function go(n, instant) {
+    const next = Math.max(0, Math.min(STEPS.length - 1, n));
+    if (next === cur && !instant) return;
+    cur = next;
+    if (t0 === null && cur > 0) t0 = performance.now();
+    render(instant);
+  }
+  const nextStep = () => { $("#hint").style.opacity = 0; go(cur + 1); };
+  const prevStep = () => go(cur - 1);
+
+  function fullscreen() {
+    const d = document;
+    if (!d.fullscreenElement) (d.documentElement.requestFullscreen || (() => Promise.reject()))
+      .call(d.documentElement).catch(() => {});
+    else d.exitFullscreen().catch(() => {});
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter") { e.preventDefault(); nextStep(); }
+    else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prevStep(); }
+    else if (k === "Home") go(0); else if (k === "End") go(STEPS.length - 1);
+    else if (k === "f" || k === "F") fullscreen();
+    else if (k === "n" || k === "N") $("#notes").hidden = !$("#notes").hidden;
+    else if (k === "t" || k === "T") { timerOn = !timerOn; $("#timer").hidden = !timerOn; }
+    else if (k === "?" || k === "h" || k === "H") $("#help").hidden = !$("#help").hidden;
+    else if (k === "Escape") { $("#help").hidden = true; }
+  });
+  document.addEventListener("click", (e) => {
+    if (!$("#help").hidden) { $("#help").hidden = true; return; }
+    if (e.target.closest("a, button")) return;
+    if (e.clientX < vw() * 0.25) prevStep(); else nextStep();
+  });
+  let touchX = null;
+  document.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX; touchX = null;
+    if (Math.abs(dx) > 50) { dx < 0 ? nextStep() : prevStep(); }
+  }, { passive: true });
+  window.addEventListener("resize", () => render(true));
+
+  setInterval(() => {
+    if (!timerOn) return;
+    const s = t0 === null ? 0 : Math.floor((performance.now() - t0) / 1000);
+    const el = $("#timer");
+    el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} / 3:00`;
+    el.classList.toggle("late", s >= 150 && s < 180); el.classList.toggle("over", s >= 180);
+  }, 250);
+
+  const startAt = Math.max(1, parseInt((location.hash || "").replace("#", ""), 10) || 1) - 1;
+  go(startAt === 0 ? 0 : startAt, true);   // the first step is text, so it shows before the pictures arrive
+  loaded.then(() => { $("#loading").remove(); if (STEPS[cur] && STEPS[cur].kind !== "text") render(true); });
+  window.SARNIK_PITCH = { go, get step() { return cur; } };   // for tests and remote control
+})();
+</script>
+</body>
+</html>
