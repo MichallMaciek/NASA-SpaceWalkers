@@ -2411,15 +2411,6 @@
     $("#year").addEventListener("pointerdown", () => { yearDrag = true; });
     ["pointerup", "pointercancel", "blur"].forEach((ev) => window.addEventListener(ev, () => { yearDrag = false; }));
     $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value, yearDrag); else setYear(+e.target.value); });
-    // history time line: the slider moves in tenths of a year for a smooth drag, but a key press should change the year shown
-    $("#year").addEventListener("keydown", (e) => {
-      if (radarTL()) return;
-      const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 5, PageDown: -5 }[e.key];
-      if (!d) return;
-      e.preventDefault(); stopPlay();
-      const y = clamp(Math.round(state.yearF) + d, TL_MIN, horizonEnd());
-      e.target.value = y; setYear(y, { now: true });
-    });
     $("#year").addEventListener("change", (e) => {
       if (radarTL()) {
         e.target.value = state.ryear; // the input event already moved to the year with data
