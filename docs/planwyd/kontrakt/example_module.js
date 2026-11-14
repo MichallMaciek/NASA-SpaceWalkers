@@ -43,7 +43,7 @@
       if (r.st !== "ok") return { id: "value", lvl: "info", t: s.title, v: s.unavailable, src: s.src };
       const v = parse(r.data);
       if (v == null) return { id: "value", lvl: "info", t: s.title, v: s.nodata, src: s.src };
-      return { id: "value", lvl: v >= 5 ? "warn" : "ok", t: s.title, v: (v >= 5 ? s.high : s.low)(ctx.num(v, 1)), src: s.src };
+      return { id: "value", lvl: v >= 5 ? "warn" : "ok", t: s.title, v: (v >= 5 ? s.high : s.low)(ctx.num(v, 1)), src: s.src, sar: "no" };
     },
   });
 })();

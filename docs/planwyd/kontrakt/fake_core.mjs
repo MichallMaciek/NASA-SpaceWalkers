@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import vm from 'node:vm'
 
 const LEVELS = ['ok', 'warn', 'risk', 'info']
+const SAR = ['yes', 'part', 'no']
 
 export function createCore(opts = {}) {
   let lang = opts.lang || 'pl'
@@ -101,7 +102,7 @@ export function createCore(opts = {}) {
         if (!d.checks) return
         const r = guard(name, 'checks', () => d.checks(sel, ctx))
         const list = r == null ? [] : Array.isArray(r) ? r : [r]
-        list.filter(Boolean).forEach((it) => out.push(Object.assign({}, it, { id: name + ':' + (it.id || 'row'), module: name })))
+        list.filter(Boolean).forEach((it) => out.push(Object.assign({ sar: 'no' }, it, { id: name + ':' + (it.id || 'row'), module: name })))
       })
       return out
     },
@@ -110,6 +111,8 @@ export function createCore(opts = {}) {
     },
     // czeka na wszystkie zapytania rozpoczęte przez fetchOnce
     async settle() { while (waiting.length) await waiting.shift() },
+    // liczba dla nagłówka karty: wiersze warn i risk, bez wierszy w toku
+    flags(items) { return items.filter((it) => !it.pending && (it.lvl === 'warn' || it.lvl === 'risk')).length },
     // lista naruszeń kontraktu w wierszach; pusta lista = wiersze poprawne
     problems(items) {
       const p = []
@@ -119,6 +122,7 @@ export function createCore(opts = {}) {
         if (typeof it.v !== 'string' || !it.v) p.push(it.id + ': brak treści')
         if (/undefined|NaN|\[object /.test(String(it.t) + String(it.v) + String(it.word || '') + String(it.src || ''))) p.push(it.id + ': w tekście jest undefined, NaN albo [object')
         if (it.pending && it.lvl !== 'info') p.push(it.id + ': wiersz w toku musi mieć poziom info')
+        if (SAR.indexOf(it.sar) < 0) p.push(it.id + ': złe pole sar ' + it.sar)
       })
       return p
     },

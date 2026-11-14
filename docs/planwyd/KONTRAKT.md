@@ -6,7 +6,9 @@ Ten plik jest wiążący dla wszystkich pięciu urządzeń. Dzięki niemu moduł
 - **Moduły** (Urządzenia 2 i 3) piszą wyłącznie własne pliki i rejestrują się przez `window.SARNIK`.
 - **Testy modułów** używają `docs/planwyd/kontrakt/fake_core.mjs`, czyli tego samego kontraktu w Node, bez przeglądarki.
 
-Kontraktu nie zmieniamy w trakcie pracy. Jeśli czegoś brakuje, moduł radzi sobie bez tego i zgłasza brak w opisie PR.
+> Zmiana 14.11, 19:20, po porównaniu z gałęzią `v3` autora aplikacji: wiersz ma pole `sar` (grupa w karcie). Rdzeń nie dodaje już osobnego licznika ostrzeżeń, bo `v3` ma nagłówek „N rzeczy do sprawdzenia”.
+
+Poza tą zmianą kontraktu nie zmieniamy w trakcie pracy. Jeśli czegoś brakuje, moduł radzi sobie bez tego i zgłasza brak w opisie PR.
 
 ## 1. Pliki i własność
 
@@ -67,13 +69,18 @@ Zasady:
   v: "…",                  // treść (HTML); tekst z zewnątrz MUSI przejść przez ctx.esc
   word: "sprawdzam…",      // opcjonalnie: słowo statusu zamiast domyślnego
   pending: true,           // opcjonalnie: wynik jeszcze nie przyszedł (lvl wtedy "info")
-  src: "ISOK, Wody Polskie" // opcjonalnie: krótki podpis źródła, rdzeń dokleja go do treści
+  src: "ISOK, Wody Polskie", // krótki podpis źródła; w prostym przeglądzie to osobna linia pod treścią
+  sar: "no"                // grupa w karcie: "yes" = z radaru SAR, "part" = częściowo, "no" = tło z innych źródeł (domyślnie "no")
 }
 ```
 
 Znaczenie poziomów jest takie samo jak w istniejących wierszach: `ok` zielony, `warn` żółty, `risk` czerwony, `info` szary (brak danych, błąd usługi, poza zasięgiem danych). **Brak danych to zawsze `info`, nigdy `ok`.**
 
-Licznik ostrzeżeń przy tytule karty liczy wiersze `warn` i `risk` ze wszystkich źródeł (wbudowane i modułowe). Wiersze `pending` są liczone osobno („sprawdzam”).
+Karta w wersji `v3` zaczyna się od prostego przeglądu z nagłówkiem „N rzeczy do sprawdzenia”. Rdzeń dba o to, żeby:
+- nagłówek liczył wiersze `warn` i `risk` ze wszystkich źródeł, także modułowych (wiersze `pending` nie są liczone);
+- wiersz modułu pojawił się w prostym przeglądzie, w grupie wskazanej przez `sar`, oraz w trybie eksperckim.
+
+Treść `v` to jedno albo dwa proste zdania dla kupującego, bez żargonu i bez dB. Moduły z tego planu (`flood`, `landslide`, `wuia`) nie korzystają z radaru, więc ustawiają `sar: "no"`.
 
 ## 5. Wybór miejsca (`sel`)
 
