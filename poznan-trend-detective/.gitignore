@@ -15,3 +15,6 @@ __pycache__/
 # promo working files (large frames)
 promo/capture/
 promo/build/
+
+# rendered promo videos (17-39 MB) stay out of git
+promo/out/*.mp4
