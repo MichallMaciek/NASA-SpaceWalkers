@@ -1,0 +1,17 @@
+# secrets (API keys) never go to GitHub
+.env
+*.env
+
+# raw downloads, rebuilt by pipeline/run_all.sh
+data/raw/
+
+# local tools and caches
+.firebase/
+node_modules/
+.venv/
+__pycache__/
+.DS_Store
+
+# promo working files (large frames)
+promo/capture/
+promo/build/

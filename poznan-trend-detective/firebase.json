@@ -1,0 +1,21 @@
+{
+  "hosting": {
+    "public": "web",
+    "ignore": ["**/.*", "**/node_modules/**", "DESIGN_SPEC.md"],
+    "cleanUrls": true,
+    "headers": [
+      {
+        "source": "data/**",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+      },
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=300" }]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
+  }
+}
