@@ -1,5 +1,10 @@
 # Prezentacje na pitch: trzy gotowe wersje
 
+> **Najnowsze:** interaktywny pitch SARnika na 3 minuty (spacja = kolejny krok, kamera przybliża zrzuty aplikacji):
+> źródło i instrukcja w [interaktywna/](interaktywna/README.md), uruchamiany lokalnie. Publiczny link czeka na decyzję
+> MichallMaciek (właściciel repo, GitHub Pages). Trzy pitche poniżej powstały przed zmianą aplikacji w SARnika
+> (radar SAR w centrum), więc ich treść warto zestawić z aktualnym README repo.
+
 Trzy kompletne pitche na żywo (po 3–4 minuty) dla aplikacji Poznań Trend Detective, NASA Space Apps Challenge 2026,
 Poznań. Każdy ma inny sens produktu, inną publiczność i inny design. Na scenę wybieracie jeden.
 
