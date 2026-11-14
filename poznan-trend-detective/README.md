@@ -13,6 +13,12 @@ for land: search an address or draw a plot around Poznań, and radar tells you w
   (GHSL) and a projection of where the city grows next, tested on years the model never saw.
 
 Live app: <https://poznan-trend-detective.web.app> (v1, history and projection). SARnik v2 preview: <https://poznan-trend-detective--v2-v4vqg11d.web.app>.
+SARnik v3 preview (plain language for everyone): <https://poznan-trend-detective--v3-5tz04dp8.web.app>.
+
+**v3 in short:** the card opens with a plain check-up, one sentence per question with no dB or statistics. It is split
+into "From SAR radar" (new buildings, water, ground motion) and "Background from other sources (no radar)" (projection,
+trees, summer heat, price). A radar mark shows which map views and findings come from SAR. Six map views replace the long list of
+switches. Expert mode (menu, "Expert mode") brings back every layer, slider, dB chart and statistical test.
 
 ## Why radar
 
