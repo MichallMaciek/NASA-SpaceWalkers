@@ -3,11 +3,16 @@
 Prezentacja w przeglądarce: **Spacja** to kolejny krok, kamera przybliża prawdziwe zrzuty aplikacji (karta adresu,
 werdykt, punkty przeglądu, mapy radaru). 17 kroków, ok. 10 s każdy.
 
-**Na żywo (działa od razu, prosto z repo):** https://raw.githack.com/MichallMaciek/NASA-SpaceWalkers/main/poznan-trend-detective/promo/prezentacje/interaktywna/index.html
+**Publiczny link: na razie brak (decyzja zespołu).** Hosting czeka na **MichallMaciek**, właściciela repo: tylko on może
+włączyć GitHub Pages (Settings → Pages → Source: „GitHub Actions”). Wtedy pitch będzie pod
+https://michallmaciek.github.io/NASA-SpaceWalkers/pitch/. Do tego czasu uruchamiamy go lokalnie:
 
-**Na żywo przez GitHub Pages** (gdy właściciel repo włączy Pages): https://michallmaciek.github.io/NASA-SpaceWalkers/pitch/
+```bash
+cd poznan-trend-detective/promo/prezentacje/interaktywna && python3 -m http.server 8000
+```
 
-Link do konkretnego kroku: dopisz `#8` na końcu adresu.
+potem http://localhost:8000 (link do konkretnego kroku: `http://localhost:8000/#8`). Nie publikuj pitchu pod innymi
+publicznymi adresami (raw.githack, htmlpreview, Firebase itp.), dopóki MichallMaciek się nie odezwie.
 
 ## Sterowanie
 
@@ -23,9 +28,8 @@ Link do konkretnego kroku: dopisz `#8` na końcu adresu.
 
 ## Dla agentów: jak zmienić prezentację
 
-Wystarczy zmienić pliki w tym folderze i zrobić push do `main`. Adres raw.githack.com pokazuje nową wersję po kilku
-minutach (ma krótki cache). Workflow `.github/workflows/pitch-pages.yml` publikuje ją też na GitHub Pages w ok. minutę,
-gdy Pages jest włączone (do tego czasu kończy się na zielono i nic nie wdraża). Nie trzeba logowania do
+Wystarczy zmienić pliki w tym folderze i zrobić push do `main`. Workflow `.github/workflows/pitch-pages.yml` opublikuje
+je na GitHub Pages w ok. minutę, gdy MichallMaciek włączy Pages (do tego czasu kończy się na zielono i nic nie wdraża). Nie trzeba logowania do
 Firebase ani żadnych kluczy: wystarczy prawo do pusha w repo (albo pull request zmergowany do `main`).
 
 1. **Treść:** `steps.js`. Każdy krok to jeden obiekt w `STEPS`; opis pól jest na górze pliku. Najczęstsze zmiany:
@@ -53,7 +57,6 @@ Firebase ani żadnych kluczy: wystarczy prawo do pusha w repo (albo pull request
 ## Gdy coś nie działa
 
 - GitHub Pages 404: właściciel repo (MichallMaciek) włącza je raz w Settings → Pages → Source: „GitHub Actions”,
-  potem Actions → „Pitch na GitHub Pages” → Run workflow. Do tego czasu używaj linku raw.githack.com.
-- raw.githack.com pokazuje starą wersję: odczekaj kilka minut albo dopisz `?v=2` na końcu adresu.
+  potem Actions → „Pitch na GitHub Pages” → Run workflow. Do tego czasu tylko lokalnie.
 - Workflow czerwony: kliknij go w zakładce Actions; najczęściej błąd składni w `steps.js` (brak przecinka).
 - Obraz się nie wczytuje: ścieżka w `IMAGES` musi zgadzać się z nazwą pliku w `img/` (wielkość liter ma znaczenie).
