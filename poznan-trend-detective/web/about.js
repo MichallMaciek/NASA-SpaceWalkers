@@ -97,15 +97,17 @@
     D.dC = isNum(bd("forest", "VH")) && isNum(bd("open", "VH")) ? bd("forest", "VH") - bd("open", "VH") : null;
     D.vhBuiltOverForest = isNum(bd("built", "VH")) && isNum(bd("forest", "VH")) && bd("built", "VH") > bd("forest", "VH");
     D.trainedSpan = D.trained.length ? String(D.trained[0]).split("-")[0] + "–" + String(last(D.trained)).split("-").pop() : null;
-    // results of the 14 Nov 2026 review are shown only while the data are those the review checked
+    // results of the team review are shown only while the data are those the review scripts checked
+    // (Sentinel-1 at full 10 m resolution, rebuilt and re-checked on 14 Nov 2026 at 22:45)
     D.REV = {
-      wuia: D.wu.cells === 766 && D.wu.hits === 12,
-      walls: D.wallsHa === 358 && D.upHa === 693,
-      wd: D.wd.share === 0.3742,
+      wuia: D.wu.cells === 766 && D.wu.hits === 16,
+      ww: D.ww.cells === 766 && D.ww.hits === 9,
+      walls: D.wallsHa === 506 && D.upHa === 1086,
+      wd: D.wd.share === 0.3746,
       egms: D.eg.cells === 97567 && D.eg.le5 === 147,
-      season: D.season === 0.0313,
-      wet: D.wet.share === 0.2598,
-      model: numOrNull((ch.model || {}).ratio) === 2.13 && numOrNull((ch.model || {}).hits) === 99,
+      season: D.season === 0.0404,
+      wet: D.wet.share === 0.2321,
+      model: numOrNull((ch.model || {}).ratio) === 1.78 && numOrNull((ch.model || {}).hits) === 134,
     };
     return D;
   }
@@ -257,20 +259,20 @@
           wuMore === null ? NA : wuMore ? "Tam, gdzie miasto zdecydowało w sprawie nowej budowy w czerwcu–sierpniu 2026, radar częściej niż w reszcie Poznania widzi silny wzrost echa." : "Na działkach z decyzją o nowej budowie radar nie widzi częściej silnego wzrostu echa niż w reszcie Poznania.",
           `${B(f.int(D.wu.hits))} z ${B(f.int(D.wu.cells))} komórek (${B(f.pc(D.wu.a, 2))}) wobec ${B(f.pc(D.wu.b, 2))} w reszcie miasta, czyli ok. ${B(f.n(D.wu.ratio, 1))} raza częściej. Liczymy wzrost VV o co najmniej 3 dB rok do roku (Sentinel-1).`,
           "„Decyzje o nowej budowie” to nie tylko pozwolenia na budowę: także zgłoszenia z projektem, decyzje o warunkach zabudowy i o lokalizacji inwestycji celu publicznego. " +
-          (R.wuia ? "Trafienia pochodzą z zaledwie 4 budów spośród ok. 200 działek z decyzją, w tym z dwóch zmian wcześniejszych pozwoleń; to za mało na pewną krotność (95% przedział ufności ok. 0,6–10). " : "Przegląd na poziomie budów zrobiono dla danych z 14 listopada 2026 i nie powtórzono go dla obecnych danych. ") +
+          (R.wuia ? "Trafienia pochodzą z 8 decyzji (9 osobnych skupisk komórek), w tym z trzech zmian wcześniejszych pozwoleń i dwóch budów sieci. Gdy sąsiednie komórki losujemy razem (bloki ok. 0,6 km), 95% przedział ufności krotności to ok. 1,7–7. " : "Przegląd na poziomie budów zrobiono dla danych z 14 listopada 2026 i nie powtórzono go dla obecnych danych. ") +
           "Sąsiednie komórki nie są od siebie niezależne, więc nie podajemy wartości p.")}
         ${c.check("walls", "Sam ślad nowych ścian na tych samych działkach",
-          wwSig === null ? NA : wwSig ? "Ostrzejszy ślad podwójnego odbicia jest częstszy na działkach z decyzją o nowej budowie." : "Ostrzejszy ślad podwójnego odbicia nie jest jeszcze potwierdzony przez decyzje miasta.",
-          `${B(f.int(D.ww.hits))} z ${B(f.int(D.ww.cells))} komórek (${B(f.pc(D.ww.a, 2))}) wobec ${B(f.pc(D.ww.b, 2))}, stosunek ${B(f.n(D.ww.ratio, 1))}, p = ${B(f.n(D.ww.p, 2))}` + (wwSig === false ? ": wynik nieistotny." : "."),
-          `Przy ${f.int(D.ww.hits)} trafieniach test ma małą moc. Ślad może być przydatny, ale nie nazywamy go „nowymi budynkami”.`)}
+          wwSig === null ? NA : wwSig ? "Ostrzejszy ślad podwójnego odbicia też jest częstszy na działkach z decyzją o nowej budowie, ale ten wynik jest na granicy." : "Ostrzejszy ślad podwójnego odbicia nie jest jeszcze potwierdzony przez decyzje miasta.",
+          `${B(f.int(D.ww.hits))} z ${B(f.int(D.ww.cells))} komórek (${B(f.pc(D.ww.a, 2))}) wobec ${B(f.pc(D.ww.b, 2))}, stosunek ${B(f.n(D.ww.ratio, 1))}` + (wwSig === false ? `, p = ${B(f.n(D.ww.p, 2))}: wynik nieistotny.` : "."),
+          `Przy ${f.int(D.ww.hits)} trafieniach test ma małą moc.` + (R.ww ? " Gdy sąsiednie komórki losujemy razem, przedział ufności to ok. 1,2–6,4 dla bloków 0,6 km, ale 0,7–7,1 dla bloków 1,2 km." : "") + " Ślad może być przydatny, ale nie nazywamy go „nowymi budynkami”.")}
         ${c.check("model", "Prognoza a radar",
-          R.model ? "Radar częściej widzi zmiany tam, gdzie prognoza spodziewa się zabudowy, ale to głównie skraj istniejących osiedli." : "Porównanie prognozy z radarem nie jest dowodem, że model coś dodaje.",
-          R.model ? `<span class="nonum">Nie podajemy krotności.</span> 5% wolnego terenu, które prognoza stawia najwyżej, leży głównie tuż przy istniejącej zabudowie, a ułożenie wolnego terenu po prostu według udziału istniejącej zabudowy daje ten sam wynik. Ten test pokazuje więc, że zmiany dzieją się na skraju osiedli, a nie, że model coś dodaje.`
+          R.model ? "Radar częściej widzi zmiany tam, gdzie prognoza spodziewa się zabudowy, ale to głównie skraj istniejących osiedli: 90% tych miejsc leży do 150 m od zabudowy." : "Porównanie prognozy z radarem nie jest dowodem, że model coś dodaje.",
+          R.model ? `<span class="nonum">Nie podajemy krotności.</span> Gdy porównujemy tylko miejsca w tej samej odległości od zabudowy, przewaga prognozy jest mała i wyraźna tylko dla śladu nowych ścian. Ten test pokazuje głównie, że zmiany dzieją się na skraju osiedli.`
             : `<span class="nonum">Nie podajemy krotności.</span> Przegląd tego testu zrobiono dla danych z 14 listopada 2026 i nie powtórzono go dla obecnych danych.`,
           `Model sprawdziliśmy osobno: na terenie wolnym w 2015 wygrywa z prostą regułą sąsiedztwa zabudowy (AUC ${B(f.n(D.auc, 2))} wobec ${B(f.n(D.aucBase, 2))}), ale na podstawie tylko ${B(f.int(D.conv))} przypadków zabudowy w latach 2015–2020.`)}
         ${c.check("season", "Rok do roku zamiast sezonu",
           "Porównanie jesieni z jesienią usuwa większość fałszywych alarmów z prac polowych.",
-          `Różnica czerwiec→listopad oznaczyłaby wzrost o 3 dB lub więcej na ${B(f.pc(D.season, 1))} terenu niezabudowanego w 2025` + (R.season ? "; porównanie jesieni z jesienią: na ok. 0,3%." : "."),
+          `Różnica czerwiec→listopad oznaczyłaby wzrost o 3 dB lub więcej na ${B(f.pc(D.season, 1))} terenu niezabudowanego w 2025` + (R.season ? "; porównanie jesieni z jesienią: na ok. 0,5%." : "."),
           "Nie usuwa różnic między dwiema jesieniami: pola w wielu miejscach ciemnieją, bo gleba i uprawy są inne niż rok wcześniej. Ciemniejszych pól nie traktujemy jako rozbiórek.")}
         ${c.check("wet", "Radar podąża za mokrą pogodą (pasmo C)",
           `Na ${B(f.pc(D.wet.share, 0))} pól i łąk echo Sentinel-1 rośnie w dni, gdy wierzchnia warstwa gleby w regionie jest bardziej wilgotna.`,
@@ -496,20 +498,20 @@
           wuMore === null ? NA : wuMore ? "Where the city decided a new-building case in June–August 2026, radar sees a strong rise in the echo more often than in the rest of Poznań." : "On plots with a new-building decision radar does not see strong rises in the echo more often than in the rest of Poznań.",
           `${B(f.int(D.wu.hits))} of ${B(f.int(D.wu.cells))} cells (${B(f.pc(D.wu.a, 2))}) against ${B(f.pc(D.wu.b, 2))} in the rest of the city, about ${B(f.n(D.wu.ratio, 1))} times as common. We count VV rising by at least 3 dB year on year (Sentinel-1).`,
           "“New-building decisions” are not only building permits: they also include notifications with a design, zoning decisions and location decisions for public investment. " +
-          (R.wuia ? "The hits come from just 4 building sites out of about 200, two of them amendments of earlier permits; that is too few for a firm ratio (95% interval roughly 0.6–10). " : "The site-level review was done on the data of 14 Nov 2026 and has not been repeated for the current data. ") +
+          (R.wuia ? "The hits come from 8 decisions (9 separate clusters of cells), including three amendments of earlier permits and two utility networks. Resampling neighbouring cells together (blocks of about 0.6 km), the 95% interval of the ratio is about 1.7–7. " : "The site-level review was done on the data of 14 Nov 2026 and has not been repeated for the current data. ") +
           "Neighbouring cells are not independent, so we give no p-value.")}
         ${c.check("walls", "The new-wall signature alone on the same plots",
-          wwSig === null ? NA : wwSig ? "The stricter double-bounce signature is more common on plots with a new-building decision." : "The stricter double-bounce signature is not yet confirmed by the city's decisions.",
-          `${B(f.int(D.ww.hits))} of ${B(f.int(D.ww.cells))} cells (${B(f.pc(D.ww.a, 2))}) against ${B(f.pc(D.ww.b, 2))}, ratio ${B(f.n(D.ww.ratio, 1))}, p = ${B(f.n(D.ww.p, 2))}` + (wwSig === false ? ": not significant." : "."),
-          `With ${f.int(D.ww.hits)} hits the test has little power. The signature may still be useful, but we do not call it “new buildings”.`)}
+          wwSig === null ? NA : wwSig ? "The stricter double-bounce signature is also more common on plots with a new-building decision, but this result is borderline." : "The stricter double-bounce signature is not yet confirmed by the city's decisions.",
+          `${B(f.int(D.ww.hits))} of ${B(f.int(D.ww.cells))} cells (${B(f.pc(D.ww.a, 2))}) against ${B(f.pc(D.ww.b, 2))}, ratio ${B(f.n(D.ww.ratio, 1))}` + (wwSig === false ? `, p = ${B(f.n(D.ww.p, 2))}: not significant.` : "."),
+          `With ${f.int(D.ww.hits)} hits the test has little power.` + (R.ww ? " Resampling neighbouring cells together, the interval is about 1.2–6.4 for 0.6 km blocks but 0.7–7.1 for 1.2 km blocks." : "") + " The signature may still be useful, but we do not call it “new buildings”.")}
         ${c.check("model", "Projection meets radar",
-          R.model ? "Radar sees change more often where the projection expects building, but mostly at the edge of existing estates." : "Comparing the projection with radar does not show that the model adds skill.",
-          R.model ? `<span class="nonum">We do not quote the ratio.</span> The 5% of open land the projection ranks highest lies mostly right next to existing buildings, and ranking open land simply by its existing built-up share gives the same result. So this check shows that change happens at the edge of estates, not that the model adds skill.`
+          R.model ? "Radar sees change more often where the projection expects building, but mostly at the edge of existing estates: 90% of those places lie within 150 m of buildings." : "Comparing the projection with radar does not show that the model adds skill.",
+          R.model ? `<span class="nonum">We do not quote the ratio.</span> Comparing only places at the same distance from buildings, the projection has only a small edge, clear only for the new-wall signature. So this check mainly shows that change happens at the edge of estates.`
             : `<span class="nonum">We do not quote the ratio.</span> The review of this check was done on the data of 14 Nov 2026 and has not been repeated for the current data.`,
           `We tested the model on its own: on land open in 2015 it beats a simple nearby-buildings rule (AUC ${B(f.n(D.auc, 2))} against ${B(f.n(D.aucBase, 2))}), but from only ${B(f.int(D.conv))} conversions in 2015–2020.`)}
         ${c.check("season", "Year on year instead of the season",
           "Comparing autumn with autumn removes most false alarms from field work.",
-          `A June→November difference would flag a rise of 3 dB or more on ${B(f.pc(D.season, 1))} of land not built in 2025` + (R.season ? "; comparing autumn with autumn flags about 0.3%." : "."),
+          `A June→November difference would flag a rise of 3 dB or more on ${B(f.pc(D.season, 1))} of land not built in 2025` + (R.season ? "; comparing autumn with autumn flags about 0.5%." : "."),
           "It does not remove differences between the two autumns: fields darken in many places, because soil and crops differ from a year earlier. We do not treat darker fields as demolition.")}
         ${c.check("wet", "Radar follows wet weather (C-band)",
           `On ${B(f.pc(D.wet.share, 0))} of fields and meadows the Sentinel-1 echo rises on days when the region's topsoil is wetter.`,

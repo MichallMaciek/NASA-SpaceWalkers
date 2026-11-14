@@ -1916,7 +1916,8 @@
         sig: k.wuia.p != null && k.wuia.p < 0.05 && k.wuia.ratio >= 1.3, p: k.wuia.p != null ? fmtP(k.wuia.p) : "",
         wallsSig: !!(k.wuia_walls && k.wuia_walls.p != null && k.wuia_walls.p < 0.05 && k.wuia_walls.ratio >= 1.3) },
       wet: { share: num(k.wet.share_sig_study * 100, 0), flood: k.wet.share_sig_flood != null ? num(k.wet.share_sig_flood * 100, 0) : null, out: num(k.wet.share_sig_outside * 100, 0),
-        fsig: k.wet.p_flood_higher != null && k.wet.p_flood_higher < 0.05 },
+        // like the other checks: a small effect is not "more often" (25% vs 23% has a block-bootstrap CI over 1)
+        fsig: k.wet.p_flood_higher != null && k.wet.p_flood_higher < 0.05 && k.wet.share_sig_flood / k.wet.share_sig_outside >= 1.2 },
       ground: { med: sgn(k.egms.median, 0), n: fmtInt(k.egms.cells_le_minus5), min: sgn(k.egms.min, 0), share: num(k.egms.share_of_study * 100, 0) },
       lband: { y0: sar.alos.years[0], y1: sar.alos.years[sar.alos.years.length - 1], nisar: !!sar.nisar,
         n: sar.nisar ? sar.nisar.dates.length : 0, wd: sar.nisar && sar.nisar.checks.wetdry ? {
