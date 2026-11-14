@@ -439,6 +439,26 @@
   /* ================= map ================= */
   let map, borderLayer, labelLayer, choroLayer, pinMarker, nisarLayer, selLayer, baseGL, labelGL, floodLayer;
   let wuiaLayer = null; // building permits and applications of the Poznań planning office (GEOPOZ), added by Szymon
+  let wuiaPending = null;
+  // 2.6 MB of decisions: fetched the first time the layer is switched on, so a visit that never shows it does not pay for it
+  function loadWuia() {
+    if (wuiaLayer || wuiaPending) return;
+    wuiaPending = fetch(`data/wuia_decyzje.geojson?v=${DATA_V}`).then((r) => r.json()).then((data) => {
+      wuiaLayer = L.geoJSON(data, {
+        pane: "land",
+        style: (f) => {
+          const kat = (f.properties.kategoria || "").toLowerCase();
+          const col = kat.includes("nowa") ? "#E5602A" : (kat.includes("rozbudowa") ? "#7357E8" : "#F2A31B");
+          return { color: col, weight: 1.5, opacity: 0.9, fillColor: col, fillOpacity: state.lyr.wuia.op };
+        },
+        onEachFeature: (f, lyr) => {
+          const p = f.properties;
+          lyr.bindPopup(`<div style="font-size:13px;font-family:inherit"><strong>${esc(p.kategoria || "Decyzja")}</strong><br><span style="color:var(--ink-2)">${esc(p.OPIS || "")}</span><br><small style="color:var(--ink-3)">${esc(p.DATA || "")}, ${esc(p.NR_SPRAWY || "")}</small></div>`);
+        },
+      });
+      redraw();
+    }).catch((e) => console.warn("wuia load skipped", e)).finally(() => { wuiaPending = null; });
+  }
   const geoCache = new Map();
   const bases = {}, overlays = {}, pixelLayers = {};
   const dark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
@@ -593,21 +613,6 @@
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
     floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
-    fetch(`data/wuia_decyzje.geojson?v=${DATA_V}`).then((r) => r.json()).then((data) => {
-      wuiaLayer = L.geoJSON(data, {
-        pane: "land",
-        style: (f) => {
-          const kat = (f.properties.kategoria || "").toLowerCase();
-          const col = kat.includes("nowa") ? "#E5602A" : (kat.includes("rozbudowa") ? "#7357E8" : "#F2A31B");
-          return { color: col, weight: 1.5, opacity: 0.9, fillColor: col, fillOpacity: state.lyr.wuia.op };
-        },
-        onEachFeature: (f, lyr) => {
-          const p = f.properties;
-          lyr.bindPopup(`<div style="font-size:13px;font-family:inherit"><strong>${esc(p.kategoria || "Decyzja")}</strong><br><span style="color:var(--ink-2)">${esc(p.OPIS || "")}</span><br><small style="color:var(--ink-3)">${esc(p.DATA || "")}, ${esc(p.NR_SPRAWY || "")}</small></div>`);
-        },
-      });
-      if (state.lyr.wuia.on) wuiaLayer.addTo(map);
-    }).catch((e) => console.warn("wuia load skipped", e));
     setBase(state.base);
     map.fitBounds(borderLayer.getBounds(), fitPad());
     const hideTip = () => { $("#hovertip").hidden = true; };
@@ -821,6 +826,7 @@
         nisarLayer.setOpacity(state.lyr.nisar.op);
         if (!map.hasLayer(nisarLayer)) nisarLayer.addTo(map); else if (fresh) nisarLayer.redraw();
       } else if (map.hasLayer(nisarLayer)) map.removeLayer(nisarLayer);
+      if (state.lyr.wuia.on && !wuiaLayer) loadWuia();
       if (wuiaLayer) {
         if (state.lyr.wuia.on) { wuiaLayer.setStyle({ fillOpacity: state.lyr.wuia.op }); if (!map.hasLayer(wuiaLayer)) wuiaLayer.addTo(map); }
         else if (map.hasLayer(wuiaLayer)) map.removeLayer(wuiaLayer);
@@ -2194,7 +2200,8 @@
     applyLang();
     await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));
     redraw();
-    PLACE_LAYERS().forEach((n) => loadGray(n).catch(() => {}));
+    // The place-card layers (about 10 MB) are not preloaded: selectPoint loads and awaits them on the first selection,
+    // so a visit that only looks at the map downloads about 3 MB instead of 14 MB (hosting transfer, 14 Nov 2026).
     // open a shared place link: #52.40812,16.93350
     const m = location.hash.match(/^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
     if (m) selectPoint(+m[1], +m[2], null, { zoom: 14 });
