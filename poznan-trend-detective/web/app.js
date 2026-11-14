@@ -10,6 +10,8 @@
   const NOW_YEAR = new Date().getFullYear();
   const LAWICA = [52.4167, 16.8264], OLD_MARKET = [52.4083, 16.9335];
   const $ = (s) => document.querySelector(s);
+  // data files carry the page's build number, so a new deploy never mixes with cached data
+  const DATA_V = ((document.currentScript && document.currentScript.src) || "").split("v=")[1] || String(Date.now());
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const mean = (a) => { const v = a.filter((x) => x != null && isFinite(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -184,7 +186,7 @@
         L8[name] = out; res(out);
       };
       img.onerror = () => rej(new Error(name));
-      img.src = `data/land/${name}.png`;
+      img.src = `data/land/${name}.png?v=${DATA_V}`;
     });
     grayLoading[name] = pr;
     pr.then(() => delete grayLoading[name], () => delete grayLoading[name]);
@@ -269,6 +271,7 @@
       sarwater: { on: false, op: 0.85, min: 20 },
       egms: { on: false, op: 0.95, min: 2 },
       alos: { on: false, op: 0.85, y: 2021 },
+      nisarwet: { on: false, op: 0.9, min: 2 },
       built: { on: false, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },
@@ -284,8 +287,11 @@
   };
   let NISAR_DATES = [];
   let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
-  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
-  const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos"];
+  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
+  const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
+  // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
+  const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
+  const lbandNames = (y) => (y === 2026 ? ["nisar_hh_med", "nisar_hv_med"] : [`alos_hh_${y}`, `alos_hv_${y}`]);
   // keep the area clear of the floating cards: side card on the left (desktop) or at the bottom (phone)
   const fitPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 130] } : { paddingTopLeft: [420, 80], paddingBottomRight: [80, 150] });
   const selPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, Math.round(innerHeight * 0.42 + 120)] } : fitPad());
@@ -306,11 +312,12 @@
     sarwet: () => ["sar_wet", "study"],
     sarwater: () => ["sar_water", "study"],
     egms: () => ["sar_egms", "study"],
-    alos: () => [`alos_hh_${state.lyr.alos.y}`, `alos_hv_${state.lyr.alos.y}`, "study"],
+    alos: () => [...lbandNames(state.lyr.alos.y), "study"],
+    nisarwet: () => ["nisar_wetdry", "study"],
   };
-  const ready = (k) => (SAR_KEYS.includes(k) && !sar ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
+  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
-    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`] : []);
+    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
   // decoders (sar.json "decode")
   const dbOf = (v) => (v ? v / 6 - 30 : NaN);
   const changeOf = (v) => (v ? v / 12.75 - 10 : NaN);
@@ -574,7 +581,7 @@
       }
     } else if (k === "s1rgb" || k === "alos") {
       // classic radar colour composite: R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio
-      const co = k === "s1rgb" ? L8.sar_vv_med : L8[`alos_hh_${s.y}`], cx = k === "s1rgb" ? L8.sar_vh_med : L8[`alos_hv_${s.y}`];
+      const [hn, vn] = k === "alos" ? lbandNames(s.y) : ["sar_vv_med", "sar_vh_med"], co = L8[hn], cx = L8[vn];
       for (let i = 0; i < n; i++) {
         if (!st[i] || !co[i] || !cx[i]) continue;
         const c = radarRgb(k, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
@@ -589,6 +596,16 @@
         const isWall = d > 0 && r[i] && changeOf(r[i]) >= wd;
         const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d < 0 ? dn : isWall ? wall : soft, j = ((t * 255) | 0) * 3;
         put(i, [L[j], L[j + 1], L[j + 2]], (isWall ? 190 : 130) + t * 60);
+      }
+    } else if (k === "nisarwet") {
+      // NISAR HH, wet pass (24 Aug) minus dry pass (25 Jun), open land only
+      const a = L8.nisar_wetdry, wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const d = changeOf(a[i]);
+        if (Math.abs(d) < s.min) continue;
+        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 140 + t * 100);
       }
     } else if (k === "sarwet") {
       const a = L8.sar_wet, rc = sar.s1.r_crit, L = lutFor(RAMPS.wet);
@@ -731,12 +748,13 @@
     if (sar) {
       const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
       if (L_.sarchange.on) blocks.push(`<div class="lt">${u.lg.sarchange}</div>${sw(RAMPS.up[1], u.lg.wallsNow)}${sw(RAMPS.upSoft[2], u.lg.brighterNow)}${sw(RAMPS.down[2], u.lg.darkerNow)}`);
+      if (L_.nisarwet.on && sar.nisar) blocks.push(`<div class="lt">${u.lg.nisarwet}</div>${sw(RAMPS.wet[2], u.lg.wetter)}${sw(RAMPS.brown[2], u.lg.drier)}`);
       if (L_.sarwet.on) blocks.push(`<div class="lt">${u.lg.sarwet}</div>${ramp_(RAMPS.wet, u.lg.weak, u.lg.strong)}`);
       if (L_.sarwater.on) blocks.push(`<div class="lt">${u.lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
       if (L_.egms.on) blocks.push(`<div class="lt">${u.lg.egms}</div>${sw(RAMPS.sink[2], u.lg.sinks)}${sw(RAMPS.cool[2], u.lg.rises)}`);
       if (L_.s1rgb.on || L_.alos.on) {
         const kk = L_.alos.on && !L_.s1rgb.on ? "alos" : "s1rgb";
-        blocks.push(`<div class="lt">${kk === "alos" ? u.lg.alos(L_.alos.y) : u.lg.s1rgb}</div>` +
+        blocks.push(`<div class="lt">${kk === "alos" ? (L_.alos.y === 2026 ? u.lg.nisarL : u.lg.alos(L_.alos.y)) : u.lg.s1rgb}</div>` +
           RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
       }
     }
@@ -756,7 +774,7 @@
   }
 
   /* ================= drawer (map settings) ================= */
-  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
+  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
   function rangeHTML(id, min, max, step, lo, hi, cls = "") {
     const a = ((lo - min) / (max - min)) * 100, b = hi == null ? a : ((hi - min) / (max - min)) * 100;
     return `<div class="rng ${cls}" data-rng="${id}"><div class="rail"></div><div class="fill" style="left:${hi == null ? 0 : a}%;width:${hi == null ? a : b - a}%"></div>
@@ -771,6 +789,7 @@
       <div class="lyr-ctrl">${extra}<div class="field"><div class="field-head"><span class="fl" style="font-size:13px;color:var(--ink-2)">${u.opacity}</span><output>${Math.round(s.op * 100)}%</output></div>${rangeHTML(`op-${k}`, 20, 100, 5, Math.round(s.op * 100))}</div></div>
     </div>`;
   }
+  const lbLabel = (y) => (y === 2026 ? "2026 (NISAR)" : `${y} (ALOS-2)`);
   function renderDrawer() {
     const u = U(), L_ = state.lyr;
     const demMax = Math.ceil(Math.max(...Object.values(land.municipalities).map((m) => m.elev_max))); // 164 m: the hills too
@@ -785,11 +804,12 @@
         ${layerRow("sarchange", field(u.minDb, `${num(L_.sarchange.min, 1)} dB`, rangeHTML("sch", 1, 8, 0.5, L_.sarchange.min)))}
         ${layerRow("sarwet")}
         ${layerRow("sarwater", field(u.minWater, `${L_.sarwater.min}%`, rangeHTML("swa", 10, 90, 5, L_.sarwater.min)))}
+        ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
         ${layerRow("nisar", nis)}
       </div></details>
       <details class="sec" open><summary>${u.secGround}</summary><div class="sec-body">
         ${layerRow("egms", field(u.minMove, `${L_.egms.min} mm/${u.yr}`, rangeHTML("seg", 1, 10, 1, L_.egms.min)))}
-        ${layerRow("alos", field(u.alosYear, String(L_.alos.y), rangeHTML("aly", sar.alos.years[0], sar.alos.years[sar.alos.years.length - 1], 1, L_.alos.y)))}
+        ${layerRow("alos", field(u.alosYear, lbLabel(L_.alos.y), rangeHTML("aly", 0, LBAND_YEARS().length - 1, 1, Math.max(0, LBAND_YEARS().indexOf(L_.alos.y)))))}
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("activity", act)}
       </div></details>` : `
       <details class="sec" open><summary>${u.secSar}</summary><div class="sec-body">
@@ -848,7 +868,8 @@
       else if (id === "sch") { state.lyr.sarchange.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       else if (id === "swa") { state.lyr.sarwater.min = vals[0]; out.textContent = `${vals[0]}%`; }
       else if (id === "seg") { state.lyr.egms.min = vals[0]; out.textContent = `${vals[0]} mm/${u.yr}`; }
-      else if (id === "aly") { state.lyr.alos.y = vals[0]; out.textContent = String(vals[0]); if (state.lyr.alos.on) { ensure("alos").then(redraw); return; } }
+      else if (id === "aly") { state.lyr.alos.y = LBAND_YEARS()[vals[0]]; out.textContent = lbLabel(state.lyr.alos.y); if (state.lyr.alos.on) { ensure("alos").then(redraw); return; } }
+      else if (id === "nwm") { state.lyr.nisarwet.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       redraw();
     }));
     body.querySelectorAll("[data-hz]").forEach((b) => b.addEventListener("click", () => {
@@ -885,10 +906,12 @@
     if (sar && c) {
       const Ly = state.lyr;
       if ((Ly.s1rgb.on && ready("s1rgb")) || (Ly.alos.on && ready("alos"))) {
-        const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[`alos_hh_${Ly.alos.y}`][c.i], L8[`alos_hv_${Ly.alos.y}`][c.i], "HH/HV"];
+        const [hn, vn] = lbandNames(Ly.alos.y);
+        const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
         if (a && b) lines.push(`${tag}: ${num(dbOf(a), 1)} / ${num(dbOf(b), 1)} dB`);
       }
       if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) lines.push(`${u.L.sarchange}: ${sgn(changeOf(L8.sar_change[c.i]), 1)} dB`);
+      if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) lines.push(`${u.L.nisarwet}: ${sgn(changeOf(L8.nisar_wetdry[c.i]), 1)} dB`);
       if (Ly.sarwet.on && ready("sarwet") && L8.sar_wet[c.i]) lines.push(`${u.L.sarwet}: r = ${num(wetOf(L8.sar_wet[c.i]), 2)}`);
       if (Ly.sarwater.on && ready("sarwater") && L8.sar_water[c.i]) lines.push(`${u.L.sarwater}: ${num(waterOf(L8.sar_water[c.i]) * 100, 0)}%`);
       if (Ly.egms.on && ready("egms")) lines.push(L8.sar_egms[c.i] ? `${u.L.egms}: ${sgn(egmsOf(L8.sar_egms[c.i]), 0)} mm/${u.yr}` : `${u.L.egms}: ${u.noPoints}`);
@@ -1194,7 +1217,10 @@
     const ys = sar.alos.years, y0 = ys[0], y1 = ys[ys.length - 1], h0 = L8[`alos_hv_${y0}`], h1 = L8[`alos_hv_${y1}`];
     let p0 = 0, p1 = 0, nA = 0;
     for (const i of cells) if (h0[i] && h1[i]) { p0 += pw10(dbOf(h0[i])); p1 += pw10(dbOf(h1[i])); nA++; }
+    let nN = 0, sN = 0, upN = 0;
+    if (sar.nisar && L8.nisar_wetdry) for (const i of cells) { const v = L8.nisar_wetdry[i]; if (v) { const d = changeOf(v); nN++; sN += d; if (d >= 2) upN++; } }
     return {
+      nisarWet: nN ? sN / nN : NaN, nisarWetUp: nN ? upN / nN : NaN, nisarOpen: nN,
       meanCh: nCh ? sCh / nCh : NaN, up: nCh ? up / nCh : NaN, dn: nCh ? dn / nCh : NaN, walls: nCh ? wl / nCh : NaN,
       wet: nW ? wetN / nW : NaN, water: nWa ? waN / nWa : NaN,
       egMed: egv.length ? egv[egv.length >> 1] : NaN, egMin: egv.length ? egv[0] : NaN, egN: egv.length,
@@ -1202,8 +1228,9 @@
     };
   }
   // VV and VH of every pass for the selection, from the 480 m sheet (power-averaged)
-  function sarSeries(cells) {
-    const S = sar.s1.series, sh = L8.sar_series, W2 = 2 * S.bw, w = land.width, blocks = new Set();
+  function sarSeries(cells, which = "s1") {
+    const S = which === "nisar" ? sar.nisar.series : sar.s1.series, sh = which === "nisar" ? L8.nisar_series : L8.sar_series;
+    const W2 = 2 * S.bw, w = land.width, blocks = new Set();
     for (const i of cells) blocks.add(((Math.floor(i / w) / S.block) | 0) * S.bw + (((i % w) / S.block) | 0));
     const vv = [], vh = [];
     for (let k = 0; k < S.n; k++) {
@@ -1218,46 +1245,56 @@
     return { vv, vh };
   }
   const dayNum = (d) => Date.parse(`${d}T12:00:00Z`) / 864e5;
-  function radarChart(ser) {
+  function radarChart(ser, nser) {
     const u = U(), W = 340, H = 92, top = 4, lineH = 58, barTop = 66, barH = 16;
     const dates = sar.s1.dates, t0 = dayNum(dates[0]) - 2, t1 = dayNum(dates[dates.length - 1]) + 2;
-    const x = (d) => ((dayNum(d) - t0) / (t1 - t0)) * W;
-    const ok = ser.vv.concat(ser.vh).filter(isFinite);
+    const GX = 34; // left gutter for the dB labels
+    const x = (d) => GX + ((dayNum(d) - t0) / (t1 - t0)) * (W - GX);
+    const nd = nser ? sar.nisar.dates : [];
+    const ok = ser.vv.concat(ser.vh, nser ? nser.vv.concat(nser.vh) : []).filter(isFinite);
     if (!ok.length) return "";
     const lo = Math.min(...ok) - 0.5, hi = Math.max(...ok) + 0.5, y = (v) => top + (1 - (v - lo) / (hi - lo)) * lineH;
-    const path = (vals) => vals.map((v, k) => (isFinite(v) ? `${k && isFinite(vals[k - 1]) ? "L" : "M"}${x(dates[k]).toFixed(1)},${y(v).toFixed(1)}` : "")).join("");
+    const path = (vals, ds = dates) => vals.map((v, k) => (isFinite(v) ? `${k && isFinite(vals[k - 1]) ? "L" : "M"}${x(ds[k]).toFixed(1)},${y(v).toFixed(1)}` : "")).join("");
     const wet = sar.s1.soil_wetness || [], bw = Math.max(3, (W / dates.length) * 0.5);
     const bars = wet.map((w, k) => (w == null ? "" : `<rect x="${(x(dates[k]) - bw / 2).toFixed(1)}" y="${(barTop + barH * (1 - w)).toFixed(1)}" width="${bw.toFixed(1)}" height="${(barH * w).toFixed(1)}" rx="1" fill="var(--c-wet)"/>`)).join("");
     const nis = NISAR_DATES.filter((d) => dayNum(d) >= t0 && dayNum(d) <= t1).map((d) => `<line x1="${x(d).toFixed(1)}" x2="${x(d).toFixed(1)}" y1="${barTop + barH + 2}" y2="${barTop + barH + 7}" stroke="${css("--c-nisar")}" stroke-width="1.6"/>`).join("");
     const months = [];
     for (let m = 6; m <= 11; m++) { const d = `2026-${String(m).padStart(2, "0")}-01`; if (dayNum(d) >= t0) months.push(`<text x="${x(d).toFixed(1)}" y="${H + 10}" font-size="10" fill="${css("--ink-3")}">${u.rb.months[m - 1]}</text>`); }
-    const dots = (vals, col) => vals.map((v, k) => (isFinite(v) ? `<circle cx="${x(dates[k]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${col}"/>` : "")).join("");
+    const dots = (vals, col, ds = dates, rr = 2.2) => vals.map((v, k) => (isFinite(v) ? `<circle cx="${x(ds[k]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${rr}" fill="${col}"/>` : "")).join("");
+    const nc = css("--c-nisar");
+    const nis2 = nser ? `<path d="${path(nser.vv, nd)}" fill="none" stroke="${nc}" stroke-width="1.8"/>${dots(nser.vv, nc, nd, 2.6)}
+      <path d="${path(nser.vh, nd)}" fill="none" stroke="${nc}" stroke-width="1.6" stroke-dasharray="4 3"/>${dots(nser.vh, nc, nd, 2.6)}` : "";
     return `<div class="rb-chart"><svg viewBox="0 0 ${W} ${H + 12}" aria-hidden="true">
       <text x="0" y="${top + 8}" font-size="10" fill="${css("--ink-3")}">${num(hi, 0)} dB</text><text x="0" y="${top + lineH}" font-size="10" fill="${css("--ink-3")}">${num(lo, 0)} dB</text>
+      <line x1="${GX - 4}" x2="${W}" y1="${top + lineH + 2}" y2="${top + lineH + 2}" stroke="${css("--line")}" stroke-width="1"/>
       <path d="${path(ser.vv)}" fill="none" stroke="${css("--ink")}" stroke-width="1.8"/>${dots(ser.vv, css("--ink"))}
       <path d="${path(ser.vh)}" fill="none" stroke="${css("--c-green")}" stroke-width="1.8"/>${dots(ser.vh, css("--c-green"))}
-      ${bars}${nis}${months.join("")}</svg>
+      ${nis2}${bars}${nis}${months.join("")}</svg>
       <div class="lg"><span><i style="background:${css("--ink")}"></i>VV</span><span><i style="background:${css("--c-green")}"></i>VH</span>
-        <span><i class="bar" style="background:var(--c-wet)"></i>${u.rb.lgWet}</span><span><i style="background:${css("--c-nisar")};width:2px;height:9px"></i>${u.rb.lgNisar}</span></div></div>`;
+        ${nser ? `<span><i style="background:${nc}"></i>HH</span><span><i style="background:repeating-linear-gradient(90deg,${nc} 0 4px,transparent 4px 7px)"></i>HV (NISAR)</span>` : ""}
+        <span><i class="bar" style="background:var(--c-wet)"></i>${u.rb.lgWet}</span><span><i style="background:${nc};width:2px;height:9px"></i>${u.rb.lgNisar}</span></div></div>`;
   }
   function radarBlock(sel) {
     const u = U(), rb = u.rb, s = sarStats(sel.cells), ser = sarSeries(sel.cells), d = sar.s1.dates;
+    const nser = sar.nisar && L8.nisar_series ? sarSeries(sel.cells, "nisar") : null;
     const pct = (v) => (isFinite(v) ? `${num(v * 100, 0)}%` : "—");
     const fmtD = (x) => { const [, m, dd] = x.split("-"); return `${+dd}.${m}`; };
     const row = (dot, k, v, note) => `<div class="rb-row"><span class="k"><span class="dot" style="background:${dot}"></span>${k}</span><span class="v">${v}</span><span class="note">${note}</span></div>`;
     const nd = NISAR_DATES;
     return `<div class="radar-block">
-      <div class="rb-head"><div><div class="rb-title">${rb.title}</div><div class="rb-src">${rb.src(d.length, fmtD(d[0]), fmtD(d[d.length - 1]))}</div></div>
+      <div class="rb-head"><div><div class="rb-title">${rb.title}</div><div class="rb-src">${rb.src(d.length, fmtD(d[0]), fmtD(d[d.length - 1]))}${sar.nisar ? `; ${rb.srcN(sar.nisar.dates.length)}` : ""}</div></div>
         <button type="button" class="linkish" data-radar-how>${rb.how}</button></div>
-      ${radarChart(ser)}
+      ${radarChart(ser, nser)}
       <div class="rows">
         ${row(RAMPS.up[1], rb.change, pct(s.walls), rb.changeV(pct(s.up), pct(s.dn)))}
+        ${sar.nisar ? row(css("--c-nisar"), rb.nisarWet, s.nisarOpen ? `${sgn(s.nisarWet, 1)} dB` : "—", s.nisarOpen ? rb.nisarWetV(pct(s.nisarWetUp)) : rb.nisarNoOpen) : ""}
         ${row(RAMPS.wet[2], rb.wet, pct(s.wet), rb.wetV)}
         ${row(RAMPS.water[2], rb.water, pct(s.water), rb.waterV)}
         ${row(RAMPS.sink[2], rb.egms, s.egN ? `${sgn(s.egMed, 0)} mm/${u.yr}` : "—", s.egN ? rb.egmsV(s.egN) : rb.egmsNone)}
         ${row(css("--c-green"), rb.lband, isFinite(s.dHV) ? `${sgn(s.dHV, 1)} dB` : "—", rb.lbandV(s.y0, s.y1))}
       </div>
-      ${nd.length ? `<p class="rb-nisar">${rb.nisar(nd.length, fmtD(nd[0]), fmtD(nd[nd.length - 1]))}</p>` : ""}
+      ${sar.nisar ? `<p class="rb-nisar">${rb.nisarUsed(sar.nisar.dates.length, sar.nisar.track, fmtD(sar.nisar.dates[0]), fmtD(sar.nisar.dates[sar.nisar.dates.length - 1]), nd.length)}</p>`
+        : nd.length ? `<p class="rb-nisar">${rb.nisar(nd.length, fmtD(nd[0]), fmtD(nd[nd.length - 1]))}</p>` : ""}
     </div>`;
   }
 
@@ -1499,7 +1536,12 @@
       wet: { share: num(k.wet.share_sig_study * 100, 0), flood: k.wet.share_sig_flood != null ? num(k.wet.share_sig_flood * 100, 0) : null, out: num(k.wet.share_sig_outside * 100, 0),
         fsig: k.wet.p_flood_higher != null && k.wet.p_flood_higher < 0.05 },
       ground: { med: sgn(k.egms.median, 0), n: fmtInt(k.egms.cells_le_minus5), min: sgn(k.egms.min, 0), share: num(k.egms.share_of_study * 100, 0) },
-      lband: { y0: sar.alos.years[0], y1: sar.alos.years[sar.alos.years.length - 1] },
+      lband: { y0: sar.alos.years[0], y1: sar.alos.years[sar.alos.years.length - 1], nisar: !!sar.nisar,
+        n: sar.nisar ? sar.nisar.dates.length : 0, wd: sar.nisar && sar.nisar.checks.wetdry ? {
+          share: num(sar.nisar.checks.wetdry.share_study * 100, 0), flood: sar.nisar.checks.wetdry.share_flood != null ? num(sar.nisar.checks.wetdry.share_flood * 100, 0) : null,
+          out: num(sar.nisar.checks.wetdry.share_outside * 100, 0), ratio: sar.nisar.checks.wetdry.ratio != null ? num(sar.nisar.checks.wetdry.ratio, 1) : null,
+          sig: sar.nisar.checks.wetdry.p != null && sar.nisar.checks.wetdry.p < 0.05 && sar.nisar.checks.wetdry.ratio >= 1.2,
+          p: sar.nisar.checks.wetdry.p != null ? fmtP(sar.nisar.checks.wetdry.p) : "" } : null },
       modelRadar: { ratio: num(k.model.ratio, 1), top: num(k.model.share_top5 * 100, 2), rest: num(k.model.share_rest * 100, 2), raw: k.model.ratio,
         sig: k.model.p != null && k.model.p < 0.05 && k.model.ratio >= 1.3, p: k.model.p != null ? fmtP(k.model.p) : "",
         wRatio: k.model_walls ? num(k.model_walls.ratio, 1) : null, wSig: !!(k.model_walls && k.model_walls.p < 0.05 && k.model_walls.ratio >= 1.3) },
@@ -1522,7 +1564,7 @@
     radar: async () => { await showOnly("sarchange"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
     wet: async () => { await showOnly("sarwet", "flood"); clearSelection(); fitAll(); },
     ground: async () => { await showOnly("egms"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
-    lband: async () => { await showOnly("alos"); clearSelection(); fitAll(); },
+    lband: async () => { if (sar.nisar) { state.lyr.alos.y = 2026; await showOnly("alos", "nisarwet"); } else await showOnly("alos"); clearSelection(); fitAll(); renderDrawer(); },
     modelRadar: async () => { await showOnly("built", "sarchange"); state.horizon = 10; setYear(2030); clearSelection(); map.flyTo(OLD_MARKET, 11, { duration: 0.8 }); },
   };
   const V1_FINDINGS = {
@@ -1535,7 +1577,12 @@
     station: async () => { only("night"); setYear(2020); selectPoint(LAWICA[0], LAWICA[1], "Poznań-Ławica (IMGW)", { keep: true, zoom: 12 }); },
   };
   // v2: radar findings first, then the strongest history findings
-  const FIND = () => (sar ? { ...SAR_FINDINGS, sprawl: V1_FINDINGS.sprawl, forecast: V1_FINDINGS.forecast, forest: V1_FINDINGS.forest } : V1_FINDINGS);
+  const FIND = () => {
+    if (!sar) return V1_FINDINGS;
+    const F = SAR_FINDINGS, hist = { sprawl: V1_FINDINGS.sprawl, forecast: V1_FINDINGS.forecast, forest: V1_FINDINGS.forest };
+    // with NISAR pixels in, the NISAR finding leads (the challenge is about NISAR)
+    return sar.nisar ? { lband: F.lband, radar: F.radar, modelRadar: F.modelRadar, wet: F.wet, ground: F.ground, ...hist } : { ...F, ...hist };
+  };
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
@@ -1688,7 +1735,8 @@
     document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
     $("#about-body").innerHTML = t.aboutHtml + (sar && u.aboutSar ? u.aboutSar : "");
     $("#radar-btn").hidden = !sar;
-    if (sar) $("#radar-body").innerHTML = u.radarHtml({ upHa: fmtInt(sar.s1.up3db_ha), wetShare: num(sar.checks.wet.share_sig_study * 100, 0) });
+    if (sar) $("#radar-body").innerHTML = u.radarHtml({ upHa: fmtInt(sar.s1.up3db_ha), wetShare: num(sar.checks.wet.share_sig_study * 100, 0),
+      bands: sar.nisar ? sar.nisar.checks.bands : null, fmt: (v) => num(v, 1) });
     stopPlay();
     renderDrawer(); renderTimeline(); renderLegend(); renderCard();
     if ($("#test-sheet").open) renderTest();
@@ -1717,13 +1765,13 @@
   }
 
   async function main() {
-    const get = (f) => fetch(`data/${f}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
+    const get = (f) => fetch(`data/${f}?v=${DATA_V}`).then((r) => { if (!r.ok) throw new Error(f); return r.json(); });
     [study, gL, gN, areas, land, flood] = await Promise.all([get("study.json"), get("grid_lst.json"), get("grid_ndvi.json"), get("areas.geojson"), get("land/land.json"), get("podtopienia.geojson")]);
     NISAR_DATES = land.nisar_dates || [];
     state.lyr.nisar.i = Math.max(0, NISAR_DATES.length - 1);
     // radar products (v2); without them the app falls back to the v1 layout
     try { sar = await get("land/sar.json"); } catch (e) { sar = null; SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
-    if (sar) state.lyr.alos.y = sar.alos.years[sar.alos.years.length - 1];
+    if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
     gL.layers.night_mean = gL.layers.night_years.map((ys) => { const m = mean(ys.slice(0, 25)); return isFinite(m) ? m : null; });
     geo.L = buildGeometry(gL); geo.N = buildGeometry(gN);
     prepareHeatRanks();

@@ -225,7 +225,7 @@
   window.I18N.pl.ui.aboutSar = `
     <h3>Radar (SARnik v2)</h3>
     <ul>
-      <li><b>NISAR GCOV</b> (NASA-ISRO, pasmo L, HH i HV, 20 m): przeloty nad Poznaniem od czerwca 2026, obraz przez NASA GIBS; daty z wyszukiwarki ASF.</li>
+      <li><b>NISAR GCOV</b> (NASA-ISRO, pasmo L, HH i HV, 20 m): przeloty orbity 158 (wznoszącej) z 25.06–11.10.2026, wersja provisional. Z każdego pliku HDF5 czytamy tylko okno Poznania i uśredniamy moc w komórkach 120 m. Para 25.06 (sucho) i 24.08 (po 23,5 mm deszczu) daje warstwę „mokro minus sucho” na otwartym terenie. Obraz wszystkich przelotów: NASA GIBS.</li>
       <li><b>Sentinel-1 RTC</b> (ESA/Copernicus, pasmo C, VV i VH, 10 m): wszystkie przeloty orbity 73 (wznoszącej) od czerwca do listopada 2026, przez Microsoft Planetary Computer. Moc sygnału uśredniamy w komórkach 120 m.</li>
       <li><b>Zmiana rok do roku</b>: mediana 12 przelotów jesieni 2026 minus mediana 12 przelotów jesieni 2025, ta sama orbita (VV, dB), żeby żniwa i orka się znosiły. <b>Woda</b>: udział przelotów z VV poniżej −17 dB. <b>Reakcja na wilgoć</b>: tylko otwarty teren (bez zabudowy, lasu i wody); korelacja rang Spearmana między VV a wilgotnością gleby z NASA POWER (GWETTOP) w dniach przelotów; pokazujemy tylko wartości istotne (p < 0,05).</li>
       <li><b>EGMS</b> (Copernicus, interferometria Sentinel-1 2016–2020, ruch pionowy) przez usługę PIG-PIB.</li>
@@ -235,11 +235,59 @@
   window.I18N.en.ui.aboutSar = `
     <h3>Radar (SARnik v2)</h3>
     <ul>
-      <li><b>NISAR GCOV</b> (NASA-ISRO, L-band, HH and HV, 20 m): passes over Poznań since June 2026, pictures via NASA GIBS; dates from the ASF search.</li>
+      <li><b>NISAR GCOV</b> (NASA-ISRO, L-band, HH and HV, 20 m): passes of track 158 (ascending), 25 Jun – 11 Oct 2026, provisional release. From each HDF5 file we read only the Poznań window and average power in 120 m cells. The pair 25 Jun (dry) and 24 Aug (after 23.5 mm of rain) gives the “wet minus dry” layer on open land. Pictures of all passes: NASA GIBS.</li>
       <li><b>Sentinel-1 RTC</b> (ESA/Copernicus, C-band, VV and VH, 10 m): every pass of relative orbit 73 (ascending), June to November 2026, via Microsoft Planetary Computer. Power is averaged in 120 m cells.</li>
       <li><b>Year-on-year change</b>: median of 12 passes in autumn 2026 minus median of 12 passes in autumn 2025, same orbit (VV, dB), so harvest and ploughing cancel out. <b>Water</b>: share of passes with VV below −17 dB. <b>Moisture response</b>: open land only (no buildings, forest or water); Spearman rank correlation between VV and NASA POWER soil wetness (GWETTOP) on the pass days; only significant values are shown (p < 0.05).</li>
       <li><b>EGMS</b> (Copernicus, Sentinel-1 interferometry 2016–2020, vertical motion) via the PIG-PIB service.</li>
       <li><b>ALOS-2 PALSAR-2</b> (JAXA, L-band, HH and HV, 25 m): yearly mosaics 2015–2021 via Planetary Computer.</li>
       <li><b>Checks</b>: building permits and applications of the Poznań planning office (GEOPOZ, June–November 2026), PIG-PIB groundwater-flood areas and our building projection.</li>
     </ul>`;
+})();
+
+/* NISAR (L-band) texts: layer, legend, card, finding, L vs C table */
+(() => {
+  const pl = window.I18N.pl.ui, en = window.I18N.en.ui;
+  Object.assign(pl.L, { nisarwet: "NISAR: mokro minus sucho", alos: "Pasmo L: ALOS-2 i NISAR" });
+  Object.assign(en.L, { nisarwet: "NISAR: wet minus dry", alos: "L-band: ALOS-2 and NISAR" });
+  Object.assign(pl.Lsub, { nisarwet: "pasmo L, HH: 24.08 (po deszczu) minus 25.06 (sucho), otwarty teren", alos: "ALOS-2 2015–2021, NISAR 2026; R = HH, G = HV, B = HH/HV" });
+  Object.assign(en.Lsub, { nisarwet: "L-band HH: 24 Aug (after rain) minus 25 Jun (dry), open land", alos: "ALOS-2 2015–2021, NISAR 2026; R = HH, G = HV, B = HH/HV" });
+  Object.assign(pl.lg, { nisarwet: "NISAR HH: mokro minus sucho", wetter: "jaśniej po deszczu: wilgotna gleba", drier: "ciemniej: żniwa, przesychanie", nisarL: "Radar NISAR, pasmo L, 2026" });
+  Object.assign(en.lg, { nisarwet: "NISAR HH: wet minus dry", wetter: "brighter after rain: moist soil", drier: "darker: harvest, drying", nisarL: "NISAR radar, L-band, 2026" });
+  Object.assign(pl.rb, {
+    srcN: (n) => `NISAR (pasmo L), ${n} przelotów`,
+    nisarWet: "NISAR: mokro minus sucho", nisarWetV: (p) => `HH, 25.06 → 24.08, otwarty teren; ${p} terenu jaśniej o 2 dB+`,
+    nisarNoOpen: "brak otwartego terenu w zaznaczeniu",
+    nisarUsed: (n, t, a, b, all) => `<b>NISAR</b> (pasmo L, 20 m): w obliczeniach ${n} przelotów orbity ${t} z plików GCOV (${a}–${b}, wersja provisional). Nad Poznaniem było ich razem ${all}.`,
+  });
+  Object.assign(en.rb, {
+    srcN: (n) => `NISAR (L-band), ${n} passes`,
+    nisarWet: "NISAR: wet minus dry", nisarWetV: (p) => `HH, 25 Jun → 24 Aug, open land; ${p} of it brighter by 2 dB+`,
+    nisarNoOpen: "no open land in the selection",
+    nisarUsed: (n, t, a, b, all) => `<b>NISAR</b> (L-band, 20 m): ${n} passes of track ${t} from the GCOV files are in the numbers (${a}–${b}, provisional release). ${all} passes flew over Poznań in all.`,
+  });
+  const fPl = window.I18N.pl.f.lband, fEn = window.I18N.en.f.lband;
+  window.I18N.pl.f.lband = (d) => !d.nisar ? fPl(d) : ({ t: "NISAR: pasmo L w liczbach",
+    b: `Oś czasu pasma L: ALOS-2 ${d.y0}–${d.y1}, potem NISAR 2026 (${d.n} przelotów).` + (d.wd
+      ? ` Po deszczu 24.08 HH wzrósł o 2 dB lub więcej na ${d.wd.share}% otwartego terenu.` + (d.wd.flood == null ? "" : d.wd.sig
+        ? ` W strefach podtopień PIG-PIB ${d.wd.ratio} razy częściej (${d.wd.flood}% wobec ${d.wd.out}%, ${d.wd.p}).`
+        : ` W strefach podtopień PIG-PIB rzadziej (${d.wd.flood}% wobec ${d.wd.out}%). Nasza hipoteza: tam grunt jest wilgotny już w suchym czerwcu albo zarośnięty, więc różnica jest mniejsza; sprawdzi to pełny rok danych.`) : "") });
+  window.I18N.en.f.lband = (d) => !d.nisar ? fEn(d) : ({ t: "NISAR: L-band in numbers",
+    b: `The L-band time line: ALOS-2 ${d.y0}–${d.y1}, then NISAR 2026 (${d.n} passes).` + (d.wd
+      ? ` After the rain of 24 Aug, HH rose by 2 dB or more on ${d.wd.share}% of open land.` + (d.wd.flood == null ? "" : d.wd.sig
+        ? ` In PIG-PIB groundwater-flood areas ${d.wd.ratio} times as often (${d.wd.flood}% vs ${d.wd.out}%, ${d.wd.p}).`
+        : ` Less often in PIG-PIB groundwater-flood areas (${d.wd.flood}% vs ${d.wd.out}%). Our hypothesis: the ground there is already moist in dry June or overgrown, so the difference is smaller; a full year of data will tell.`) : "") });
+  // L vs C table appended to "How radar sees the ground"
+  const table = (m, L) => {
+    if (!m.bands) return "";
+    const b = m.bands, f = m.fmt, rows = [["built", L.built], ["forest", L.forest], ["open", L.open]];
+    const dL = b.forest.HV - b.open.HV, dC = b.forest.VH - b.open.VH;
+    return `<h3>${L.h}</h3><div class="datatable"><table><thead><tr><th></th><th>NISAR HH</th><th>NISAR HV</th><th>Sentinel-1 VV</th><th>Sentinel-1 VH</th></tr></thead><tbody>` +
+      rows.map(([k, lab]) => `<tr><td>${lab}</td><td>${f(b[k].HH)}</td><td>${f(b[k].HV)}</td><td>${f(b[k].VV)}</td><td>${f(b[k].VH)}</td></tr>`).join("") +
+      `</tbody></table></div><p>${L.note(f(dL), f(dC))}</p>`;
+  };
+  const oPl = pl.radarHtml, oEn = en.radarHtml;
+  pl.radarHtml = (m) => oPl(m) + table(m, { h: "Pasmo L obok pasma C nad Poznaniem (mediany, dB)", built: "zabudowa", forest: "las", open: "otwarty teren",
+    note: (l, c) => `Las odróżnia się od otwartego terenu o ${l} dB w HV pasma L i o ${c} dB w VH pasma C. Dłuższa fala NISAR wnika w korony i widzi gałęzie oraz pnie.` });
+  en.radarHtml = (m) => oEn(m) + table(m, { h: "L-band next to C-band over Poznań (medians, dB)", built: "built-up", forest: "forest", open: "open land",
+    note: (l, c) => `Forest differs from open land by ${l} dB in L-band HV and by ${c} dB in C-band VH. NISAR's longer wave enters the crowns and sees branches and trunks.` });
 })();
