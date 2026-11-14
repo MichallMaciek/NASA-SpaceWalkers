@@ -594,7 +594,10 @@
   }
 
   async function initMap() {
-    map = L.map("map", { zoomControl: false, minZoom: 8, maxZoom: 18, preferCanvas: true, attributionControl: true }).setView(OLD_MARKET, 11);
+    // Leaflet rounds every wheel burst up to a whole zoom level (2x), so a few small trackpad moves jumped 4 levels at once.
+    // Quarter steps and a slower wheel make scrolling over the map smooth; the + and - buttons still move one level.
+    map = L.map("map", { zoomControl: false, minZoom: 8, maxZoom: 18, preferCanvas: true, attributionControl: true,
+      zoomSnap: 0.25, zoomDelta: 1, wheelPxPerZoomLevel: 80, wheelDebounceTime: 30 }).setView(OLD_MARKET, 11);
     map.createPane("land"); map.getPane("land").style.zIndex = 390;
     map.createPane("labels"); map.getPane("labels").style.zIndex = 650; map.getPane("labels").style.pointerEvents = "none";
     map.createPane("sel"); map.getPane("sel").style.zIndex = 660;
