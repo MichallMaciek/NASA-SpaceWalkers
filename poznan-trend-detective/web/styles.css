@@ -559,3 +559,8 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
 .timeline.radar .tl-future { background: repeating-linear-gradient(90deg, var(--ink-3) 0 4px, transparent 4px 9px); opacity: .7; }
 .timeline.radar .tl-labels .tl-pred { color: var(--ink-3); }
 .timeline.radar .tl-kind { color: var(--ink-2); }
+
+/* link from the About sheet to the full About page (ink, not an accent colour) */
+.about-more { margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.about-more a { color: var(--ink); font-weight: 600; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+.about-more a:hover { text-decoration-color: var(--ink); }
