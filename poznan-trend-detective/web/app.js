@@ -264,15 +264,14 @@
   const state = {
     year: 2020, yearF: 2020, horizon: 10, minChance: 5, base: "map",
     lyr: {
-      // radar first (SARnik v2): Sentinel-1 2026 picture and change, wet ground, water, ground motion, L-band history
-      s1rgb: { on: true, op: 0.8 },
+      s1rgb: { on: false, op: 0.8 },
       sarchange: { on: false, op: 0.9, min: 3 },
       sarwet: { on: false, op: 0.85 },
       sarwater: { on: false, op: 0.85, min: 20 },
       egms: { on: false, op: 0.95, min: 2 },
       alos: { on: false, op: 0.85, y: 2021 },
       nisarwet: { on: false, op: 0.9, min: 2 },
-      built: { on: false, op: 0.85 },
+      built: { on: true, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },
       activity: { on: false, op: 0.9, min: 3 },
@@ -821,7 +820,7 @@
     const nis = NISAR_DATES.length ? `<div class="field"><div class="field-head"><span class="fl">${u.pass}</span><output>${NISAR_DATES[L_.nisar.i]}</output></div>${rangeHTML("nisar", 0, NISAR_DATES.length - 1, 1, L_.nisar.i)}</div>` : "";
     const field = (label, out, rng) => `<div class="field"><div class="field-head"><span class="fl">${label}</span><output>${out}</output></div>${rng}</div>`;
     const radarSecs = sar ? `
-      <details class="sec" open><summary>${u.secRadar}</summary><div class="sec-body">
+      <details class="sec"><summary>${u.secRadar}</summary><div class="sec-body">
         ${layerRow("s1rgb")}
         ${layerRow("sarchange", field(u.minDb, `${num(L_.sarchange.min, 1)} dB`, rangeHTML("sch", 1, 8, 0.5, L_.sarchange.min)))}
         ${layerRow("sarwet")}
@@ -829,18 +828,19 @@
         ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
         ${layerRow("nisar", nis)}
       </div></details>
-      <details class="sec" open><summary>${u.secGround}</summary><div class="sec-body">
+      <details class="sec"><summary>${u.secGround}</summary><div class="sec-body">
         ${layerRow("egms", field(u.minMove, `${L_.egms.min} mm/${u.yr}`, rangeHTML("seg", 1, 10, 1, L_.egms.min)))}
         ${layerRow("alos", field(u.alosYear, lbLabel(L_.alos.y), rangeHTML("aly", 0, LBAND_YEARS().length - 1, 1, Math.max(0, LBAND_YEARS().indexOf(L_.alos.y)))))}
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("activity", act)}
       </div></details>` : `
-      <details class="sec" open><summary>${u.secSar}</summary><div class="sec-body">
+      <details class="sec"><summary>${u.secSar}</summary><div class="sec-body">
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}${layerRow("activity", act)}
       </div></details>`;
-    $("#drawer-body").innerHTML = `${radarSecs}
-      <details class="sec" ${sar ? "" : "open"}><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
-        ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("wuia")}
+    $("#drawer-body").innerHTML = `
+      <details class="sec" open><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
+        ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${layerRow("price")}
       </div></details>
+      ${radarSecs}
       <details class="sec" open><summary>${u.secPred}</summary><div class="sec-body">
         <div class="field"><div class="field-head"><span class="fl">${u.horizon}</span></div>
           <div class="seg" role="group"><button type="button" data-hz="5" aria-pressed="${state.horizon === 5}">${u.years5}</button><button type="button" data-hz="10" aria-pressed="${state.horizon === 10}">${u.years10}</button></div></div>
@@ -930,13 +930,41 @@
       if ((Ly.s1rgb.on && ready("s1rgb")) || (Ly.alos.on && ready("alos"))) {
         const [hn, vn] = lbandNames(Ly.alos.y);
         const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
-        if (a && b) lines.push(`${tag}: ${num(dbOf(a), 1)} / ${num(dbOf(b), 1)} dB`);
+        if (a && b) {
+          const vv = dbOf(a);
+          const type = vv > -6.5 ? (state.lang === "pl" ? "Teren zabudowany" : "Built-up")
+                     : vv > -11 ? (state.lang === "pl" ? "Roślinność / otwarty teren" : "Vegetation / open land")
+                     : (state.lang === "pl" ? "Woda / gładka nawierzchnia" : "Water / smooth surface");
+          lines.push(`${tag}: ${type} (${num(vv, 1)} dB)`);
+        }
       }
-      if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) lines.push(`${u.L.sarchange}: ${sgn(changeOf(L8.sar_change[c.i]), 1)} dB`);
-      if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) lines.push(`${u.L.nisarwet}: ${sgn(changeOf(L8.nisar_wetdry[c.i]), 1)} dB`);
+      if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) {
+        const ch = changeOf(L8.sar_change[c.i]);
+        const chT = ch >= 3 ? (state.lang === "pl" ? "Nowa ściana / budowa" : "New building / wall")
+                  : ch <= -3 ? (state.lang === "pl" ? "Wycinka / rozbiórka" : "Clearing / demolition")
+                  : (state.lang === "pl" ? "Stabilne odbicie" : "Stable");
+        lines.push(`${u.L.sarchange}: ${chT} (${sgn(ch, 1)} dB)`);
+      }
+      if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) {
+        const nw = changeOf(L8.nisar_wetdry[c.i]);
+        const nwT = nw >= 2 ? (state.lang === "pl" ? "Mocno nasiąka wodą" : "Heavy water soaking")
+                  : nw <= -2 ? (state.lang === "pl" ? "Wysycha" : "Drying")
+                  : (state.lang === "pl" ? "Umiarkowana wilgotność" : "Moderate moisture");
+        lines.push(`${u.L.nisarwet}: ${nwT} (${sgn(nw, 1)} dB)`);
+      }
       if (Ly.sarwet.on && ready("sarwet") && L8.sar_wet[c.i]) lines.push(`${u.L.sarwet}: r = ${num(wetOf(L8.sar_wet[c.i]), 2)}`);
       if (Ly.sarwater.on && ready("sarwater") && L8.sar_water[c.i]) lines.push(`${u.L.sarwater}: ${num(waterOf(L8.sar_water[c.i]) * 100, 0)}%`);
-      if (Ly.egms.on && ready("egms")) lines.push(L8.sar_egms[c.i] ? `${u.L.egms}: ${sgn(egmsOf(L8.sar_egms[c.i]), 0)} mm/${u.yr}` : `${u.L.egms}: ${u.noPoints}`);
+      if (Ly.egms.on && ready("egms")) {
+        if (L8.sar_egms[c.i]) {
+          const eg = egmsOf(L8.sar_egms[c.i]);
+          const egT = eg <= -3 ? (state.lang === "pl" ? "Osiadanie terenu" : "Subsidence")
+                    : eg >= 3 ? (state.lang === "pl" ? "Wypiętrzanie" : "Uplift")
+                    : (state.lang === "pl" ? "Grunt stabilny" : "Stable");
+          lines.push(`${u.L.egms}: ${egT} (${sgn(eg, 0)} mm/${u.yr})`);
+        } else {
+          lines.push(`${u.L.egms}: ${u.noPoints}`);
+        }
+      }
     }
     if (state.lyr.built.on && ready("built") && c) {
       const { e0, e1, t } = epochPair(state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
@@ -1384,9 +1412,9 @@
     const more = moreHTML(sel);
     const moreOpen = !!(card.querySelector("details.more") || {}).open; // keep "More data" open while the year changes
     card.innerHTML = `<div class="collapse-head"><h2>${title}</h2></div>
-      <p class="sub">${sub} · ${range}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
-      ${sar && L8.sar_series ? radarBlock(sel) : ""}
-      ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
+      <p class="sub">${sub}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
+      ${check}
+      <div class="hist-h" style="margin-top:16px">${u.histHead} (${range})</div>${chip}
       <div class="rows">
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-built")}"></span>${u.rowBuilt}</span><span class="v">${builtV}<small>${builtNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-forest")}"></span>${u.rowForest}</span><span class="v">${forestV}<small>${forestNote}</small></span></div>
@@ -1395,7 +1423,16 @@
       <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}</div>
       ${foot ? `<p class="foot">${foot}</p>` : ""}
       ${risk}
-      ${check}
+      ${sar && L8.sar_series ? `
+        <details class="radar-exp" style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+          <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--ink-2);padding:4px 0">
+            📡 ${u.rawRadarData || "Surowe dane radarowe i przeloty NISAR (dla ekspertów)"}
+          </summary>
+          <div style="margin-top:8px">
+            ${radarBlock(sel)}
+          </div>
+        </details>
+      ` : ""}
       ${more}
       <button type="button" class="btn-primary" id="open-test">${tp.fullTest}</button>
       <p class="foot"><button type="button" class="linkish" id="clear-sel">${u.clear}</button></p>`;

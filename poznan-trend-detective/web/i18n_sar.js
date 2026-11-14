@@ -82,11 +82,13 @@
     secRadar: "RADAR 2026 (NISAR, SENTINEL-1)", secGround: "GRUNT I PASMO L", secHistory: "HISTORIA I PROGNOZA",
     minDb: "Minimalna zmiana", minWater: "Minimum przelotów „jak woda”", minMove: "Minimalny ruch", alosYear: "Rok", yr: "rok",
     noPoints: "brak punktów pomiarowych", histHead: "Historia i prognoza (Landsat, model)",
+    rawRadarData: "Surowe dane radarowe i przeloty NISAR (dla ekspertów)",
   });
   Object.assign(en, {
     secRadar: "RADAR 2026 (NISAR, SENTINEL-1)", secGround: "GROUND AND L-BAND", secHistory: "HISTORY AND PROJECTION",
     minDb: "Minimum change", minWater: "Minimum passes “like water”", minMove: "Minimum motion", alosYear: "Year", yr: "yr",
     noPoints: "no measurement points", histHead: "History and projection (Landsat, model)",
+    rawRadarData: "Raw radar measurements and NISAR passes (expert view)",
   });
   Object.assign(pl.L, { s1rgb: "Radar 2026: obraz", sarchange: "Radar 2026: zmiana", sarwet: "Grunt nasiąka wodą", sarwater: "Woda w radarze", egms: "Ruch gruntu (InSAR)", alos: "Pasmo L: ALOS-2" });
   Object.assign(en.L, { s1rgb: "Radar 2026: picture", sarchange: "Radar 2026: change", sarwet: "Ground soaks up water", sarwater: "Water seen by radar", egms: "Ground motion (InSAR)", alos: "L-band: ALOS-2" });
