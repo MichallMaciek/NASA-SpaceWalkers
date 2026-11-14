@@ -6,6 +6,15 @@ Stan kodu: `main` = `0cdedf1` (po scaleniu v3). Poprawki opisane niżej są w dr
 
 Liczby: 71 potwierdzonych uwag (2 blokery, 29 ważnych, 40 drobnych). 0 odrzuconych. 0 niezweryfikowanych.
 
+> **Dopisek z 14.11, 22:29 (po przeniesieniu na aktualny `main`).** W czasie przeglądu do `main` weszły rdzeń rozszerzeń, moduły powodzi, osuwisk i decyzji budowlanych oraz strona „O projekcie”. Testy i poprawki są przeniesione na `main` = `9170684` i sprawdzone ponownie:
+> - testy są w PR `sarnik-testy`, a 14 poprawek aplikacji w osobnym PR `sarnik-poprawki-przeglad`, do przeglądu autora;
+> - `i18n_parity` 0 błędów, `small_fixes_check` 11 z 11, testy modułów (`tests/sarnik/`) i test kontraktu przechodzą;
+> - test w przeglądarce: 36 z 44, tak jak przed przeniesieniem. Osiem niezaliczonych to dwie znane uwagi w czterech układach: nazwa SARnik nie jest widoczna na stronie, a warstwa decyzji budowlanych nie ma legendy (A9);
+> - `data_contract.py` zgłasza brak reguł dekodowania dla siedmiu warstw jako znaną lukę (linia INFO), a nie błąd, żeby kontrola w GitHubie była zielona. Nowa warstwa bez reguły nadal daje błąd;
+> - poprawki podnoszą `?v=` w `index.html`;
+> - numery linii `app.js` w uwagach dotyczą `0cdedf1`; po zmianach z innych urządzeń przesunęły się o ok. 60–120 linii.
+
+
 ## W skrócie
 
 - Aplikacja działa: karta miejsca, oś czasu radaru, rysowanie obszaru, PL/EN, tryb ciemny i link do miejsca przechodzą testy. 14 poprawek (w tym bloker A14) czeka na PR.
