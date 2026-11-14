@@ -262,7 +262,7 @@
 
   /* ================= state ================= */
   const state = {
-    year: 2020, yearF: 2020, horizon: 10, minChance: 5, base: "map",
+    year: NOW_YEAR, yearF: NOW_YEAR, horizon: 10, minChance: 5, base: "map",
     lyr: {
       s1rgb: { on: false, op: 0.8 },
       sarchange: { on: false, op: 0.9, min: 3 },
@@ -432,7 +432,7 @@
   const waterOf = (v) => (v ? (v - 1) / 254 : NaN);
   const egmsOf = (v) => (v ? v - 100 : NaN);
   const horizonEnd = () => (state.horizon === 5 ? 2030 : 2035);
-  const isFuture = () => state.year > LAST_OBS();
+  const isFuture = () => state.year > NOW_YEAR;
   const s1Year = () => (state.year <= 2018 ? 2017 : state.year <= 2022 ? 2020 : 2024);
   const heatYear = () => clamp(state.year, 2000, 2024);
 
@@ -664,9 +664,10 @@
     const put = (i, c, a) => { const q = i * 4; px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = a; };
     if (k === "built") {
       // Smooth time: blend the two surrounding 5-year epochs, so dragging or playing the timeline flows year by year.
-      const yf = clamp(state.yearF, land.epochs[0], horizonEnd()), last = LAST_OBS();
-      const yo = Math.min(yf, last), e0 = Math.min(last, land.epochs[0] + Math.floor((yo - land.epochs[0]) / 5) * 5), e1 = Math.min(last, e0 + 5);
-      const t = e1 > e0 ? (yo - e0) / 5 : 0, a0 = smoothed(e0), a1 = smoothed(e1), lut = lutFor(RAMPS.built);
+      const yf = clamp(state.yearF, land.epochs[0], horizonEnd());
+      const yo = Math.min(yf, NOW_YEAR);
+      const { e0, e1, t } = epochPair(yo);
+      const a0 = smoothed(e0), a1 = smoothed(e1), lut = lutFor(RAMPS.built);
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
         const v = a0[i] + (a1[i] - a0[i]) * t;
@@ -674,14 +675,22 @@
         const k = (Math.sqrt(v) * 255) | 0, q = i * 4, a = 60 + v * 520;
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
       }
-      if (yf > last) { // projected new building (filtered by the model's chance) fades in between projection steps
+      if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
         const purple = hexRgb(css("--pred"));
-        const p0y = Math.max(last, last + Math.floor((yf - last) / 5) * 5), p1y = Math.min(horizonEnd(), p0y + 5), tp = p1y > p0y ? (yf - p0y) / 5 : 0;
-        const P0 = p0y === last ? null : projSmoothed(p0y), P1 = projSmoothed(p1y);
+        const P25 = projSmoothed(2025), P30 = projSmoothed(2030);
+        const P35 = horizonEnd() > 2030 ? projSmoothed(2035) : P30;
+        const tp30 = clamp((yf - NOW_YEAR) / (2030 - NOW_YEAR), 0, 1);
+        const tp35 = yf > 2030 ? clamp((yf - 2030) / 5, 0, 1) : 0;
         for (let i = 0; i < n; i++) {
           if (!st[i]) continue;
-          const v0 = P0 ? P0[i] : 0, v = v0 + (P1[i] - v0) * tp;
-          if (v > 0.05) { const q = i * 4; px[q] = purple[0]; px[q + 1] = purple[1]; px[q + 2] = purple[2]; px[q + 3] = 70 + v * 170; }
+          const diff30 = Math.max(0, P30[i] - P25[i]);
+          const diff35 = Math.max(0, P35[i] - P30[i]);
+          const v = diff30 * tp30 + diff35 * tp35;
+          if (v > 0.05) {
+            const q = i * 4;
+            px[q] = purple[0]; px[q + 1] = purple[1]; px[q + 2] = purple[2];
+            px[q + 3] = 70 + v * 170;
+          }
         }
       }
     } else if (k === "forest") {
@@ -851,14 +860,14 @@
     inp.max = end; inp.min = TL_MIN;
     if (state.year > end) state.year = end;
     if (document.activeElement !== inp || playing) inp.value = state.yearF;
-    const nowP = pos(Math.min(NOW_YEAR, end)), obsP = pos(LAST_OBS()), curP = pos(state.yearF);
-    $("#tl-fill").style.width = `${Math.min(curP, obsP)}%`;
-    $("#tl-future").style.left = `${obsP}%`;
-    $("#tl-future").innerHTML = state.yearF > LAST_OBS() ? `<span class="on" style="width:${((curP - obsP) / (100 - obsP)) * 100}%"></span>` : "";
+    const nowP = pos(Math.min(NOW_YEAR, end)), curP = pos(state.yearF);
+    $("#tl-fill").style.width = `${Math.min(curP, nowP)}%`;
+    $("#tl-future").style.left = `${nowP}%`;
+    $("#tl-future").innerHTML = state.yearF > NOW_YEAR ? `<span class="on" style="width:${((curP - nowP) / (100 - nowP)) * 100}%"></span>` : "";
     $("#tl-now").style.left = `${nowP}%`;
     $("#tl-real").textContent = u.measured;
     $("#tl-pred").textContent = u.predicted;
-    $("#tl-pred").style.left = `${obsP + 1}%`;
+    $("#tl-pred").style.left = `${nowP}%`;
     $("#tl-year").textContent = state.year;
     $("#tl-kind").textContent = isFuture() ? u.modelForecast : u.fromMeasurements;
     $("#timeline").classList.toggle("future", isFuture());
@@ -1625,7 +1634,7 @@
     const base = 1990;
     // change in percentage points: a relative change explodes from small bases (one built cell -> "+5000%")
     let builtV, builtNote;
-    if (fut) { const a = share(LAST_OBS()), b = share(Y); builtV = `${sgn(b - a, 0)} ${u.pp}`; builtNote = u.untilYear(Y); }
+    if (fut) { const a = share(NOW_YEAR), b = share(Y); builtV = `${sgn(b - a, 0)} ${u.pp}`; builtNote = u.untilYear(Y); }
     else if (Y > base) { const a = share(base), b = share(Y); builtV = `${sgn(b - a, 0)} ${u.pp}`; builtNote = u.sinceYear(base, num(b, 0)); }
     else { builtV = `${num(share(Y), 0)}%`; builtNote = u.shareOfLand; }
     // forest
@@ -1839,7 +1848,7 @@
       <line x1="${x(land.epochs[obsN - 1])}" x2="${x(land.epochs[obsN - 1])}" y1="0" y2="${H}" stroke="${css("--line")}" stroke-width="1"/>
       <path d="${d1}" fill="none" stroke="${css("--ink")}" stroke-width="2"/>
       <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>
-      ${cy != null ? `<circle cx="${x(cur)}" cy="${cy}" r="4.5" fill="${css("--card")}" stroke="${cur > LAST_OBS() ? pred : css("--ink")}" stroke-width="2"/>` : ""}
+      ${cy != null ? `<circle cx="${x(cur)}" cy="${cy}" r="4.5" fill="${css("--card")}" stroke="${cur > NOW_YEAR ? pred : css("--ink")}" stroke-width="2"/>` : ""}
     </svg>`;
   }
   function sparkline(vals, years, colour, r) {
