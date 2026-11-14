@@ -263,6 +263,7 @@
       dem: { on: false, op: 0.75, lo: 50, hi: 110 },
       radar: { on: false, op: 0.85, lo: -18, hi: -4 },
       nisar: { on: false, op: 0.85, i: 0 },
+      wuia: { on: false, op: 0.85 },
       night: { on: false, op: 0.8 }, day: { on: false, op: 0.8 }, ndvi: { on: false, op: 0.8 }, nightyear: { on: false, op: 0.8 },
     },
     sel: null, // {kind: 'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}
@@ -294,6 +295,14 @@
 
   /* ================= map ================= */
   let map, borderLayer, labelLayer, choroLayer, pinMarker, nisarLayer, selLayer, baseGL, labelGL, floodLayer;
+  let wuiaLayer = null, nisarOverlay = null;
+  const NISAR_BOUNDS = [[52.29, 16.73], [52.51, 17.07]];
+  const NISAR_SCENES = {
+    "2026-06-25": "data/nisar/nisar_poznan_2026-06-25_sucho.jpg",
+    "2026-07-07": "data/nisar/nisar_poznan_2026-07-07.jpg",
+    "2026-08-24": "data/nisar/nisar_poznan_2026-08-24_mokro.jpg"
+  };
+  const geoCache = new Map();
   const bases = {}, overlays = {}, pixelLayers = {};
   const dark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
 
@@ -424,9 +433,9 @@
     }
     bases.photoLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19, pane: "labels", attribution: "Esri" });
     bases.orto = L.tileLayer.wms("https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution", { layers: "Raster", format: "image/jpeg", version: "1.3.0", maxZoom: 19, attribution: "Ortofotomapa &copy; GUGiK" });
-    const geopoz = (svc, layer) => L.tileLayer.wms(`https://wms1.geopoz.poznan.pl:6443/arcgis/services/SIPII/${svc}/MapServer/WMSServer`, { layers: layer, format: "image/png", version: "1.3.0", maxZoom: 19, attribution: "Ortofotomapa &copy; GEOPOZ" });
-    bases.poz2025 = geopoz("ortofotomapy", "3");
-    bases.poz1940 = geopoz("ortofotomapa_1940", "1");
+    const geopozWms = (layer) => L.tileLayer.wms("https://wms2.geopoz.poznan.pl/geoserver/wms", { layers: layer, styles: "", format: "image/png", transparent: false, version: "1.1.1", maxZoom: 19, attribution: "Ortofotomapa &copy; GEOPOZ" });
+    bases.poz2025 = geopozWms("ortogpkg:orto2025");
+    bases.poz1940 = geopozWms("ortogpkg:ortofotomapa_2001");
 
     LAND_KEYS.forEach((k) => {
       const c = document.createElement("canvas"); c.width = land.width; c.height = land.height;
@@ -446,6 +455,21 @@
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
     floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
+    fetch("data/wuia_decyzje.geojson").then((r) => r.json()).then((data) => {
+      wuiaLayer = L.geoJSON(data, {
+        pane: "land",
+        style: (f) => {
+          const kat = (f.properties.kategoria || "").toLowerCase();
+          const col = kat.includes("nowa") ? "#E5602A" : (kat.includes("rozbudowa") ? "#7357E8" : "#F2A31B");
+          return { color: col, weight: 1.5, opacity: 0.9, fillColor: col, fillOpacity: state.lyr.wuia.op };
+        },
+        onEachFeature: (f, lyr) => {
+          const p = f.properties;
+          lyr.bindPopup(`<div style="font-size:13px;font-family:inherit"><strong>${esc(p.kategoria || "Decyzja")}</strong><br><span style="color:var(--ink-2)">${esc(p.OPIS || "")}</span><br><small style="color:var(--ink-3)">Data: ${esc(p.DATA || "")} · Sprawa: ${esc(p.NR_SPRAWY || "")}</small></div>`);
+        }
+      });
+      if (state.lyr.wuia.on) wuiaLayer.addTo(map);
+    }).catch((e) => console.warn("wuia load skipped", e));
     setBase(state.base);
     map.fitBounds(borderLayer.getBounds(), fitPad());
     map.on("mousemove", onHover);
@@ -560,10 +584,29 @@
       if (state.lyr.flood.on) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
       if (state.lyr.price.on) { renderChoro(); if (!map.hasLayer(choroLayer)) choroLayer.addTo(map); } else if (map.hasLayer(choroLayer)) map.removeLayer(choroLayer);
       if (state.lyr.nisar.on && NISAR_DATES.length) {
-        nisarLayer.setUrl(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/NISAR_L2_Geocoded_Polarimetric_Covariance/default/${NISAR_DATES[state.lyr.nisar.i]}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`, true);
-        nisarLayer.setOpacity(state.lyr.nisar.op);
-        if (!map.hasLayer(nisarLayer)) nisarLayer.addTo(map); else nisarLayer.redraw();
-      } else if (map.hasLayer(nisarLayer)) map.removeLayer(nisarLayer);
+        const curDate = NISAR_DATES[state.lyr.nisar.i] || "2026-06-25";
+        let scene = NISAR_SCENES[curDate];
+        if (!scene) {
+          scene = curDate <= "2026-07-01" ? NISAR_SCENES["2026-06-25"] : (curDate <= "2026-07-20" ? NISAR_SCENES["2026-07-07"] : NISAR_SCENES["2026-08-24"]);
+        }
+        if (!nisarOverlay) {
+          nisarOverlay = L.imageOverlay(scene, NISAR_BOUNDS, { opacity: state.lyr.nisar.op, pane: "land" });
+        } else {
+          nisarOverlay.setUrl(scene);
+          nisarOverlay.setOpacity(state.lyr.nisar.op);
+        }
+        if (!map.hasLayer(nisarOverlay)) nisarOverlay.addTo(map);
+      } else if (nisarOverlay && map.hasLayer(nisarOverlay)) {
+        map.removeLayer(nisarOverlay);
+      }
+      if (wuiaLayer) {
+        if (state.lyr.wuia.on) {
+          wuiaLayer.setStyle({ fillOpacity: state.lyr.wuia.op });
+          if (!map.hasLayer(wuiaLayer)) wuiaLayer.addTo(map);
+        } else if (map.hasLayer(wuiaLayer)) {
+          map.removeLayer(wuiaLayer);
+        }
+      }
       renderLegend();
     });
   }
@@ -679,7 +722,7 @@
     const nis = NISAR_DATES.length ? `<div class="field"><div class="field-head"><span class="fl">${u.pass}</span><output>${NISAR_DATES[L_.nisar.i]}</output></div>${rangeHTML("nisar", 0, NISAR_DATES.length - 1, 1, L_.nisar.i)}</div>` : "";
     $("#drawer-body").innerHTML = `
       <details class="sec" open><summary>${u.secLayers}</summary><div class="sec-body">
-        ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("activity", act)}
+        ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("wuia")}${layerRow("activity", act)}
       </div></details>
       <details class="sec" open><summary>${u.secSar}</summary><div class="sec-body">
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}
@@ -1186,7 +1229,25 @@
     const rc = sel.cells.filter((i) => L8.s1_2017[i] && L8.s1_2024[i]).map((i) => (L8.s1_2024[i] - L8.s1_2017[i]) / 6);
     const busy = rc.length ? rc.filter((d) => d >= 3).length / rc.length : 0;
     items.push({ lvl: busy > 0.05 ? "warn" : "ok", t: c.radar, v: busy > 0.05 ? c.radarBusy(num(busy * 100, 0)) : c.radarQuiet });
-    return `<div class="check"><div class="check-h">${c.title}</div>${items.map((it) => {
+        let penalties = 0;
+    items.forEach((it) => {
+      if (it.lvl === "risk") penalties += 22;
+      else if (it.lvl === "warn") penalties += 10;
+    });
+    const spaceScore = Math.max(15, Math.min(100, 100 - penalties));
+    const scoreCol = spaceScore >= 75 ? "#4E9F3D" : (spaceScore >= 50 ? "#F2A31B" : "#E5602A");
+    const scoreWord = lang === "pl"
+      ? (spaceScore >= 75 ? "Wysoki potencjał (Niskie ryzyko geofizyczne)" : (spaceScore >= 50 ? "Umiarkowane ryzyko / Wymaga uwagi" : "Wysokie ryzyko środowiskowe"))
+      : (spaceScore >= 75 ? "High Potential (Low Geophysical Risk)" : (spaceScore >= 50 ? "Moderate Risk / Caution Needed" : "High Environmental Risk"));
+    const scoreBadge = `<div class="spacescore-banner" style="background:${scoreCol}15;border:1.5px solid ${scoreCol};border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:${scoreCol};text-transform:uppercase">SpaceScore · Audyt NASA</div>
+        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-top:2px">${scoreWord}</div>
+      </div>
+      <div style="font-size:24px;font-weight:800;color:${scoreCol};font-variant-numeric:tabular-nums">${spaceScore}<span style="font-size:13px;font-weight:600;opacity:0.7">/100</span></div>
+    </div>`;
+
+    return `${scoreBadge}<div class="check"><div class="check-h">${c.title}</div>${items.map((it) => {
       const [col, w0] = st(it.lvl), word = it.word || w0;
       return `<div class="ck"><span class="ck-dot" style="background:${col}"></span><div><div class="ck-t">${it.t} <span class="ck-s" style="color:${col}">${word}</span></div>
         <div class="ck-v">${it.v}${it.link ? ` <a href="https://wody.isok.gov.pl/imap_kzgw/?gpmap=gpMZP" target="_blank" rel="noopener">${c.isok}</a>` : ""}</div></div></div>`;
@@ -1380,13 +1441,20 @@
     return r.ok ? r.json() : [];
   }
   async function reverseGeocode(lat, lng) {
+    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (geoCache.has(key)) return geoCache.get(key);
     try {
       const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&accept-language=${lang}&lat=${lat}&lon=${lng}`);
-      if (!r.ok) return null;
+      if (!r.ok) throw new Error("HTTP " + r.status);
       const a = (await r.json()).address || {};
       const street = [a.road || a.pedestrian || a.hamlet || a.suburb, a.house_number].filter(Boolean).join(" ");
-      return [street, a.city || a.town || a.village || a.municipality || ""].filter(Boolean).join(", ") || null;
-    } catch (e) { return null; }
+      const res = [street, a.city || a.town || a.village || a.municipality || ""].filter(Boolean).join(", ") || null;
+      if (res) geoCache.set(key, res);
+      return res;
+    } catch (e) {
+      const area = state.sel && state.sel.area ? state.sel.area : "Poznań";
+      return `${area} (${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E)`;
+    }
   }
   function shortName(r) {
     const a = r.address || {};

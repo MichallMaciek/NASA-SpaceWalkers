@@ -20,17 +20,17 @@ window.I18N = {
       built: "Built-up area, 1975–2035", prob: "Where the city grows next", forest: "Forest loss, 2001–2024",
       night: "Summer nights: trend", day: "Summer days: trend", ndvi: "Greenness: trend",
       year: "Summer nights, year by year", mean: "Summer nights: average",
-      nisar: "NISAR radar passes (NASA-ISRO)", radar: "Radar brightness (Sentinel-1)", radarchange: "Radar change 2017–2024",
+      nisar: "NISAR radar passes (NASA-ISRO)", wuia: "Building permits (WUIA)", radar: "Radar brightness (Sentinel-1)", radarchange: "Radar change 2017–2024",
       dem: "Terrain height (TanDEM-X radar)", growthpop: "Population change", none: "Nothing",
     },
     Lsub: {
       built: "Landsat-based GHSL + our projection", prob: "chance of becoming built in 5 years", forest: "Landsat, 30 m, by year",
       night: "°C per decade, 2000–2024", day: "°C per decade, 2000–2024", ndvi: "NDVI per decade, 250 m",
       year: "°C, with a time slider", mean: "°C, 2000–2024, heat island",
-      nisar: "every pass since June 2026", radar: "summer median, 2017–2024", radarchange: "new structures and clearings",
+      nisar: "calibrated L-band SAR (dry vs wet)", wuia: "2,420 permits & applications (GEOPOZ)", radar: "summer median, 2017–2024", radarchange: "new structures and clearings",
       dem: "with a water-level slider", growthpop: "% since 2000, GUS", none: "",
     },
-    B: { map: "Map", streets: "Street map", orto: "Aerial photo, Poland (Geoportal)", poz2025: "Poznań 2025 aerial (GEOPOZ)", poz1940: "Poznań 1940 aerial (GEOPOZ)" },
+    B: { map: "Map", streets: "Street map", orto: "Aerial photo, Poland (Geoportal)", poz2025: "Poznań 2025 aerial (GEOPOZ)", poz1940: "Poznań 2001 aerial (GEOPOZ)" },
     C: {
       year: "Year", since: "Show as new from", thr: "Counts as built from", horizon: "Five years starting", minProb: "Show chances above",
       from: "Cut from", to: "Cut until", minTree: "Forest means tree cover above", date: "Pass", rYear: "Summer",
@@ -139,10 +139,10 @@ window.I18N = {
       built: "GHSL z Landsata + nasza prognoza", prob: "szansa zabudowy w 5 lat", forest: "Landsat, 30 m, rok po roku",
       night: "°C na dekadę, 2000–2024", day: "°C na dekadę, 2000–2024", ndvi: "NDVI na dekadę, 250 m",
       year: "°C, z suwakiem czasu", mean: "°C, 2000–2024, wyspa ciepła",
-      nisar: "każdy przelot od czerwca 2026", radar: "mediana z lata, 2017–2024", radarchange: "nowe budynki i wycinki",
+      nisar: "skalibrowany radar pasma L (sucho/mokro)", wuia: "2 420 pozwoleń i wniosków (GEOPOZ)", radar: "mediana z lata, 2017–2024", radarchange: "nowe budynki i wycinki",
       dem: "z suwakiem poziomu wody", growthpop: "% od 2000, GUS", none: "",
     },
-    B: { map: "Mapa", streets: "Mapa ulic", orto: "Ortofotomapa Polski (Geoportal)", poz2025: "Poznań 2025, ortofoto (GEOPOZ)", poz1940: "Poznań 1940, ortofoto (GEOPOZ)" },
+    B: { map: "Mapa", streets: "Mapa ulic", orto: "Ortofotomapa Polski (Geoportal)", poz2025: "Poznań 2025, ortofoto (GEOPOZ)", poz1940: "Poznań 2001, ortofoto (GEOPOZ)" },
     C: {
       year: "Rok", since: "Pokaż jako nowe od", thr: "Zabudowa od", horizon: "Pięciolecie od", minProb: "Pokaż szanse powyżej",
       from: "Wycięte od", to: "Wycięte do", minTree: "Las to pokrycie drzewami od", date: "Przelot", rYear: "Lato",
@@ -242,7 +242,7 @@ window.I18N.pl.ui = {
   },
   L: {
     built: "Urbanizacja", forest: "Wycinka lasów", price: "Ceny za m²", activity: "Aktywność terenu",
-    dem: "Wysokość terenu", radar: "Jasność odbicia", nisar: "Radar NISAR (NASA-ISRO)",
+    dem: "Wysokość terenu", radar: "Jasność odbicia", nisar: "Radar NISAR (NASA-ISRO)", wuia: "Decyzje budowlane WUIA",
     night: "Letnie noce: trend", day: "Letnie dni: trend", ndvi: "Zieleń: trend", nightyear: "Letnie noce rok po roku",
   },
   Lsub: {
@@ -330,8 +330,8 @@ window.I18N.en.ui = {
 };
 window.I18N.pl.f.forecast = (d) => ({ t: "Gdzie staną kolejne osiedla", b: `Model sprawdzony na latach 2015–2020, których nie widział, wskazał trafnie ${d.hit}% miejsc nowej zabudowy. W ostatnim tempie przybywa ok. ${d.ha} ha zabudowy co 5 lat.` });
 window.I18N.en.f.forecast = (d) => ({ t: "Where the next estates will go", b: `Tested on 2015–2020 data it never saw, the model correctly flagged ${d.hit}% of newly built places. At the recent pace, about ${d.ha} ha more is built every 5 years.` });
-window.I18N.pl.B = { map: "Mapa", orto: "Ortofotomapa (Geoportal)", poz2025: "Poznań 2025 (GEOPOZ)", poz1940: "Poznań 1940 (GEOPOZ)" };
-window.I18N.en.B = { map: "Map", orto: "Aerial photo (Geoportal)", poz2025: "Poznań 2025 (GEOPOZ)", poz1940: "Poznań 1940 (GEOPOZ)" };
+window.I18N.pl.B = { map: "Mapa", orto: "Ortofotomapa (Geoportal)", poz2025: "Poznań 2025 (GEOPOZ)", poz1940: "Poznań 2001 (GEOPOZ)" };
+window.I18N.en.B = { map: "Map", orto: "Aerial photo (Geoportal)", poz2025: "Poznań 2025 (GEOPOZ)", poz1940: "Poznań 2001 (GEOPOZ)" };
 window.I18N.pl.ui.riskScale = "Skala: niskie poniżej 0,5%, umiarkowane do 2%, podwyższone do 5%, wysokie do 15%, bardzo wysokie powyżej 15% szans w 5 lat.";
 window.I18N.en.ui.riskScale = "Scale: low below 0.5%, moderate to 2%, elevated to 5%, high to 15%, very high above 15% chance in 5 years.";
 window.I18N.pl.ui.chk = {
