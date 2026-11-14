@@ -308,6 +308,7 @@
   const plRzecz = (n) => (n === 1 ? "1 rzecz do sprawdzenia" : `${n} rzeczy do sprawdzenia`);
   pl.plain = {
     lvl: { ok: "w normie", info: "informacja", warn: "do sprawdzenia", risk: "uwaga", price: "informacja" },
+    checking: "sprawdzam…", // status of a row whose answer has not arrived yet (extension modules)
     flags: plRzecz, flagsSub: "Zapytaj o to sprzedającego i urząd, zanim podpiszesz umowę.",
     noFlags: "Nic niepokojącego", noFlagsSub: "Radar i mapy nie pokazują tu problemów. To nie zastępuje oględzin ani badania gruntu.",
     buildT: "Nowe budowy obok",
@@ -353,6 +354,7 @@
   };
   en.plain = {
     lvl: { ok: "fine", info: "information", warn: "worth checking", risk: "warning", price: "information" },
+    checking: "checking…",
     flags: (n) => (n === 1 ? "1 thing to check" : `${n} things to check`), flagsSub: "Ask the seller and the planning office about this before you sign.",
     noFlags: "Nothing worrying", noFlagsSub: "Radar and maps show no problems here. This does not replace a viewing or a soil survey.",
     buildT: "New building next door",

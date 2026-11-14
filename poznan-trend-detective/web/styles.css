@@ -475,6 +475,11 @@ body, .card, .drawer, .sheet { transition: background-color .25s ease, color .25
 .pl-warn .pl-l, .pl-risk .pl-l { color: var(--ink); font-weight: 600; }
 .pl-v { font-size: 14px; line-height: 1.4; margin-top: 2px; }
 .pl-src { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+/* extension modules: a row whose answer is still on its way */
+.pl-pending .pl-v, .pl-pending .pl-l { color: var(--ink-3); font-style: italic; }
+.pl-pending .pl-dot { animation: pl-wait 1.2s ease-in-out infinite; }
+@keyframes pl-wait { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .pl-pending .pl-dot { animation: none; } }
 
 /* everything technical behind one disclosure */
 .tech { margin-top: 6px; }

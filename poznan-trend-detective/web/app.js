@@ -290,7 +290,107 @@
   };
   let NISAR_DATES = [];
   let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
-  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
+
+  /* ================= SARnik extensions (docs/planwyd/KONTRAKT.md, version 1) ================= */
+  // Modules live in web/sarnik/<name>.js and are switched on in web/sarnik/manifest.js.
+  // With an empty list nothing here changes the card.
+  const skList = (Array.isArray(window.SARNIK_MODULES) ? window.SARNIK_MODULES : [])
+    .map((m) => (typeof m === "string" ? { name: m, css: false } : m && m.name ? { name: String(m.name), css: !!m.css } : null)).filter(Boolean);
+  const skJSON = new Map();
+  const skGuard = (name, what, fn) => { try { return fn(); } catch (e) { console.warn(`SARnik module ${name}.${what}:`, e); return null; } };
+  const skShown = (sel) => !!(sel && sel.ready && sel.area && sel.cells && sel.cells.length); // the check-up is on screen
+  const SK = {
+    version: 1,
+    modules: {},
+    register(name, def) {
+      if (typeof name !== "string" || !name) { console.warn("SARnik: register() needs a module name"); return; }
+      SK.modules[name] = def || {};
+      const sel = state.sel; // a module that loads after a place was picked still gets its onSelect
+      if (!skShown(sel)) return;
+      if (SK.modules[name].onSelect) skGuard(name, "onSelect", () => SK.modules[name].onSelect(sel, skCtx));
+      renderCard();
+    },
+  };
+  // card order = manifest order, then modules registered without a manifest entry
+  const skOrder = () => { const names = skList.map((m) => m.name); Object.keys(SK.modules).forEach((n) => { if (!names.includes(n)) names.push(n); }); return names.filter((n) => SK.modules[n]); };
+  const skCtx = {
+    lang: () => lang,
+    t: (name) => ((SK.modules[name] || {}).i18n || {})[lang] || {},
+    esc, num, sgn, fmtInt,
+    get land() { return land; },
+    get sar() { return sar; },
+    L8,
+    landCell: (la, lo) => landCell(la, lo),
+    cellCentre(i) { const w = land.width, [a, , c, , e, f] = land.transform3857; return mercToLatLng(c + ((i % w) + 0.5) * a, f + (Math.floor(i / w) + 0.5) * e); },
+    inFlood: (la, lo) => inFlood(la, lo),
+    distM(lat1, lng1, lat2, lng2) {
+      const R = 6371008.8, r = Math.PI / 180;
+      const h = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lng2 - lng1) * r) / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    },
+    loadGray: (name) => loadGray(name),
+    loadJSON(path) {
+      if (!skJSON.has(path)) {
+        const p = fetch(`data/${path}?v=${DATA_V}`).then((r) => { if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`); return r.json(); });
+        p.catch(() => skJSON.delete(path)); // a failed load may be tried again
+        skJSON.set(path, p);
+      }
+      return skJSON.get(path);
+    },
+    // one request per place and key; the card is redrawn only if the same place is still selected
+    fetchOnce(sel, key, fn, ms = 6000) {
+      sel.ext = sel.ext || {};
+      if (sel.ext[key]) return;
+      sel.ext[key] = { st: "loading" };
+      const ac = new AbortController();
+      let timer;
+      const timeout = new Promise((res) => { timer = setTimeout(() => { ac.abort(); res({ st: "timeout" }); }, ms); });
+      const work = Promise.resolve().then(() => fn(ac.signal))
+        .then((data) => ({ st: "ok", data }), (error) => ({ st: "error", error: String((error && error.message) || error) }));
+      Promise.race([work, timeout]).then((res) => { clearTimeout(timer); sel.ext[key] = res; if (state.sel === sel) skCtx.rerender(); });
+    },
+    rerender() { if (state.sel && state.sel.ready) renderCard(); },
+  };
+  function skSelect(sel) {
+    sel.ext = sel.ext || {};
+    skOrder().forEach((name) => { const d = SK.modules[name]; if (d.onSelect) skGuard(name, "onSelect", () => d.onSelect(sel, skCtx)); });
+  }
+  // rows for the plain check-up: id prefixed with the module, pending rows are "info", sar defaults to "no"
+  function skItems(sel) {
+    const out = [];
+    skOrder().forEach((name) => {
+      const d = SK.modules[name];
+      if (!d.checks) return;
+      const r = skGuard(name, "checks", () => d.checks(sel, skCtx));
+      (r == null ? [] : Array.isArray(r) ? r : [r]).forEach((it) => {
+        if (!it || typeof it !== "object") return;
+        const row = Object.assign({ sar: "no" }, it, { id: `${name}:${it.id || "row"}`, module: name });
+        if (row.pending || !["ok", "warn", "risk", "info"].includes(row.lvl)) row.lvl = "info";
+        if (!["yes", "part", "no"].includes(row.sar)) row.sar = "no";
+        out.push(row);
+      });
+    });
+    return out;
+  }
+  const skCardTop = (sel) => skOrder().map((name) => { const d = SK.modules[name]; return d.cardTop ? skGuard(name, "cardTop", () => d.cardTop(sel, skCtx)) || "" : ""; }).join("");
+  window.SARNIK = SK;
+  $("#sidecard").addEventListener("click", (e) => { // data-sk="<module>:<action>" in a module's HTML
+    const el = e.target.closest && e.target.closest("[data-sk]");
+    if (!el || !state.sel) return;
+    const [name, action] = String(el.dataset.sk).split(":");
+    const d = SK.modules[name];
+    if (d && d.onAction) skGuard(name, "onAction", () => d.onAction(action, state.sel, skCtx, el));
+  });
+  skList.forEach(({ name, css: withCss }) => {
+    if (!/^[a-z0-9_-]+$/i.test(name)) { console.warn("SARnik: bad module name", name); return; }
+    if (withCss) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = `sarnik/${name}.css?v=${DATA_V}`; document.head.appendChild(l); }
+    const s = document.createElement("script");
+    s.src = `sarnik/${name}.js?v=${DATA_V}`; s.async = false; // keep the manifest order
+    s.onerror = () => console.warn(`SARnik: module ${name} did not load`);
+    document.body.appendChild(s);
+  });
+
+  const LAND_KEYS =["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
   const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
   // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
   const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
@@ -1348,6 +1448,8 @@
     if (!rankPool.risk) prepareRiskPool();
     sel.cells = cellsInRing(sel.ring).filter((i) => L8.study[i]);
     sel.ready = true;
+    sel.ext = sel.ext || {};
+    if (skShown(sel)) skSelect(sel); // extension modules start their requests once per place
     renderCard();
   }
 
@@ -1564,6 +1666,7 @@
       <details class="tech" ${techOpen ? "open" : ""}><summary>${u.techSummary}</summary>
       <p class="sub tech-sub">${range}</p>
       ${sar && L8.sar_series ? radarBlock(sel) : ""}
+      ${skCardTop(sel)}
       ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
       <div class="rows">
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-built")}"></span>${u.rowBuilt}</span><span class="v">${builtV}<small>${builtNote}</small></span></div>
@@ -1627,16 +1730,19 @@
     if (wy) items.push({ lvl: "price", t: p.priceT, v: p.priceV(fmtInt(Math.round(pz[wy] / 100) * 100), num(pz[wy] / wage[wy], 1), wy, sel.area === "Poznań"), src: p.priceSrc });
     const SARK = { [p.buildT]: "yes", [p.groundT]: "yes" };
     items.forEach((it) => { if (!it.sar) it.sar = SARK[it.t] || "no"; });
-    return items;
+    return items.concat(skItems(sel)); // rows from extension modules (empty without modules)
   }
   function plainHTML(sel) {
-    const p = U().plain, items = plainChecks(sel), flags = items.filter((it) => it.lvl === "warn" || it.lvl === "risk").length;
+    const p = U().plain, items = plainChecks(sel), flags = items.filter((it) => !it.pending && (it.lvl === "warn" || it.lvl === "risk")).length;
+    // module rows: title, status word and source are plain text from the module, so they are escaped here
+    const word = (it) => (it.word ? esc(it.word) : it.pending ? p.checking : p.lvl[it.lvl]);
+    const txt = (it, s) => (it.module ? esc(s) : s);
     const mark = { ok: "ok", info: "info", warn: "warn", risk: "risk", price: "info" };
     return `<div class="verdict ${flags ? "has-flags" : "all-ok"}"><div class="vd-n">${flags ? p.flags(flags) : p.noFlags}</div><div class="vd-s">${flags ? p.flagsSub : p.noFlagsSub}</div></div>
       ${[[p.grpSar, items.filter((it) => it.sar !== "no"), true], [p.grpOther, items.filter((it) => it.sar === "no"), false]].filter(([, list]) => list.length).map(([h, list, isSar]) => `
       <h3 class="pl-h${isSar ? " is-sar" : ""}">${isSar ? SAR_ICON() : ""}${h}</h3>
-      <ul class="plain">${list.map((it) => `<li class="pl pl-${mark[it.lvl]}"><span class="pl-dot" aria-hidden="true"></span><div>
-        <div class="pl-t"><span>${it.t}${it.sar === "part" ? sarMark("part") : ""}</span><span class="pl-l">${p.lvl[it.lvl]}</span></div><div class="pl-v">${it.v}</div><div class="pl-src">${it.src}</div></div></li>`).join("")}</ul>`).join("")}`;
+      <ul class="plain">${list.map((it) => `<li class="pl pl-${mark[it.lvl]}${it.pending ? " pl-pending" : ""}"><span class="pl-dot" aria-hidden="true"></span><div>
+        <div class="pl-t"><span>${txt(it, it.t)}${it.sar === "part" ? sarMark("part") : ""}</span><span class="pl-l">${word(it)}</span></div><div class="pl-v">${it.v}</div>${it.src ? `<div class="pl-src">${txt(it, it.src)}</div>` : ""}</div></li>`).join("")}</ul>`).join("")}`;
   }
   function riskHTML(rk, sel) {
     const u = U(), s = rk.score;
