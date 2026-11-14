@@ -89,6 +89,19 @@ def read_window(f):
     return out
 
 
+def read_one(src):
+    """Worker: open one GCOV file (local path or Earthdata URL) and return its study-area window."""
+    import h5py
+    if src.startswith("http"):
+        import earthaccess
+        earthaccess.login(strategy="netrc")
+        fo = earthaccess.open([src])[0]
+    else:
+        fo = open(src, "rb")
+    with h5py.File(fo, "r") as f:
+        return read_window(f)
+
+
 def inspect(f, depth=4):
     def show(name, obj):
         if name.count("/") <= depth:
@@ -103,26 +116,36 @@ def main():
     ap.add_argument("--version", default="provisional")
     ap.add_argument("--inspect", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--workers", type=int, default=5)
+    ap.add_argument("--local", help="folder with GCOV .h5 files already downloaded (e.g. through a browser); no login needed")
     a = ap.parse_args()
     import h5py
     rows = passes(a.track, a.version)
+    if a.local:
+        from pathlib import Path
+        have = {p.name: p for p in Path(a.local).expanduser().glob("NISAR_L2_*GCOV*.h5")}
+        rows = [r for r in rows if r["url_h5"].rsplit("/", 1)[1] in have]
     if a.limit:
         rows = rows[: a.limit]
     print(len(rows), "GCOV passes, track", a.track, a.version, [r["data"] for r in rows], flush=True)
-    ea = login()
-    files = ea.open([r["url_h5"] for r in rows])
-    dates, hh, hv = [], [], []
-    for r, fo in zip(rows, files):
+    if a.inspect:
+        fo = open(have[rows[0]["url_h5"].rsplit("/", 1)[1]], "rb") if a.local else login().open([rows[0]["url_h5"]])[0]
         with h5py.File(fo, "r") as f:
-            if a.inspect:
-                inspect(f)
-                return
-            w = read_window(f)
-        if w is None:
-            print("  ", r["data"], "does not cover the study area", flush=True)
-            continue
-        dates.append(r["data"]); hh.append(w["HHHH"]); hv.append(w["HVHV"])
-        print("  ", r["data"], f"{np.isfinite(w['HHHH']).mean():.2f} of the grid covered", flush=True)
+            inspect(f)
+        return
+    # one process per file: h5py holds a global lock, so threads would read one file at a time
+    from concurrent.futures import ProcessPoolExecutor
+    srcs = [str(have[r["url_h5"].rsplit("/", 1)[1]]) if a.local else r["url_h5"] for r in rows]
+    if not a.local:
+        login()
+    dates, hh, hv = [], [], []
+    with ProcessPoolExecutor(max_workers=a.workers) as ex:
+        for r, w in zip(rows, ex.map(read_one, srcs)):
+            if w is None:
+                print("  ", r["data"], "does not cover the study area", flush=True)
+                continue
+            dates.append(r["data"]); hh.append(w["HHHH"]); hv.append(w["HVHV"])
+            print("  ", r["data"], f"{np.isfinite(w['HHHH']).mean():.2f} of the grid covered", flush=True)
     np.savez_compressed(RAW / "nisar_gcov.npz", dates=np.array(dates), hh=np.array(hh), hv=np.array(hv),
                         track=a.track, version=a.version)
     print("saved NISAR GCOV", len(dates), "passes", flush=True)

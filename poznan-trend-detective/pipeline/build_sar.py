@@ -223,6 +223,64 @@ def main():
             sheet[k * bh:(k + 1) * bh, j * bw:(j + 1) * bw] = enc_db(db)
     png("sar_series", sheet)
 
+    # ---------- NISAR GCOV (L-band), when fetch_nisar.py has run ----------
+    nisar_meta = None
+    npath = RAW / "nisar_gcov.npz"
+    if npath.exists():
+        nz0 = np.load(npath)
+        # one pass per date: frames of the same date (e.g. two files on 5 Sep) are merged, power-averaged
+        nd = sorted({str(d) for d in nz0["dates"]})
+        with np.errstate(all="ignore"):
+            merged = {pol: np.stack([np.nanmean(nz0[pol][[k for k, d in enumerate(nz0["dates"]) if str(d) == x]], 0) for x in nd])
+                      for pol in ("hh", "hv")}
+        nz = {"hh": merged["hh"], "hv": merged["hv"], "track": nz0["track"], "version": nz0["version"]}
+        with np.errstate(all="ignore"):
+            hh, hv = 10 * np.log10(nz["hh"]), 10 * np.log10(nz["hv"])
+            hh_med, hv_med = np.nanmedian(hh, 0), np.nanmedian(hv, 0)
+        png("nisar_hh_med", enc_db(hh_med))
+        png("nisar_hv_med", enc_db(hv_med))
+        # dry / wet pair from the team's pass list (same track): 25 June (soil wetness 0.09) and 24 August (0.30)
+        dry_d, wet_d = "2026-06-25", "2026-08-24"
+        nchecks = {}
+        if dry_d in nd and wet_d in nd:
+            dwet = hh[nd.index(wet_d)] - hh[nd.index(dry_d)]
+            dwet = np.where(open_land, dwet, np.nan)
+            png("nisar_wetdry", np.where(np.isfinite(dwet), np.clip((dwet + 10) * 12.75, 1, 255), 0))
+            okw = np.isfinite(dwet)
+            hit = dwet >= 2.0
+            kf2, nf2 = int((hit & okw & flood).sum()), int((okw & flood).sum())
+            po2 = float(hit[okw & ~flood].mean()) if (okw & ~flood).any() else 0.0
+            nchecks["wetdry"] = {
+                "what": "open land: HH wet (24 Aug) minus HH dry (25 Jun) >= 2 dB, inside vs outside PIG-PIB groundwater-flood areas",
+                "share_study": round(float(hit[okw].mean()), 4), "share_flood": round(kf2 / nf2, 4) if nf2 else None,
+                "share_outside": round(po2, 4), "ratio": round((kf2 / nf2) / max(po2, 1e-9), 2) if nf2 else None,
+                "p": round(float(stats.binomtest(kf2, nf2, po2, alternative="greater").pvalue), 4) if nf2 and 0 < po2 < 1 else None,
+                "median_db_open": round(float(np.nanmedian(dwet)), 2)}
+        # L-band next to C-band for the same land covers (medians, dB)
+        b20m = dec("built_2020") >= thr
+        forest = dec("forest2000_frac") > 200
+        classes = {"built": b20m & study, "forest": forest & study, "open": open_land}
+        nchecks["bands"] = {c: {"HH": round(float(np.nanmedian(hh_med[m])), 2), "HV": round(float(np.nanmedian(hv_med[m])), 2),
+                                "VV": round(float(np.nanmedian(vv_med[m])), 2), "VH": round(float(np.nanmedian(vh_med[m])), 2)}
+                            for c, m in classes.items()}
+        # series per pass for the chart (study-area power mean) and a 480 m sheet like Sentinel-1's (HH left, HV right)
+        with np.errstate(all="ignore"):
+            aoi_hh = [round(float(10 * np.log10(np.nanmean(nz["hh"][k][study]))), 2) for k in range(len(nd))]
+            aoi_hv = [round(float(10 * np.log10(np.nanmean(nz["hv"][k][study]))), 2) for k in range(len(nd))]
+        bw_, bh_ = math.ceil(W / BLOCK), math.ceil(H / BLOCK)
+        nsheet = np.zeros((len(nd) * bh_, 2 * bw_), np.float32)
+        padn = lambda a_: np.pad(a_, ((0, bh_ * BLOCK - H), (0, bw_ * BLOCK - W)), constant_values=np.nan)
+        for k in range(len(nd)):
+            for j, pol in enumerate(("hh", "hv")):
+                bb = padn(nz[pol][k]).reshape(bh_, BLOCK, bw_, BLOCK)
+                with np.errstate(all="ignore"):
+                    nsheet[k * bh_:(k + 1) * bh_, j * bw_:(j + 1) * bw_] = enc_db(10 * np.log10(np.nanmean(bb, axis=(1, 3))))
+        png("nisar_series", nsheet)
+        nisar_meta = {"mission": "NASA-ISRO NISAR (L-band, 1.26 GHz, 24 cm), GCOV gamma0", "track": int(nz["track"]),
+                      "version": str(nz["version"]), "dates": nd, "aoi_hh_db": aoi_hh, "aoi_hv_db": aoi_hv,
+                      "dry": dry_d, "wet": wet_d, "checks": nchecks, "series": {"block": BLOCK, "bw": bw_, "bh": bh_, "n": len(nd)}}
+        print("NISAR", len(nd), "passes;", nchecks)
+
     # AOI-wide series for the start screen
     with np.errstate(all="ignore"):
         aoi_vv = [round(float(10 * np.log10(np.nanmean(s1["vv"][good][k][study]))), 2) for k in range(n)]
@@ -237,6 +295,7 @@ def main():
                "up3db_ha": round(up_ha), "walls_ha": round(walls_ha), "wall_db": WALL_DB, "series": {"block": BLOCK, "bw": bw, "bh": bh, "n": n}},
         "egms": {"source": "EGMS 2016-2020 vertical (Copernicus), PIG-PIB geozagrozenia/egms_2016_2020_pion", "unit": "mm/year"},
         "alos": {"mission": "ALOS-2 PALSAR-2 (L-band, 1.27 GHz, 23.6 cm), JAXA yearly mosaics", "years": alos_years},
+        "nisar": nisar_meta,
         "decode": {"sar_db": "v/6 - 30 = dB (0 = no data)", "sar_change": "v/12.75 - 10 = dB change (0 = no data)", "sar_dratio": "v/12.75 - 10 = change of VV/VH in dB (0 = no data)",
                    "sar_water": "(v-1)/254 = share of passes as dark as water", "sar_wet": "(v-1)/127 - 1 = Spearman r",
                    "sar_egms": "v - 100 = mm/year (0 = no data)",
