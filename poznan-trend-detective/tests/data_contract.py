@@ -179,6 +179,8 @@ def template_years(prefix):
         return sorted({int(y) for y in re.findall(r"[?:]\s*(\d{4})\b", m.group(1))}) if m else []   # the results, not the thresholds
     if prefix == "loss_cum":
         return []        # the names are literal in PLACE_LAYERS
+    if prefix == "hr":
+        return []        # sharp copies of other layers (pipeline/build_hires.py): listed in hires.json and checked on their own below
     return None
 
 
@@ -289,7 +291,26 @@ else:
     check(f"every layer PNG decodes with Pillow ({len(infos)})", not broken, "; ".join(broken))
     check("no layer PNG is all zero (no data anywhere)", not empty, ", ".join(empty))
 
-orphans = sorted(p.stem for p in LAND.glob("*.png") if p.stem not in requested)
+# sharp radar pictures: hires.json lists them; each is cut to its window and `scale` times finer than the grid
+hires_p = LAND / "hires.json"
+sharp = set()
+if hires_p.exists():
+    hi = json.loads(hires_p.read_text(encoding="utf-8"))
+    win = hi.get("window") or [0, 0, GRID_W, GRID_H]
+    want_hr = (win[2] * hi.get("scale", 1), win[3] * hi.get("scale", 1))
+    inside = win[0] >= 0 and win[1] >= 0 and win[0] + win[2] <= GRID_W and win[1] + win[3] <= GRID_H
+    check("hires.json: the window of the sharp pictures lies inside the grid", inside, str(win))
+    bad_hr = []
+    for n in hi.get("layers", []):
+        sharp.add(f"hr_{n}")
+        info = png_info(LAND / f"hr_{n}.png") if (LAND / f"hr_{n}.png").exists() else None
+        if info is None or (info[0], info[1]) != want_hr or (info[2], info[3]) != (8, 0):
+            bad_hr.append(n if info is None else f"{n}: {info[0]} x {info[1]}, depth {info[2]}, colour type {info[3]}")
+        if n not in layers:
+            bad_hr.append(f"{n}: no 120 m layer of that name")
+    check(f"hires.json: every sharp picture is an 8-bit grey PNG of {want_hr[0]} x {want_hr[1]} with a 120 m twin ({len(sharp)})", not bad_hr, "; ".join(bad_hr))
+
+orphans = sorted(p.stem for p in LAND.glob("*.png") if p.stem not in requested and p.stem not in sharp)
 if orphans:
     print(f"INFO PNGs in data/land not requested by app.js (deployed but never loaded): {', '.join(orphans)}")
 

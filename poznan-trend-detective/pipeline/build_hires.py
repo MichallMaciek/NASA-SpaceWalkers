@@ -5,6 +5,11 @@ picture: NISAR GCOV is 20 m, Sentinel-1 RTC 10 m, ALOS-2 mosaics 25 m. Here ever
 40 m Web Mercator (about 24 m on the ground, close to the native NISAR and ALOS-2 pixel). The numbers in the card
 still come from the 120 m products; these files only replace what is drawn.
 
+To stay inside the hosting budget (tests/data_contract.py: web/data under 40 MB) the sharp pictures cover a window
+only: Poznan city and about 0.9 km around it, where people zoom in to street level. Outside it the app draws the
+120 m grid. Grey levels are rounded before PNG compression (display only): dB layers and the change to 4 levels,
+the wall test to two levels (wall / no wall). The app fetches a sharp file only when the map is zoomed in on the window.
+
 Products (grey-level PNGs in web/data/land/, same encodings as build_sar.py, prefix "hr_"):
   hr_sar_change, hr_sar_dratio     Sentinel-1 VV change autumn 2026 vs autumn 2025 and its co/cross ratio change
   hr_alos_hh_<y>, hr_alos_hv_<y>   ALOS-2 L-band yearly mosaics
@@ -30,17 +35,43 @@ from common import BBOX, RAW, WEB_DATA
 
 OUT = WEB_DATA / "land"
 SCALE = 3
+MARGIN = 12        # cells of the 120 m grid kept around the city (about 0.9 km)
+WALL_DB = 1.5      # as in build_sar.py: co/cross ratio rise that marks a double-bounce change
 land = json.load(open(OUT / "land.json"))
-W, H = land["width"] * SCALE, land["height"] * SCALE
 t = land["transform3857"]
-TR = Affine(t[0] / SCALE, 0.0, t[2], 0.0, t[4] / SCALE, t[5])
+
+
+def city_window():
+    """Bounding box of the city of Poznan plus MARGIN, in cells of the app grid: column, row, width, height."""
+    import math
+    R = 6378137.0
+    merc = lambda lat, lon: (R * math.radians(lon), R * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)))
+    city = [f for f in json.load(open(WEB_DATA / "areas.geojson"))["features"] if f["properties"].get("role") == "city"][0]
+    g = city["geometry"]
+    pts = [p for ring in g["coordinates"] for p in ring] if g["type"] == "Polygon" else [p for poly in g["coordinates"] for ring in poly for p in ring]
+    x0, y1 = merc(max(p[1] for p in pts), min(p[0] for p in pts))
+    x1, y0 = merc(min(p[1] for p in pts), max(p[0] for p in pts))
+    c0 = max(0, int((x0 - t[2]) // t[0]) - MARGIN); c1 = min(land["width"], int(math.ceil((x1 - t[2]) / t[0])) + MARGIN)
+    r0 = max(0, int((y1 - t[5]) // t[4]) - MARGIN); r1 = min(land["height"], int(math.ceil((y0 - t[5]) / t[4])) + MARGIN)
+    return [c0, r0, c1 - c0, r1 - r0]
+
+
+WINDOW = city_window()
+W, H = WINDOW[2] * SCALE, WINDOW[3] * SCALE
+TR = Affine(t[0] / SCALE, 0.0, t[2] + WINDOW[0] * t[0], 0.0, t[4] / SCALE, t[5] + WINDOW[1] * t[4])
 S1_ORBIT = 73
 Image.MAX_IMAGE_PIXELS = None
 
 
 def study_hr():
     st = np.array(Image.open(OUT / "study.png")) > 0
-    return np.repeat(np.repeat(st, SCALE, 0), SCALE, 1)
+    c0, r0, cw, ch = WINDOW
+    return np.repeat(np.repeat(st[r0:r0 + ch, c0:c0 + cw], SCALE, 0), SCALE, 1)
+
+
+def quant(a, q=4):
+    """Round grey levels to steps of q (0 stays 'no data'): the noisy radar texture then compresses about a third better."""
+    return np.where(a > 0, np.clip(np.round(a / q) * q, q, 255 - (255 % q)), 0)
 
 
 def png(name, arr):
@@ -125,8 +156,9 @@ def do_s1(study, meta):
     prev = s1_median("2025-09-01/2025-11-14", study)
     change = now["vv"] - prev["vv"]
     dratio = change - (now["vh"] - prev["vh"])
-    png("sar_change", np.where(study, enc_change(change), 0))
-    png("sar_dratio", np.where(study, enc_change(dratio), 0))
+    png("sar_change", quant(np.where(study, enc_change(change), 0)))
+    # the app only asks "wall or not" of this layer: two levels (200 = wall, 100 = no wall) compress to a tenth
+    png("sar_dratio", np.where(study & np.isfinite(dratio), np.where(dratio >= WALL_DB, 200, 100), 0))
     meta["layers"] += ["sar_change", "sar_dratio"]
     meta["s1"] = {"now": now["dates"], "before": prev["dates"], "read": "RTC overview 0 (20 m), power-averaged to the grid"}
 
@@ -149,7 +181,7 @@ def do_alos(study, meta):
             with np.errstate(all="ignore"):
                 db = 20 * np.log10(acc) - 83.0
             name = f"alos_{pol.lower()}_{year}"
-            png(name, np.where(study, enc_db(db), 0))
+            png(name, quant(np.where(study, enc_db(db), 0)))
             meta["layers"].append(name)
 
 
@@ -174,16 +206,17 @@ def do_nisar(study, meta):
         mh = np.stack([np.nanmean(np.stack([hh[k] for k, d in enumerate(dates) if d == x]), 0) for x in nd])
         mv = np.stack([np.nanmean(np.stack([hv[k] for k, d in enumerate(dates) if d == x]), 0) for x in nd])
         dbh, dbv = 10 * np.log10(mh), 10 * np.log10(mv)
-        png("nisar_hh_med", np.where(study, enc_db(np.nanmedian(dbh, 0)), 0))
-        png("nisar_hv_med", np.where(study, enc_db(np.nanmedian(dbv, 0)), 0))
+        png("nisar_hh_med", quant(np.where(study, enc_db(np.nanmedian(dbh, 0)), 0)))
+        png("nisar_hv_med", quant(np.where(study, enc_db(np.nanmedian(dbv, 0)), 0)))
     meta["layers"] += ["nisar_hh_med", "nisar_hv_med"]
     dry_d, wet_d = "2026-06-25", "2026-08-24"
     if dry_d in nd and wet_d in nd:
         # open land = where the 120 m product has a value (built-up, forest and water were masked there)
         lo = np.array(Image.open(OUT / "nisar_wetdry.png")) > 0
-        open_land = np.repeat(np.repeat(lo, SCALE, 0), SCALE, 1)
+        c0, r0, cw, ch = WINDOW
+        open_land = np.repeat(np.repeat(lo[r0:r0 + ch, c0:c0 + cw], SCALE, 0), SCALE, 1)
         dwet = dbh[nd.index(wet_d)] - dbh[nd.index(dry_d)]
-        png("nisar_wetdry", np.where(open_land & study, enc_change(dwet), 0))
+        png("nisar_wetdry", quant(np.where(open_land & study, enc_change(dwet), 0)))
         meta["layers"].append("nisar_wetdry")
     meta["nisar"] = {"dates": nd, "track": 158, "version": "provisional"}
 
@@ -192,7 +225,11 @@ def main():
     what = set(sys.argv[1:]) or {"s1", "alos", "nisar"}
     mp = OUT / "hires.json"
     meta = json.load(open(mp)) if mp.exists() else {"layers": []}
-    meta.update({"scale": SCALE, "width": W, "height": H, "cell_m_ground": round(land["cell_m_ground"] / SCALE, 1)})
+    meta.update({"scale": SCALE, "window": WINDOW, "width": W, "height": H, "cell_m_ground": round(land["cell_m_ground"] / SCALE, 1),
+                 "note": "sharp pictures cover the window only (Poznan city and about 0.9 km around it, in cells of the 120 m grid: "
+                         "column, row, width, height); outside it the app draws the 120 m grid",
+                 "quant": {"alos": 4, "nisar": 4, "sar_change": 4, "sar_dratio": "two levels: 200 = wall (ratio change >= 1.5 dB), 100 = no wall",
+                           "why": "grey levels rounded before PNG compression: display only"}})
     study = study_hr()
     for k, fn in (("alos", do_alos), ("s1", do_s1), ("nisar", do_nisar)):
         if k in what:

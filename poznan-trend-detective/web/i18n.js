@@ -396,3 +396,11 @@ window.I18N.en.ui.drawTooSmall = "That area is too small. Draw it again.";
 // built-up change on the card is in percentage points (a relative change explodes from small bases)
 window.I18N.pl.ui.pp = "p.p.";
 window.I18N.en.ui.pp = "pp";
+
+// QA pass (14 Nov 2026): the search says when there is nothing to pick; building decisions explain their colours
+window.I18N.pl.ui.searchNone = "Nic nie znaleziono w okolicy Poznania. Spróbuj innego adresu albo kliknij miejsce na mapie.";
+window.I18N.pl.ui.searchFail = "Wyszukiwarka adresów chwilowo nie działa. Kliknij miejsce na mapie.";
+window.I18N.en.ui.searchNone = "Nothing found around Poznań. Try another address or click a place on the map.";
+window.I18N.en.ui.searchFail = "The address search is not available right now. Click a place on the map.";
+Object.assign(window.I18N.pl.ui.lg, { wuiaNew: "nowa budowa", wuiaExt: "rozbudowa", wuiaOther: "inne decyzje" });
+Object.assign(window.I18N.en.ui.lg, { wuiaNew: "new building", wuiaExt: "extension", wuiaOther: "other decisions" });

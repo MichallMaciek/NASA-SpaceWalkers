@@ -283,7 +283,7 @@
       night: { on: false, op: 0.8 }, day: { on: false, op: 0.8 }, ndvi: { on: false, op: 0.8 }, nightyear: { on: false, op: 0.8 },
     },
     sel: null, // {kind: 'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}
-    findingsOpen: innerWidth >= 760, finding: null, testVar: "built",
+    findingsOpen: (() => { try { const v = localStorage.getItem("ptd-fold"); if (v) return v === "open"; } catch (e) { /* ignore */ } return innerWidth >= 760; })(), finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
     lens: "radar",
     ryear: 2026, // radar views: the year on the radar time line
@@ -445,8 +445,10 @@
   function loadWuia() {
     if (wuiaLayer || wuiaPending) return;
     wuiaPending = fetch(`data/wuia_decyzje.geojson?v=${DATA_V}`).then((r) => r.json()).then((data) => {
+      // own pane above the border and selection canvases: they covered the "land" pane and swallowed every click, so no popup ever opened
+      if (!map.getPane("wuia")) { map.createPane("wuia"); map.getPane("wuia").style.zIndex = 670; }
       wuiaLayer = L.geoJSON(data, {
-        pane: "land",
+        pane: "wuia", bubblingMouseEvents: false, // a click on a decision opens its popup and does not also select a place
         style: (f) => {
           const kat = (f.properties.kategoria || "").toLowerCase();
           const col = kat.includes("nowa") ? "#E5602A" : (kat.includes("rozbudowa") ? "#7357E8" : "#F2A31B");
@@ -561,6 +563,7 @@
 
   async function setTheme(mode) {
     document.documentElement.setAttribute("data-theme", mode);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = mode === "dark" ? "#1A1D20" : "#F1F0EB"; });
     try { localStorage.setItem("ptd-theme", mode); } catch (e) { /* ignore */ }
     // rebuild the vector base map in the matching palette; if the toggle is clicked again meanwhile, only the
     // newest result is used, and the old maps are removed only now (each one holds a WebGL context)
@@ -665,68 +668,104 @@
   };
 
   /* ================= rendering of the data layers ================= */
-  // Sharp radar pictures: the same grey-level products on a grid `hires.scale` times finer (about 24 m on the ground).
-  // Only the drawing uses them; every number in the card still comes from the 120 m products.
+  // Sharp radar pictures (build_hires.py): the same grey-level products on a grid `hires.scale` times finer (about 24 m on
+  // the ground), cut to `hires.window` (Poznań city and about 1 km around it, in cells of the 120 m grid). Only the drawing uses
+  // them; every number in the card still comes from the 120 m products. Outside the window the 120 m picture is drawn.
   const HIRES_SRC = {
     alos: () => lbandNames(state.lyr.alos.y),
     sarchange: () => ["sar_change", "sar_dratio"],
     nisarwet: () => ["nisar_wetdry"],
   };
+  const HIRES_ZOOM = 12; // from this zoom a 120 m cell is wider than about 4 screen pixels, so the sharp picture starts to show
+  const hiresWindow = () => hires.window || [0, 0, land.width, land.height];
+  function hiresWanted() { // fetch the sharp files only when they can be seen: zoomed in, with the window on screen
+    if (!map || map.getZoom() < HIRES_ZOOM) return false;
+    const [a, , c, , e, f] = land.transform3857, [wc, wr, ww, wh] = hiresWindow();
+    return map.getBounds().intersects(L.latLngBounds(mercToLatLng(c + wc * a, f + (wr + wh) * e), mercToLatLng(c + (wc + ww) * a, f + wr * e)));
+  }
+  const hiresFailed = new Set();
+  let busyN = 0;
+  const setBusy = (d) => { busyN = Math.max(0, busyN + d); const tl = $("#timeline"); if (tl) tl.classList.toggle("busy", busyN > 0); };
   function hiresArrays(k) {
     if (!hires || !HIRES_SRC[k]) return null;
     const names = HIRES_SRC[k]();
     if (!names.every((nm) => hires.layers.includes(nm))) return null;
     const arrs = names.map((nm) => L8[`hr_${nm}`]);
     if (arrs.every(Boolean)) return arrs;
-    Promise.all(names.map((nm) => loadGray(`hr_${nm}`))).then(redraw).catch(() => {}); // draw the coarse picture meanwhile
+    if (!hiresWanted() || names.some((nm) => hiresFailed.has(nm))) return null; // a file that failed once is not fetched on every redraw
+    // draw the 120 m picture meanwhile; the caption under the year pulses until the sharp one arrives
+    setBusy(1);
+    Promise.all(names.map((nm) => loadGray(`hr_${nm}`))).then(redraw)
+      .catch(() => names.forEach((nm) => hiresFailed.add(nm))).finally(() => setBusy(-1));
     return null;
   }
+  // after a pan or zoom: start loading the sharp picture if it became visible
+  const hiresPoke = () => {
+    if (hires && hiresWanted() && Object.keys(HIRES_SRC).some((k) => state.lyr[k].on && ready(k) &&
+      HIRES_SRC[k]().some((nm) => hires.layers.includes(nm) && !L8[`hr_${nm}`] && !hiresFailed.has(nm)))) redraw();
+  };
+  const rgba32 = (r, g, b, a) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0; // canvas memory is little-endian
+  // The whole grid is drawn on the fine canvas: 120 m cells as blocks, and inside the window the sharp pixels instead.
+  // Table lookups and one 32-bit write per pixel keep this near 30 ms; nothing is redrawn when nothing changed.
   function renderLandHi(k, arrs) {
-    const o = overlays[k], S = hires.scale, w = land.width, W2 = w * S, H2 = land.height * S, st = L8.study, s = state.lyr[k];
+    const o = overlays[k], S = hires.scale, w = land.width, h = land.height, W2 = w * S, H2 = h * S, st = L8.study, s = state.lyr[k];
+    const names = HIRES_SRC[k](), key = `${k}|${names.join()}|${s.min ?? ""}`;
+    if (o.hiKey === key && o.canvas.width === W2) return;
     if (o.canvas.width !== W2) { o.canvas.width = W2; o.canvas.height = H2; }
-    if (!o.imgHi) o.imgHi = o.ctx.createImageData(W2, H2);
-    const px = o.imgHi.data;
-    px.fill(0);
+    if (!o.imgHi) { o.imgHi = o.ctx.createImageData(W2, H2); o.hi32 = new Uint32Array(o.imgHi.data.buffer); }
+    const out = o.hi32, [wc, wr, ww, wh] = hiresWindow(), FW = ww * S;
+    const C0 = L8[names[0]], C1 = names[1] ? L8[names[1]] : null, F0 = arrs[0], F1 = arrs[1] || null;
+    let px2; // (first byte, second byte) -> packed colour, 0 = transparent; the same rule for coarse cells and sharp pixels
     if (k === "alos") {
-      const [co, cx] = arrs, sk = s.y === 2026 ? "nisar" : "alos";
-      for (let y = 0; y < H2; y++) {
-        const row = ((y / S) | 0) * w;
-        for (let x = 0; x < W2; x++) {
-          const i = y * W2 + x;
-          if (!co[i] || !cx[i] || !st[row + ((x / S) | 0)]) continue;
-          const c = radarRgb(sk, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
-          px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
-        }
-      }
+      const [c0, c1, x0, x1, r0, r1] = RGB_STRETCH[s.y === 2026 ? "nisar" : "alos"];
+      const sc = (v, a, b) => clamp(((v - a) / (b - a)) * 255, 0, 255) | 0;
+      const R = new Uint8Array(256), G = new Uint8Array(256), B = new Uint8Array(511);
+      for (let v = 1; v < 256; v++) { R[v] = sc(dbOf(v), c0, c1); G[v] = sc(dbOf(v), x0, x1); }
+      for (let d = -255; d <= 255; d++) B[d + 255] = sc(d / 6, r0, r1); // co minus cross in dB = (byte difference) / 6
+      px2 = (a, b) => (a && b ? ((235 << 24) | (B[a - b + 255] << 16) | (G[b] << 8) | R[a]) >>> 0 : 0);
     } else if (k === "sarchange") {
-      const [a, r] = arrs, wall = lutFor(RAMPS.up), soft = lutFor(RAMPS.upSoft), dn = lutFor(RAMPS.down), wd = sar.s1.wall_db || 1.5;
-      for (let y = 0; y < H2; y++) {
-        const row = ((y / S) | 0) * w;
-        for (let x = 0; x < W2; x++) {
-          const i = y * W2 + x;
-          if (!a[i] || !st[row + ((x / S) | 0)]) continue;
-          const d = changeOf(a[i]);
-          if (Math.abs(d) < s.min) continue;
-          const isWall = d > 0 && r[i] && changeOf(r[i]) >= wd;
-          const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d < 0 ? dn : isWall ? wall : soft, j = ((t * 255) | 0) * 3, q = i * 4;
-          px[q] = L[j]; px[q + 1] = L[j + 1]; px[q + 2] = L[j + 2]; px[q + 3] = (isWall ? 190 : 130) + t * 60;
-        }
+      const wall = lutFor(RAMPS.up), soft = lutFor(RAMPS.upSoft), dn = lutFor(RAMPS.down);
+      const dThr = Math.ceil(((sar.s1.wall_db || 1.5) + 10) * 12.75); // ratio byte from which the change is a wall (double bounce)
+      const lutW = new Uint32Array(256), lutS = new Uint32Array(256);
+      for (let v = 1; v < 256; v++) {
+        const d = changeOf(v);
+        if (Math.abs(d) < s.min) continue;
+        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), j = ((t * 255) | 0) * 3;
+        const col = (L, a) => rgba32(L[j], L[j + 1], L[j + 2], a | 0);
+        if (d < 0) lutW[v] = lutS[v] = col(dn, 130 + t * 60);
+        else { lutW[v] = col(wall, 190 + t * 60); lutS[v] = col(soft, 130 + t * 60); }
       }
-    } else if (k === "nisarwet") {
-      const [a] = arrs, wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown);
-      for (let y = 0; y < H2; y++) {
-        const row = ((y / S) | 0) * w;
-        for (let x = 0; x < W2; x++) {
-          const i = y * W2 + x;
-          if (!a[i] || !st[row + ((x / S) | 0)]) continue;
-          const d = changeOf(a[i]);
-          if (Math.abs(d) < s.min) continue;
-          const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3, q = i * 4;
-          px[q] = L[j]; px[q + 1] = L[j + 1]; px[q + 2] = L[j + 2]; px[q + 3] = 140 + t * 100;
+      px2 = (a, d) => (a ? (d >= dThr ? lutW : lutS)[a] : 0);
+    } else {
+      const wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown), lut = new Uint32Array(256);
+      for (let v = 1; v < 256; v++) {
+        const d = changeOf(v);
+        if (Math.abs(d) < s.min) continue;
+        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3;
+        lut[v] = rgba32(L[j], L[j + 1], L[j + 2], (140 + t * 100) | 0);
+      }
+      px2 = (a) => lut[a];
+    }
+    const row = new Uint32Array(W2);
+    for (let r = 0; r < h; r++) {
+      const cr = r * w, inWin = r >= wr && r < wr + wh;
+      for (let c = 0, x = 0; c < w; c++) { // one fine row of 120 m cells, each repeated S times
+        const i = cr + c, p = st[i] ? px2(C0[i], C1 ? C1[i] : 0) : 0;
+        for (let e = x + S; x < e; x++) row[x] = p;
+      }
+      for (let sy = 0; sy < S; sy++) {
+        const base = (r * S + sy) * W2;
+        out.set(row, base);
+        if (!inWin) continue;
+        const fb = ((r - wr) * S + sy) * FW; // sharp pixels replace the blocks inside the window
+        for (let c = wc; c < wc + ww; c++) {
+          if (!st[cr + c]) continue;
+          for (let fx = fb + (c - wc) * S, e = fx + S, x = base + c * S; fx < e; fx++, x++) out[x] = px2(F0[fx], F1 ? F1[fx] : 0);
         }
       }
     }
     o.ctx.putImageData(o.imgHi, 0, 0);
+    o.hiKey = key;
   }
 
   function renderLand(k) {
@@ -734,6 +773,7 @@
     if (hi) return renderLandHi(k, hi);
     const o = overlays[k], px = o.img.data, n = land.width * land.height, st = L8.study, s = state.lyr[k];
     if (o.canvas.width !== land.width) { o.canvas.width = land.width; o.canvas.height = land.height; }
+    o.hiKey = null;
     px.fill(0);
     const put = (i, c, a) => { const q = i * 4; px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = a; };
     if (k === "built") {
@@ -927,6 +967,7 @@
       $("#tl-pred").textContent = u.noRadarData; $("#tl-pred").style.left = `${rp(arch) + 1}%`;
       $("#tl-year").textContent = state.ryear;
       $("#tl-kind").textContent = state.ryear < 2026 ? u.tlKind.archive : u.tlKind[state.lens];
+      inp.setAttribute("aria-valuetext", `${state.ryear}, ${$("#tl-kind").textContent}`);
       $("#timeline").classList.remove("future");
       const ticks = innerWidth < 760 ? [a, arch] : ys.slice(0, -1).filter((y, i, arr) => i % 2 === 0 || i === arr.length - 1);
       $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}${y === state.ryear ? " now" : ""}" style="left:${rp(y)}%">${y}</span>`).join("") +
@@ -947,6 +988,7 @@
     $("#tl-pred").style.left = `${nowP}%`;
     $("#tl-year").textContent = state.year;
     $("#tl-kind").textContent = isFuture() ? u.modelForecast : u.fromMeasurements;
+    inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
     $("#timeline").classList.toggle("future", isFuture());
     const ticks = innerWidth < 760 ? [1975, 2000] : [1975, 1985, 1995, 2005, 2015];
     // keep "Today" and the end year apart on narrow tracks: shorten the label, then drop the end year
@@ -955,7 +997,7 @@
     $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}" style="left:${pos(y)}%">${y}</span>`).join("") +
       `<span class="now" role="button" tabindex="0" title="${u.today}" style="left:${nowP}%">${nowTxt}</span>${gap < 64 ? "" : `<span class="last" style="left:100%">${end}</span>`}`;
   }
-  let cardT = null, playing = false, playRaf = 0, playLast = 0, playTimer = 0;
+  let cardT = null, playing = false, playRaf = 0, playLast = 0, playTimer = 0, playTok = 0;
   function setYear(y, opts = {}) {
     state.yearF = clamp(y, TL_MIN, horizonEnd());
     const prev = state.year;
@@ -964,8 +1006,9 @@
     redraw();
     // the side card is heavier: refresh it once the year settles (or every whole year while playing)
     if (state.sel && state.sel.ready && (state.year !== prev || opts.now)) {
-      clearTimeout(cardT);
-      cardT = setTimeout(renderCard, playing ? 0 : 180);
+      const run = () => { cardT = null; if (state.sel && state.sel.ready) renderCard(); };
+      if (playing) { if (!cardT) cardT = setTimeout(run, 500); }
+      else { clearTimeout(cardT); cardT = setTimeout(run, 180); }
     }
   }
   const PLAY_SPEED = 7; // years per second: 1975 -> 2035 in about 9 s
@@ -980,12 +1023,13 @@
       let i = ys.indexOf(state.ryear);
       if (i >= ys.length - 1) i = -1;
       playing = true;
+      const my = ++playTok; // a chain left over from an earlier Play stops as soon as a newer one exists
       $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
       const tick = async () => {
-        if (!playing) return;
+        if (!playing || my !== playTok) return;
         i += 1;
         await setRYear(ys[i]);
-        if (!playing) return;
+        if (!playing || my !== playTok) return;
         if (i >= ys.length - 1) { stopPlay(); return; }
         playTimer = setTimeout(tick, 900);
       };
@@ -1029,6 +1073,7 @@
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
     if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
+    if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));
     if (L_.activity.on) blocks.push(`<div class="lt">${u.lg.activity}</div><div class="lrow"><span class="sw" style="background:${css("--c-terrain")}"></span>${u.lg.brighter}</div><div class="lrow"><span class="sw" style="background:#7A6FB0"></span>${u.lg.darker}</div>`);
     if (L_.dem.on) blocks.push(`<div class="lt">${u.lg.dem}</div>${ramp_(RAMPS.terrain, `${L_.dem.lo} m`, `${L_.dem.hi} m`)}`);
     if (L_.radar.on) blocks.push(`<div class="lt">${u.lg.radar(s1Year())}</div>${ramp_(RAMPS.radar, `${L_.radar.lo} dB`, `${L_.radar.hi} dB`)}`);
@@ -1080,22 +1125,52 @@
     if (k === "trees") setYear(2024); // forest loss up to the latest year
     renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
   }
-  // moving right picks the next year with data, moving left the previous one (keyboard arrows cross the 2022-2025 gap)
-  async function setRYear(y) {
+  // moving right picks the next year with data, moving left the previous one (keyboard arrows cross the 2022-2025 gap);
+  // a mouse or touch drag (nearest = true) snaps to the closest year with data, so the view does not flip while the handle crosses the gap
+  async function setRYear(y, nearest) {
     const ys = RY(), cur = state.ryear;
-    const next = y >= cur ? (ys.find((v) => v >= y) ?? ys[ys.length - 1]) : ([...ys].reverse().find((v) => v <= y) ?? ys[0]);
+    const next = nearest ? ys.reduce((best, v) => (Math.abs(v - y) < Math.abs(best - y) ? v : best), cur)
+      : y >= cur ? (ys.find((v) => v >= y) ?? ys[ys.length - 1]) : ([...ys].reverse().find((v) => v <= y) ?? ys[0]);
     if (next === cur) { renderTimeline(); return; }
     state.ryear = next;
     renderTimeline();
-    await applyLens();
+    setBusy(1); // the caption under the year pulses while that year's picture loads
+    try { await applyLens(); } finally { setBusy(-1); }
     if (!$("#drawer").hidden) renderDrawer();
     renderLegend(); redraw();
+  }
+  // Re-rendering with innerHTML destroys the focused control. keepFocus puts the focus back on the same control in the new markup,
+  // so keyboard users do not fall back to the top of the page after every button press.
+  const focusKey = (el) => {
+    if (!el || !el.dataset) return null;
+    if (el.id) return `#${el.id}`;
+    const hit = ["lens", "base", "hz", "toggle", "f", "v", "lang"].find((k) => el.dataset[k] != null);
+    if (hit) return `[data-${hit}="${el.dataset[hit]}"]`;
+    return el.dataset.id ? `[data-id="${el.dataset.id}"][data-end="${el.dataset.end}"]` : null;
+  };
+  function keepFocus(root, render) {
+    const a = document.activeElement, key = root && root.contains(a) ? focusKey(a) : null;
+    render();
+    if (key) { const n = root.querySelector(key); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+  }
+  // a view picked by hand ends the highlighted finding (the finding no longer describes what the map shows)
+  async function pickLens(k) {
+    const had = state.finding;
+    state.finding = null;
+    await setLens(k);
+    if (had && !state.sel) renderFindings();
   }
   function renderLenses() {
     const box = $("#lenses"), u = U();
     if (!box) return;
-    box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${LENS_SAR[l.k] === "no" ? "" : ` (${LENS_SAR[l.k] === "yes" ? u.sarYes : u.sarPart})`}">${LENS_SAR[l.k] === "no" ? "" : SAR_ICON(LENS_SAR[l.k] === "part")}${u.lens[l.k]}</button>`).join("");
-    box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => setLens(b.dataset.lens)));
+    keepFocus(box, () => {
+      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${LENS_SAR[l.k] === "no" ? "" : ` (${LENS_SAR[l.k] === "yes" ? u.sarYes : u.sarPart})`}">${LENS_SAR[l.k] === "no" ? "" : SAR_ICON(LENS_SAR[l.k] === "part")}${u.lens[l.k]}</button>`).join("");
+    });
+    box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickLens(b.dataset.lens)));
+    // narrow screens: the bar scrolls sideways; a fade on the right edge shows that more views follow
+    const more = () => box.classList.toggle("more", box.scrollWidth - box.scrollLeft - box.clientWidth > 4);
+    if (!box.dataset.wired) { box.dataset.wired = "1"; box.addEventListener("scroll", more, { passive: true }); window.addEventListener("resize", more); }
+    more();
   }
   function setExpert(on) {
     state.expert = on;
@@ -1131,7 +1206,7 @@
     const nis = NISAR_DATES.length ? `<div class="field"><div class="field-head"><span class="fl">${u.pass}</span><output>${NISAR_DATES[L_.nisar.i]}</output></div>${rangeHTML("nisar", 0, NISAR_DATES.length - 1, 1, L_.nisar.i)}</div>` : "";
     const field = (label, out, rng) => `<div class="field"><div class="field-head"><span class="fl">${label}</span><output>${out}</output></div>${rng}</div>`;
     const radarSecs = sar ? `
-      <details class="sec"><summary>${u.secRadar}</summary><div class="sec-body">
+      <details class="sec" data-sec="radar"><summary>${u.secRadar}</summary><div class="sec-body">
         ${layerRow("s1rgb")}
         ${layerRow("sarchange", field(u.minDb, `${num(L_.sarchange.min, 1)} dB`, rangeHTML("sch", 1, 8, 0.5, L_.sarchange.min)))}
         ${layerRow("sarwet")}
@@ -1139,29 +1214,29 @@
         ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
         ${layerRow("nisar", nis)}
       </div></details>
-      <details class="sec"><summary>${u.secGround}</summary><div class="sec-body">
+      <details class="sec" data-sec="ground"><summary>${u.secGround}</summary><div class="sec-body">
         ${layerRow("egms", field(u.minMove, `${L_.egms.min} mm/${u.yr}`, rangeHTML("seg", 1, 10, 1, L_.egms.min)))}
         ${layerRow("alos", field(u.alosYear, lbLabel(L_.alos.y), rangeHTML("aly", 0, LBAND_YEARS().length - 1, 1, Math.max(0, LBAND_YEARS().indexOf(L_.alos.y)))))}
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("activity", act)}
       </div></details>` : `
-      <details class="sec"><summary>${u.secSar}</summary><div class="sec-body">
+      <details class="sec" data-sec="sar"><summary>${u.secSar}</summary><div class="sec-body">
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}${layerRow("activity", act)}
       </div></details>`;
     const full = `
-      <details class="sec" open><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
+      <details class="sec" data-sec="history" open><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
         ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${layerRow("price")}
       </div></details>
       ${radarSecs}
-      <details class="sec" open><summary>${u.secPred}</summary><div class="sec-body">
+      <details class="sec" data-sec="pred" open><summary>${u.secPred}</summary><div class="sec-body">
         <div class="field"><div class="field-head"><span class="fl">${u.horizon}</span></div>
           <div class="seg" role="group"><button type="button" data-hz="5" aria-pressed="${state.horizon === 5}">${u.years5}</button><button type="button" data-hz="10" aria-pressed="${state.horizon === 10}">${u.years10}</button></div></div>
         <div class="field"><div class="field-head"><span class="fl">${u.minChance}</span><output>${state.minChance}%</output></div>${rangeHTML("chance", 1, 40, 1, state.minChance, null, "pred")}
           <div class="hint">${u.chanceHint(num(land.model.top_n_hit_rate * 100, 0), num(land.model.open_land_auc, 2))}</div></div>
       </div></details>
-      <details class="sec"><summary>${u.secNasa}</summary><div class="sec-body">
+      <details class="sec" data-sec="nasa"><summary>${u.secNasa}</summary><div class="sec-body">
         ${layerRow("night")}${layerRow("day")}${layerRow("ndvi")}${layerRow("nightyear")}
       </div></details>
-      <div class="checkrow"><span>${T().borders}</span><span class="switch"><input type="checkbox" id="borders" ${map.hasLayer(borderLayer) ? "checked" : ""}><span></span></span></div>`;
+      <div class="checkrow"><span>${T().borders}</span><span class="switch"><input type="checkbox" id="borders" aria-label="${T().borders}" ${map.hasLayer(borderLayer) ? "checked" : ""}><span></span></span></div>`;
     // v3: plain choices first (one map question at a time, background, expert switch); every layer and slider below
     const simpleTop = `
       <section class="simple-sec"><h3 class="sh">${u.showOnMap}</h3>
@@ -1169,9 +1244,16 @@
       <section class="simple-sec"><h3 class="sh">${u.baseT}</h3>
         <div class="basegrid">${["map", "orto", "poz2025", "poz1940"].map((k) => `<button type="button" data-base="${k}" aria-pressed="${state.base === k}">${T().B[k] || u.baseMap}</button>`).join("")}</div></section>
       <div class="checkrow expert-row"><label for="expert-sw"><b>${u.expertT}</b><small>${u.expertSub}</small></label><span class="switch"><input type="checkbox" id="expert-sw" ${state.expert ? "checked" : ""}><span></span></span></div>`;
-    $("#drawer-body").innerHTML = simpleTop +
-      (state.expert ? full : `<details class="sec adv"><summary>${u.allLayers}</summary><div class="sec-body">${full}</div></details>`) +
-      `<details class="sec link" id="sources-link"><summary>${u.sourcesT}</summary></details>`;
+    // a re-render (language, view, year, expert mode) keeps the sections the user opened, the scroll position and the focus
+    const body = $("#drawer-body"), keep = {}, top = body.scrollTop;
+    body.querySelectorAll("details[data-sec]").forEach((d) => { keep[d.dataset.sec] = d.open; });
+    keepFocus(body, () => {
+      body.innerHTML = simpleTop +
+        (state.expert ? full : `<details class="sec adv" data-sec="adv"><summary>${u.allLayers}</summary><div class="sec-body">${full}</div></details>`) +
+        `<details class="sec link" id="sources-link"><summary>${u.sourcesT}</summary></details>`;
+      body.querySelectorAll("details[data-sec]").forEach((d) => { if (d.dataset.sec in keep) d.open = keep[d.dataset.sec]; });
+    });
+    body.scrollTop = top;
     $("#drawer-foot").textContent = u.footer;
     wireDrawer();
   }
@@ -1180,7 +1262,13 @@
     const min = +ins[0].min, max = +ins[0].max, p = (v) => ((v - min) / (max - min)) * 100;
     if (ins.length === 2) {
       let lo = +ins[0].value, hi = +ins[1].value;
-      if (lo > hi) { if (el === ins[0]) { lo = hi; ins[0].value = lo; } else { hi = lo; ins[1].value = hi; } }
+      const step = +ins[0].step || 1;
+      // keep one step between the handles: when they met, the upper one covered the lower and neither could be dragged apart
+      if (lo > hi - step) {
+        if (el === ins[0]) lo = Math.max(min, hi - step); else hi = Math.min(max, lo + step);
+        if (lo > hi - step) { lo = hi - step; }
+        ins[0].value = lo; ins[1].value = hi;
+      }
       fill.style.left = `${p(lo)}%`; fill.style.width = `${p(hi) - p(lo)}%`;
       return [lo, hi];
     }
@@ -1201,6 +1289,12 @@
       body.querySelectorAll(".lens-item").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === state.lens)));
       redraw();
     }));
+    body.querySelectorAll(".rng input").forEach((inp) => { // accessible name = the visible label (plus the layer name for opacity)
+      const fl = inp.closest(".field") && inp.closest(".field").querySelector(".fl"), id = inp.dataset.id;
+      const name = `${id.startsWith("op-") ? `${u.L[id.slice(3)]}: ` : ""}${fl ? fl.textContent.trim() : ""}`;
+      const two = inp.parentElement.querySelectorAll("input").length === 2;
+      inp.setAttribute("aria-label", two ? `${name} (${inp.dataset.end === "lo" ? "min" : "max"})` : name);
+    });
     body.querySelectorAll(".rng input").forEach((inp) => inp.addEventListener("input", () => {
       const vals = syncRange(inp), id = inp.dataset.id, out = inp.closest(".field").querySelector("output");
       if (id.startsWith("op-")) { const k = id.slice(3); state.lyr[k].op = vals[0] / 100; out.textContent = `${vals[0]}%`; }
@@ -1226,7 +1320,7 @@
       setBase(b.dataset.base);
       body.querySelectorAll("[data-base]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     }));
-    body.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => setLens(b.dataset.lens)));
+    body.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickLens(b.dataset.lens)));
     const ex = $("#expert-sw");
     if (ex) ex.addEventListener("change", () => setExpert(ex.checked));
     const bd = $("#borders");
@@ -1237,16 +1331,20 @@
     $("#sources-link").addEventListener("click", (e) => { e.preventDefault(); $("#about-sheet").showModal(); });
   }
   function openDrawer(open) {
+    const was = !$("#drawer").hidden, inside = $("#drawer").contains(document.activeElement);
     $("#drawer").hidden = !open;
     document.body.classList.toggle("drawer-open", open);
     $("#menu-btn").setAttribute("aria-expanded", String(open));
+    // keyboard: the focus moves into the drawer when it opens and returns to the menu button when it closes
+    if (open && !was) $("#drawer-close").focus({ preventScroll: true });
+    else if (!open && was && (inside || document.activeElement === document.body)) $("#menu-btn").focus({ preventScroll: true });
     setTimeout(() => map.invalidateSize(), 50);
   }
 
   /* ================= hover ================= */
   function onHover(e) {
     const tip = $("#hovertip");
-    if (draw.mode) { tip.hidden = true; return; }
+    if (draw.mode || matchMedia("(hover: none)").matches) { tip.hidden = true; return; }
     const { lat, lng } = e.latlng, f = areaAt(lat, lng);
     if (!f) { tip.hidden = true; return; }
     const lines = [], u = U(), c = land && landCell(lat, lng);
@@ -1344,6 +1442,7 @@
   const drawHint = (txt) => { $("#drawhint").hidden = !txt; $("#drawhint-text").textContent = txt || ""; };
   function startDraw(mode) {
     stopDraw();
+    clearTimeout(draw.hintT);
     draw.mode = mode; draw.pts = [];
     $("#tool-free").setAttribute("aria-pressed", String(mode === "free"));
     $("#tool-poly").setAttribute("aria-pressed", String(mode === "poly"));
@@ -1395,12 +1494,26 @@
     let a = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += (p[j].x + p[i].x) * (p[j].y - p[i].y);
     return Math.abs(a / 2);
   }
+  function hullAreaPx(latlngs) { // area of the convex hull in screen pixels (monotone chain)
+    const p = latlngs.map((ll) => map.latLngToContainerPoint(ll)).sort((a, b) => a.x - b.x || a.y - b.y);
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const half = (pts) => { const hl = []; for (const q of pts) { while (hl.length >= 2 && cross(hl[hl.length - 2], hl[hl.length - 1], q) <= 0) hl.pop(); hl.push(q); } hl.pop(); return hl; };
+    const hl = [...half(p), ...half([...p].reverse())];
+    let a = 0; for (let i = 0, j = hl.length - 1; i < hl.length; j = i++) a += (hl[j].x + hl[i].x) * (hl[j].y - hl[i].y);
+    return Math.abs(a / 2);
+  }
   function finishDraw() {
     let pts = draw.pts.slice();
     if (draw.mode === "free") pts = simplify(pts, 2);
     stopDraw();
     draw.suppressUntil = performance.now() + 450; // swallow the click that follows the last pointer-up
-    if (pts.length < 3 || areaPx(pts) < 150) { drawHint(U().drawTooSmall); setTimeout(() => drawHint(""), 2200); return; }
+    // a figure-eight has a signed area near zero, so its convex hull decides too (a big crossed shape is not "too small")
+    if (pts.length < 3 || Math.max(areaPx(pts), hullAreaPx(pts) / 4) < 150) {
+      drawHint(U().drawTooSmall);
+      clearTimeout(draw.hintT);
+      draw.hintT = setTimeout(() => { if (!draw.mode) drawHint(""); }, 2200); // never wipes the hint of a drawing started meanwhile
+      return;
+    }
     selectArea(pts);
   }
   const nearFirst = (pt) => draw.pts.length >= 3 && map.latLngToContainerPoint(draw.pts[0]).distanceTo(pt) < 14;
@@ -1454,9 +1567,12 @@
       if (!draw.mode) return;
       if (e.key === "Escape") stopDraw();
       else if (e.key === "Enter" && draw.mode === "poly" && draw.pts.length >= 3) { e.preventDefault(); finishDraw(); }
-      else if (e.key === "Backspace" && draw.mode === "poly" && draw.pts.length && document.activeElement === document.body) {
+      // a click on the map leaves the focus on the map, so only typing in a text field keeps Backspace for itself
+      else if (e.key === "Backspace" && draw.mode === "poly" && draw.pts.length && !e.target.closest("input, textarea, select, [contenteditable]")) {
         e.preventDefault(); draw.pts.pop(); updateShape(draw.pts.length > 2); redrawVertices(false);
         if (draw.guide && !draw.pts.length) { map.removeLayer(draw.guide); draw.guide = null; }
+        else if (draw.guide) draw.guide.setLatLngs([draw.pts[draw.pts.length - 1], draw.guide.getLatLngs()[1]]);
+        drawHint(draw.pts.length < 3 ? U().hintPoly : U().hintPolyClose);
       }
     });
   }
@@ -1465,11 +1581,14 @@
   const PLACE_LAYERS = () => [...builtNames(), "prob_2025", "prob_2030", "prob_2035", "study", "forest_loss", "forest2000_frac", "loss_frac",
     "loss_cum_2005", "loss_cum_2010", "loss_cum_2015", "loss_cum_2020", "dem", "s1_2017", "s1_2024", ...SAR_PLACE()];
   function clearSelection() {
+    if (state.sel && state.sel.label && $("#q").value === state.sel.label) $("#q").value = ""; // the search box no longer names a place that is not selected
+    const had = !!state.sel;
     state.sel = null;
     selLayer.clearLayers();
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
     $("#tool-clear").disabled = true;
     renderCard();
+    if (had) $("#sidecard").scrollTop = findingsTop;
   }
   function cellsInRing(ringLatLng) {
     let a0 = 90, a1 = -90, o0 = 180, o1 = -180;
@@ -1502,7 +1621,7 @@
     const ring = circleRing(lat, lng, 1);
     selLayer.clearLayers();
     selOutline(ring, true);
-    pinMarker = L.marker([lat, lng], { pane: "sel", icon: L.divIcon({ className: "", html: '<div class="pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(selLayer);
+    pinMarker = L.marker([lat, lng], { pane: "sel", icon: L.divIcon({ className: "", html: '<div class="pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false, interactive: false }).addTo(selLayer);
     $("#tool-clear").disabled = false;
     const sq = cellAt(gL, lat, lng);
     state.sel = { kind: "point", lat, lng, ring, label: label || null, area: f ? f.properties.name : null, sq: sq >= 0 ? [sq] : [], ready: false };
@@ -1687,9 +1806,14 @@
   }
 
   /* ================= side card ================= */
+  let findingsTop = 0; // scroll position of the findings list, restored when the selection is cleared
   function renderCardLoading() {
-    $("#sidecard").classList.remove("min");
+    const box = $("#sidecard");
+    if (box.querySelector(".findings")) findingsTop = box.scrollTop;
+    box.classList.remove("min");
+    state.techOpen = false; // a new place opens with the plain check-up
     const sel = state.sel, u = U();
+    box.scrollTop = 0; // otherwise the new card opens where the previous one was scrolled, with its title out of view
     $("#sidecard").innerHTML = `<h2>${esc(sel.label || (sel.kind === "area" ? u.selectedArea : u.selectedPlace))}</h2><p class="sub">${sel.failed ? u.loadFail : u.loading}</p>` +
       (sel.failed ? `<button type="button" class="linkish" id="retry-sel">${u.retry}</button>` : "");
     if (sel.failed) $("#retry-sel").addEventListener("click", () => finishSelection(sel));
@@ -1751,7 +1875,9 @@
     const more = moreHTML(sel);
     const moreOpen = !!(card.querySelector("details.more") || {}).open; // keep "More data" open while the year changes
     // v3: plain check-up first; every technical number (dB, statistics, model score, history) behind one disclosure
-    const techOpen = state.expert || !!(card.querySelector("details.tech") || {}).open;
+    const techOpen = state.expert || !!state.techOpen;
+    const wasOpen = new Set([...card.querySelectorAll("details[open]")].map((d) => d.className).filter((c) => c && c !== "tech"));
+    const focused = card.contains(document.activeElement) ? focusKey(document.activeElement) : null;
     card.innerHTML = `<div class="collapse-head"><h2>${title}</h2></div>
       <p class="sub">${sub}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
       ${plainHTML(sel)}
@@ -1773,6 +1899,9 @@
       </details>
       <p class="foot"><button type="button" class="linkish" id="clear-sel">${u.clear}</button></p>`;
     if (moreOpen && card.querySelector("details.more")) card.querySelector("details.more").open = true;
+    card.querySelectorAll("details").forEach((d) => { if (wasOpen.has(d.className)) d.open = true; });
+    card.querySelector("details.tech").addEventListener("toggle", (e) => { if (!state.expert) state.techOpen = e.target.open; });
+    if (focused) { const n = card.querySelector(focused); if (n) n.focus({ preventScroll: true }); }
     // open the dialog first, so the chart measures its real width (on phones it would otherwise draw at 680 px)
     $("#open-test").addEventListener("click", () => { $("#test-sheet").showModal(); renderTest(); });
     $("#clear-sel").addEventListener("click", clearSelection);
@@ -2049,13 +2178,19 @@
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
+    const focused = card.contains(document.activeElement) ? focusKey(document.activeElement) : null;
     card.innerHTML = `<div class="collapse-head"><h2>${t.caseTitle}</h2>
-        <button type="button" class="linkish" id="fold">${state.findingsOpen ? u.hide : u.show}</button></div>
+        <button type="button" class="linkish" id="fold" aria-expanded="${state.findingsOpen}">${state.findingsOpen ? u.hide : u.show}</button></div>
       <p class="sub">${u.caseIntro}</p>
       ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
       <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
-    $("#fold").addEventListener("click", () => { state.findingsOpen = !state.findingsOpen; renderFindings(); });
+    if (focused) { const n = card.querySelector(focused); if (n) n.focus({ preventScroll: true }); }
+    $("#fold").addEventListener("click", () => {
+      state.findingsOpen = !state.findingsOpen;
+      try { localStorage.setItem("ptd-fold", state.findingsOpen ? "open" : "closed"); } catch (e) { /* ignore */ }
+      renderFindings();
+    });
     card.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", async () => {
       state.finding = b.dataset.f;
       state.ryear = 2026; // findings show the current radar data
@@ -2114,8 +2249,18 @@
     if (sel.sq.length) vars.push(["night", tp.night, "°C", 2, RAMPS.warm[2]], ["day", tp.day, "°C", 2, RAMPS.warm[2]], ["ndvi", tp.ndvi, "NDVI", 3, RAMPS.green[2]]);
     vars.push(["price", u.rowPrice, "zł/m²", 0, css("--c-price")]);
     if (!vars.some((v) => v[0] === state.testVar)) state.testVar = "built";
-    $("#vartabs").innerHTML = vars.map(([k, l]) => `<button type="button" role="tab" data-v="${k}" aria-selected="${state.testVar === k}">${l}</button>`).join("");
-    $("#vartabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { state.testVar = b.dataset.v; renderTest(); }));
+    const tabs = $("#vartabs"), hadFocus = tabs.contains(document.activeElement);
+    tabs.innerHTML = vars.map(([k, l]) => `<button type="button" role="tab" data-v="${k}" aria-selected="${state.testVar === k}" tabindex="${state.testVar === k ? 0 : -1}">${l}</button>`).join("");
+    if (hadFocus) tabs.querySelector('[aria-selected="true"]').focus({ preventScroll: true });
+    tabs.querySelectorAll("button").forEach((b, i, all) => {
+      b.addEventListener("click", () => { state.testVar = b.dataset.v; renderTest(); });
+      b.addEventListener("keydown", (e) => {
+        const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: all.length - 1 }[e.key];
+        if (to == null) return;
+        e.preventDefault(); b.focus(); // keeps the focus inside the tab list for the re-render
+        state.testVar = all[(to + all.length) % all.length].dataset.v; renderTest();
+      });
+    });
     const [, label, unit, d, colour] = vars.find((v) => v[0] === state.testVar);
     let years, vals;
     if (state.testVar === "built") { years = land.epochs; vals = builtSeriesAll(sel.cells).slice(0, land.epochs.length); }
@@ -2139,11 +2284,12 @@
   }
 
   /* ================= search ================= */
-  let searchT = null, results = [], active = -1;
+  let searchT = null, results = [], active = -1, searchNote = ""; // searchNote: one line shown when there is nothing to pick
   const VIEWBOX = "16.42,52.71,17.45,52.12";
   async function geocode(q) {
     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=pl&viewbox=${VIEWBOX}&bounded=1&accept-language=${lang}&q=${encodeURIComponent(q)}`);
-    return r.ok ? r.json() : [];
+    if (!r.ok) throw new Error("HTTP " + r.status); // 429 or a failure is not the same as "nothing found"
+    return r.json();
   }
   async function reverseGeocode(lat, lng) {
     const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -2167,33 +2313,55 @@
     return { main, sub: [a.suburb, a.city || a.town || a.village || a.municipality || ""].filter(Boolean).join(", ") };
   }
   function renderSuggest() {
-    const ul = $("#suggest");
-    if (!results.length) { ul.hidden = true; return; }
-    ul.innerHTML = results.map((r, k) => { const n = shortName(r); return `<li role="option" data-k="${k}" aria-selected="${k === active}">${esc(n.main)}<small>${esc(n.sub)}</small></li>`; }).join("");
+    const ul = $("#suggest"), q = $("#q");
+    const open = results.length > 0 || !!searchNote;
+    q.setAttribute("aria-expanded", String(open));
+    if (active >= 0 && results.length) q.setAttribute("aria-activedescendant", `sg-${active}`); else q.removeAttribute("aria-activedescendant");
+    if (!open) { ul.hidden = true; return; }
+    // nothing to pick: say so in one row instead of staying silent (no result, or the address service is down)
+    ul.innerHTML = results.length
+      ? results.map((r, k) => { const n = shortName(r); return `<li role="option" id="sg-${k}" data-k="${k}" aria-selected="${k === active}">${esc(n.main)}<small>${esc(n.sub)}</small></li>`; }).join("")
+      : `<li class="none" role="option" aria-disabled="true" aria-selected="false">${esc(searchNote)}</li>`;
     ul.hidden = false;
-    ul.querySelectorAll("li").forEach((li) => li.addEventListener("mousedown", (e) => { e.preventDefault(); pickResult(+li.dataset.k); }));
+    ul.querySelectorAll("li[data-k]").forEach((li) => li.addEventListener("mousedown", (e) => { e.preventDefault(); pickResult(+li.dataset.k); }));
+    const cur = ul.querySelector('[aria-selected="true"]');
+    if (cur) cur.scrollIntoView({ block: "nearest" });
   }
+  const closeSuggest = () => { results = []; searchNote = ""; active = -1; renderSuggest(); };
   function pickResult(k) {
     const r = results[k]; if (!r) return;
     const n = shortName(r), label = n.main + (n.sub ? `, ${n.sub}` : "");
-    $("#q").value = label; results = []; renderSuggest();
+    $("#q").value = label; closeSuggest();
     selectPoint(+r.lat, +r.lon, label, { zoom: 14 });
   }
   function initSearch() {
     const q = $("#q");
+    // the box and its list are one combobox for assistive technology
+    q.setAttribute("role", "combobox"); q.setAttribute("aria-autocomplete", "list"); q.setAttribute("aria-controls", "suggest"); q.setAttribute("aria-expanded", "false");
     q.addEventListener("input", () => {
       clearTimeout(searchT);
       const v = q.value.trim();
-      if (v.length < 3) { results = []; renderSuggest(); return; }
-      searchT = setTimeout(async () => { try { results = await geocode(v); } catch (e) { results = []; } active = -1; renderSuggest(); }, 450);
+      if (v.length < 3) { closeSuggest(); return; }
+      searchT = setTimeout(async () => {
+        let found = [], note = "";
+        try { found = await geocode(v); } catch (e) { note = U().searchFail; }
+        // an answer that arrives after the text changed, or after the box lost focus, must not reopen the list
+        if (q.value.trim() !== v || document.activeElement !== q) return;
+        // the same street often comes back several times (one row per segment): show each name once
+        const seen = new Set();
+        results = found.filter((r) => { const n = shortName(r), k = `${n.main}|${n.sub}`; if (seen.has(k)) return false; seen.add(k); return true; });
+        searchNote = results.length ? "" : (note || U().searchNone);
+        active = -1; renderSuggest();
+      }, 450);
     });
     q.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") { active = Math.min(results.length - 1, active + 1); renderSuggest(); e.preventDefault(); }
       else if (e.key === "ArrowUp") { active = Math.max(0, active - 1); renderSuggest(); e.preventDefault(); }
       else if (e.key === "Enter") { if (results.length) pickResult(active < 0 ? 0 : active); e.preventDefault(); }
-      else if (e.key === "Escape") { results = []; renderSuggest(); }
+      // Escape closes the list and keeps what was typed (a second Escape clears the box, as usual for a search field)
+      else if (e.key === "Escape" && !$("#suggest").hidden) { e.preventDefault(); clearTimeout(searchT); closeSuggest(); }
     });
-    q.addEventListener("blur", () => setTimeout(() => { results = []; renderSuggest(); }, 150));
+    q.addEventListener("blur", () => setTimeout(closeSuggest, 150));
   }
 
   /* ================= i18n & wiring ================= */
@@ -2224,7 +2392,24 @@
     $("#drawer-close").addEventListener("click", () => openDrawer(false));
     $("#zoom-in").addEventListener("click", () => map.zoomIn());
     $("#zoom-out").addEventListener("click", () => map.zoomOut());
-    $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value); else setYear(+e.target.value); });
+    // the zoom buttons show when the limit is reached
+    const zoomState = () => { $("#zoom-in").disabled = map.getZoom() >= map.getMaxZoom(); $("#zoom-out").disabled = map.getZoom() <= map.getMinZoom(); };
+    map.on("zoomend", zoomState); zoomState();
+    map.on("moveend", hiresPoke); // the sharp radar picture is fetched once the map is zoomed in on the city
+    // a pointer drag snaps to the nearest radar year; arrow keys step to the next year with data
+    let yearDrag = false;
+    $("#year").addEventListener("pointerdown", () => { yearDrag = true; });
+    ["pointerup", "pointercancel", "blur"].forEach((ev) => window.addEventListener(ev, () => { yearDrag = false; }));
+    $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value, yearDrag); else setYear(+e.target.value); });
+    // history time line: the slider moves in tenths of a year for a smooth drag, but a key press should change the year shown
+    $("#year").addEventListener("keydown", (e) => {
+      if (radarTL()) return;
+      const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 5, PageDown: -5 }[e.key];
+      if (!d) return;
+      e.preventDefault(); stopPlay();
+      const y = clamp(Math.round(state.yearF) + d, TL_MIN, horizonEnd());
+      e.target.value = y; setYear(y, { now: true });
+    });
     $("#year").addEventListener("change", (e) => {
       if (radarTL()) e.target.value = state.ryear; // the input event already moved to the year with data
       else setYear(+e.target.value, { now: true });
@@ -2244,6 +2429,27 @@
     $("#radar-btn").addEventListener("click", () => $("#radar-sheet").showModal());
     $("#radar-close").addEventListener("click", () => $("#radar-sheet").close());
     document.addEventListener("click", (e) => { if (e.target.closest("[data-radar-how]")) { e.preventDefault(); $("#radar-sheet").showModal(); } });
+    // a click on the dimmed backdrop closes a dialog (the click lands on the <dialog> itself, outside its box)
+    document.querySelectorAll("dialog.sheet").forEach((d) => d.addEventListener("click", (e) => {
+      if (e.target !== d) return;
+      const r = d.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+    }));
+    // Escape closes the settings drawer (dialogs, drawing and the search list handle their own Escape first)
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || draw.mode || $("#drawer").hidden) return;
+      if (document.querySelector("dialog[open]") || (e.target.id === "q" && !$("#suggest").hidden)) return;
+      openDrawer(false);
+    });
+    // map credits open in a new tab instead of replacing the app
+    document.addEventListener("click", (e) => { const a = e.target.closest(".leaflet-control-attribution a"); if (a) { a.target = "_blank"; a.rel = "noopener"; } }, true);
+    // a pasted or edited #lat,lng in an open tab selects that place
+    window.addEventListener("hashchange", () => {
+      const m = location.hash.match(/^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+      if (!m) return;
+      const same = state.sel && state.sel.kind === "point" && state.sel.lat.toFixed(5) === (+m[1]).toFixed(5) && state.sel.lng.toFixed(5) === (+m[2]).toFixed(5);
+      if (!same) selectPoint(+m[1], +m[2], null, { zoom: 14 });
+    });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { redraw(); renderTimeline(); });
     window.addEventListener("resize", () => { map.invalidateSize(); renderTimeline(); });
   }
