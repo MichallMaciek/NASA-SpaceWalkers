@@ -509,7 +509,8 @@
   /* ---- base map: OpenFreeMap vector tiles, recoloured to the prototype palette; labels drawn above the data ---- */
   let styleJSON = null, themeTok = 0;
   async function makeVectorBase() {
-    if (!styleJSON) styleJSON = await fetch("https://tiles.openfreemap.org/styles/positron").then((r) => r.json());
+    if (!styleJSON) styleJSON = await Promise.race([fetch("https://tiles.openfreemap.org/styles/positron").then((r) => r.json()),
+      new Promise((_, no) => setTimeout(() => no(new Error("OpenFreeMap style timeout")), 4000))]); // a failure is not cached
     const style = JSON.parse(JSON.stringify(styleJSON)); // each theme recolours its own copy
     const dk = dark();
     const C = dk
@@ -814,9 +815,11 @@
       if (state.lyr.flood.on) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
       if (state.lyr.price.on) { renderChoro(); if (!map.hasLayer(choroLayer)) choroLayer.addTo(map); } else if (map.hasLayer(choroLayer)) map.removeLayer(choroLayer);
       if (state.lyr.nisar.on && NISAR_DATES.length) {
-        nisarLayer.setUrl(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/NISAR_L2_Geocoded_Polarimetric_Covariance/default/${NISAR_DATES[state.lyr.nisar.i]}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`, true);
+        const url = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/NISAR_L2_Geocoded_Polarimetric_Covariance/default/${NISAR_DATES[state.lyr.nisar.i]}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`;
+        const fresh = nisarLayer._url !== url; // GIBS sends no-store: redrawing re-downloads every tile
+        if (fresh) nisarLayer.setUrl(url, true);
         nisarLayer.setOpacity(state.lyr.nisar.op);
-        if (!map.hasLayer(nisarLayer)) nisarLayer.addTo(map); else nisarLayer.redraw();
+        if (!map.hasLayer(nisarLayer)) nisarLayer.addTo(map); else if (fresh) nisarLayer.redraw();
       } else if (map.hasLayer(nisarLayer)) map.removeLayer(nisarLayer);
       if (wuiaLayer) {
         if (state.lyr.wuia.on) { wuiaLayer.setStyle({ fillOpacity: state.lyr.wuia.op }); if (!map.hasLayer(wuiaLayer)) wuiaLayer.addTo(map); }
@@ -1118,7 +1121,7 @@
       cb.closest(".lyr").classList.toggle("off", !cb.checked);
       if (cb.checked) await ensure(k);
       // a lens stays highlighted only while the map shows exactly its layers
-      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => state.lyr[key].on === lensLayers(l).includes(key)));
+      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => ["wuia", "flood", "nisar"].includes(key) || state.lyr[key].on === lensLayers(l).includes(key)));
       state.lens = match ? match.k : null;
       renderLenses(); renderTimeline();
       body.querySelectorAll(".lens-item").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === state.lens)));
@@ -1135,7 +1138,7 @@
       else if (id === "sch") { state.lyr.sarchange.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       else if (id === "swa") { state.lyr.sarwater.min = vals[0]; out.textContent = `${vals[0]}%`; }
       else if (id === "seg") { state.lyr.egms.min = vals[0]; out.textContent = `${vals[0]} mm/${u.yr}`; }
-      else if (id === "aly") { state.lyr.alos.y = LBAND_YEARS()[vals[0]]; out.textContent = lbLabel(state.lyr.alos.y); if (state.lyr.alos.on) { ensure("alos").then(redraw); return; } }
+      else if (id === "aly") { state.lyr.alos.y = LBAND_YEARS()[vals[0]]; out.textContent = lbLabel(state.lyr.alos.y); if (radarTL()) { state.ryear = state.lyr.alos.y; renderTimeline(); } if (state.lyr.alos.on) { ensure("alos").then(redraw); return; } }
       else if (id === "nwm") { state.lyr.nisarwet.min = vals[0]; out.textContent = `${num(vals[0], 1)} dB`; }
       redraw();
     }));
@@ -1188,24 +1191,25 @@
         const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
         if (a && b) {
           const vv = dbOf(a);
-          const type = vv > -6.5 ? (state.lang === "pl" ? "Teren zabudowany" : "Built-up")
-                     : vv > -11 ? (state.lang === "pl" ? "Roślinność / otwarty teren" : "Vegetation / open land")
-                     : (state.lang === "pl" ? "Woda / gładka nawierzchnia" : "Water / smooth surface");
-          lines.push(`${tag}: ${type} (${num(vv, 1)} dB)`);
+          // the class bounds are C-band VV values; for L-band HH/HV show the dB value only (forest is as bright as buildings there)
+          const type = tag === "HH/HV" ? null : vv > -6.5 ? (lang === "pl" ? "Teren zabudowany" : "Built-up")
+                     : vv > -11 ? (lang === "pl" ? "Roślinność / otwarty teren" : "Vegetation / open land")
+                     : (lang === "pl" ? "Woda / gładka nawierzchnia" : "Water / smooth surface");
+          lines.push(type ? `${tag}: ${type} (${num(vv, 1)} dB)` : `${tag}: ${num(vv, 1)} dB`);
         }
       }
       if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) {
         const ch = changeOf(L8.sar_change[c.i]);
-        const chT = ch >= 3 ? (state.lang === "pl" ? "Nowa ściana / budowa" : "New building / wall")
-                  : ch <= -3 ? (state.lang === "pl" ? "Wycinka / rozbiórka" : "Clearing / demolition")
-                  : (state.lang === "pl" ? "Stabilne odbicie" : "Stable");
+        const chT = ch >= 3 ? (lang === "pl" ? "Nowa ściana / budowa" : "New building / wall")
+                  : ch <= -3 ? (lang === "pl" ? "Wycinka / rozbiórka" : "Clearing / demolition")
+                  : (lang === "pl" ? "Stabilne odbicie" : "Stable");
         lines.push(`${u.L.sarchange}: ${chT} (${sgn(ch, 1)} dB)`);
       }
       if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) {
         const nw = changeOf(L8.nisar_wetdry[c.i]);
-        const nwT = nw >= 2 ? (state.lang === "pl" ? "Mocno nasiąka wodą" : "Heavy water soaking")
-                  : nw <= -2 ? (state.lang === "pl" ? "Wysycha" : "Drying")
-                  : (state.lang === "pl" ? "Umiarkowana wilgotność" : "Moderate moisture");
+        const nwT = nw >= 2 ? (lang === "pl" ? "Mocno nasiąka wodą" : "Heavy water soaking")
+                  : nw <= -2 ? (lang === "pl" ? "Wysycha" : "Drying")
+                  : (lang === "pl" ? "Umiarkowana wilgotność" : "Moderate moisture");
         lines.push(`${u.L.nisarwet}: ${nwT} (${sgn(nw, 1)} dB)`);
       }
       if (Ly.sarwet.on && ready("sarwet") && L8.sar_wet[c.i]) lines.push(`${u.L.sarwet}: r = ${num(wetOf(L8.sar_wet[c.i]), 2)}`);
@@ -1213,9 +1217,9 @@
       if (Ly.egms.on && ready("egms")) {
         if (L8.sar_egms[c.i]) {
           const eg = egmsOf(L8.sar_egms[c.i]);
-          const egT = eg <= -3 ? (state.lang === "pl" ? "Osiadanie terenu" : "Subsidence")
-                    : eg >= 3 ? (state.lang === "pl" ? "Wypiętrzanie" : "Uplift")
-                    : (state.lang === "pl" ? "Grunt stabilny" : "Stable");
+          const egT = eg <= -3 ? (lang === "pl" ? "Osiadanie terenu" : "Subsidence")
+                    : eg >= 3 ? (lang === "pl" ? "Wypiętrzanie" : "Uplift")
+                    : (lang === "pl" ? "Grunt stabilny" : "Stable");
           lines.push(`${u.L.egms}: ${egT} (${sgn(eg, 0)} mm/${u.yr})`);
         } else {
           lines.push(`${u.L.egms}: ${u.noPoints}`);
@@ -1451,8 +1455,10 @@
     await finishSelection(state.sel);
   }
   async function finishSelection(sel) {
+    sel.failed = false;
     renderCardLoading();
-    try { await Promise.all(PLACE_LAYERS().map(loadGray)); } catch (e) { console.error(e); return; }
+    // a layer failed (flaky network, missing file): renderCardLoading then says so and offers a retry
+    try { await Promise.all(PLACE_LAYERS().map(loadGray)); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
     if (state.sel !== sel) return;
     if (!rankPool.risk) prepareRiskPool();
     sel.cells = cellsInRing(sel.ring).filter((i) => L8.study[i]);
@@ -1609,7 +1615,10 @@
   /* ================= side card ================= */
   function renderCardLoading() {
     $("#sidecard").classList.remove("min");
-    $("#sidecard").innerHTML = `<h2>${esc(state.sel.label || (state.sel.kind === "area" ? U().selectedArea : U().selectedPlace))}</h2><p class="sub">${U().loading}</p>`;
+    const sel = state.sel, u = U();
+    $("#sidecard").innerHTML = `<h2>${esc(sel.label || (sel.kind === "area" ? u.selectedArea : u.selectedPlace))}</h2><p class="sub">${sel.failed ? u.loadFail : u.loading}</p>` +
+      (sel.failed ? `<button type="button" class="linkish" id="retry-sel">${u.retry}</button>` : "");
+    if (sel.failed) $("#retry-sel").addEventListener("click", () => finishSelection(sel));
   }
   function renderCard() {
     const card = $("#sidecard");
@@ -2142,7 +2151,7 @@
     $("#zoom-out").addEventListener("click", () => map.zoomOut());
     $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value); else setYear(+e.target.value); });
     $("#year").addEventListener("change", (e) => {
-      if (radarTL()) setRYear(+e.target.value).then(() => { e.target.value = state.ryear; });
+      if (radarTL()) e.target.value = state.ryear; // the input event already moved to the year with data
       else setYear(+e.target.value, { now: true });
     });
     // "Today" on the time line; on the radar time line the class "now" only marks the selected year
