@@ -284,7 +284,8 @@ body.drawer-open .timeline { right: calc(440px + var(--gap)); }
 .tl-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .tl-ticks span.first { transform: none; }
 .tl-ticks span.last { transform: translateX(-100%); }
-.tl-ticks span.now { color: var(--ink); font-weight: 650; }
+.tl-ticks span.now { color: var(--ink); font-weight: 650; cursor: pointer; text-decoration: underline dotted; transition: color 0.15s; }
+.tl-ticks span.now:hover { color: var(--area); text-decoration: underline; }
 
 /* ---------- map details ---------- */
 .leaflet-container { background: var(--map); font: inherit; }

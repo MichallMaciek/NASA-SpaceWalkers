@@ -502,8 +502,19 @@
     }).catch((e) => console.warn("wuia load skipped", e));
     setBase(state.base);
     map.fitBounds(borderLayer.getBounds(), fitPad());
+    const hideTip = () => { $("#hovertip").hidden = true; };
     map.on("mousemove", onHover);
-    map.on("mouseout", () => { $("#hovertip").hidden = true; });
+    map.on("mouseout", hideTip);
+    map.on("movestart", hideTip);
+    map.on("zoomstart", hideTip);
+    map.on("dragstart", hideTip);
+    document.addEventListener("mouseleave", hideTip);
+    window.addEventListener("blur", hideTip);
+    ["#sidecard", "#drawer", "#timeline", ".topbar", ".topright", "#legend"].forEach((sel) => {
+      document.querySelectorAll(sel).forEach((el) => {
+        el.addEventListener("mouseenter", hideTip);
+      });
+    });
     map.on("click", (e) => { if (!draw.mode && performance.now() > draw.suppressUntil) selectPoint(e.latlng.lat, e.latlng.lng, null); });
     map.on("zoomend", () => $("#map").classList.toggle("far", map.getZoom() < 10));
   }
@@ -725,7 +736,7 @@
     const gap = ((100 - nowP) / 100) * ($("#tl-ticks").offsetWidth || innerWidth);
     const nowTxt = gap < 120 ? u.today : `${u.today} · ${NOW_YEAR}`;
     $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}" style="left:${pos(y)}%">${y}</span>`).join("") +
-      `<span class="now" style="left:${nowP}%">${nowTxt}</span>${gap < 64 ? "" : `<span class="last" style="left:100%">${end}</span>`}`;
+      `<span class="now" role="button" tabindex="0" title="${u.today}" style="left:${nowP}%">${nowTxt}</span>${gap < 64 ? "" : `<span class="last" style="left:100%">${end}</span>`}`;
   }
   let cardT = null, playing = false, playRaf = 0, playLast = 0;
   function setYear(y, opts = {}) {
@@ -1820,6 +1831,14 @@
     $("#zoom-out").addEventListener("click", () => map.zoomOut());
     $("#year").addEventListener("input", (e) => { stopPlay(); setYear(+e.target.value); });
     $("#year").addEventListener("change", (e) => setYear(+e.target.value, { now: true }));
+    $("#tl-ticks").addEventListener("click", (e) => {
+      if (e.target.closest(".now")) { stopPlay(); setYear(NOW_YEAR, { now: true }); }
+    });
+    $("#tl-ticks").addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === " ") && e.target.closest(".now")) {
+        e.preventDefault(); stopPlay(); setYear(NOW_YEAR, { now: true });
+      }
+    });
     $("#play").addEventListener("click", togglePlay);
     $("#test-close").addEventListener("click", () => $("#test-sheet").close());
     $("#about-close").addEventListener("click", () => $("#about-sheet").close());

@@ -2,12 +2,12 @@
 
 ## A. Od razu w obecnej wersji (v2), ok. 1 h
 
-- [ ] **1. „Dziś” jako przycisk na osi czasu**
+- [x] **1. „Dziś” jako przycisk na osi czasu**
   - **Problem:** „Dziś” to sam napis (`app.js`, l. 727–729) i nic się nie dzieje po kliknięciu.
   - **Co zrobić:** kliknięcie myszą, dotykiem albo klawiszem Enter zatrzymuje odtwarzanie i w ok. 0,3 s przesuwa oś na rok 2026. W warstwach radarowych wybiera najnowszy przelot: Sentinel-1 z 13.11, NISAR z 11.10, z podpisem „najnowszy przelot”. Stan „dziś” trafia do linku do miejsca.
   - **Gotowe, gdy:** jedno kliknięcie zawsze pokazuje aktualny stan terenu.
 
-- [ ] **2. Dymek z wartościami znika po wyjechaniu z mapy**
+- [x] **2. Dymek z wartościami znika po wyjechaniu z mapy**
   - **Problem:** chowa go tylko `map.on("mouseout")` (`app.js`, l. 507), więc zostaje na ekranie nad kartą, panelem warstw i osią czasu.
   - **Co zrobić:** chować dymek, gdy kursor opuszcza samo płótno mapy, wchodzi na dowolny panel albo okno traci fokus, a także na początku przesuwania, przybliżania i rysowania. Na telefonie wartość pojawia się po stuknięciu i znika po stuknięciu obok albo po 4 s.
   - **Gotowe, gdy:** dymek widać tylko wtedy, gdy kursor jest nad mapą.
