@@ -1,6 +1,6 @@
 # Plan wykonawczy na 3 urządzenia: grilling, deep pitch, aplikacja SARnik
 
-> Stan na sobotę 14.11.2026, ok. 19:00. Trzy równoległe części, łącznie ok. 56 agentów. Nie zmienia `docs/PLAN.md`, `docs/pitch.md` ani `docs/BURZA_MOZGOW.md`.
+> Stan na sobotę 14.11.2026, ok. 19:30. Trzy części uruchamiane równocześnie na trzech komputerach, łącznie ok. 56 agentów. Nie zmienia `docs/PLAN.md`, `docs/pitch.md` ani `docs/BURZA_MOZGOW.md`.
 
 ## Kontekst
 
@@ -16,7 +16,12 @@
 | **2** | Deep pitch (EN + PL) | 14 | `docs/deep-pitch/` | `deep-pitch` | PR + merge |
 | **3** | Aplikacja SARnik | 20 | `poznan-trend-detective/` | `sarnik-app` | PR otwarty (bez merge'a) |
 
-Każde urządzenie pisze wyłącznie w swoim folderze, więc gałęzie się nie zderzają. Wszystkie trzy startują jednocześnie.
+### Praca równoczesna: nikt na nikogo nie czeka
+- **Start:** wszystkie trzy urządzenia ruszają w tej samej chwili, z aktualnego `main`. Wszystko, czego potrzebują, jest już w repo i w tym pliku.
+- **Brak zależności w trakcie:** żadna faza nie wymaga wyniku innego urządzenia. Wspólne założenia i statusy funkcji są zapisane niżej, więc części 2 i 3 nie czekają na część 1.
+- **Brak kolizji w gicie:** każde urządzenie ma własny folder i własną gałąź, a tego pliku nikt nie edytuje w trakcie pracy. PR-y można mergować w dowolnej kolejności.
+- **Jedyny krok po kolei** to krótkie „Scalanie” na końcu (sekcja niżej), gdy wszystkie trzy części są gotowe.
+- **Limity:** jeśli urządzenia korzystają z jednego konta, limity zapytań są wspólne. Przy błędach limitu zmniejsz liczbę agentów pracujących naraz; nie czekaj na pozostałe urządzenia.
 
 **Urządzenie 3 jest już zajęte** (wajlk, sesja, która napisała ten plan). Urządzenia 1 i 2 czekają na dwie osoby; kto bierze część, niech da znać zespołowi, żeby nikt jej nie zdublował.
 
@@ -46,13 +51,35 @@ Trzymaj się sekcji „Zasady wspólne” i pisz tylko w swoim folderze.
 - **WUIA:** 2 420 rekordów (VI–XI 2026), tylko miasto Poznań. „751” to rekordy „nowa budowa” ze statusem „decyzja”; kategorie są zaszumione (przebudowy, przyłącza).
 - **Pikseli NISAR jeszcze nie ma.** Pliki GCOV pobiera osoba z kontem Earthdata na osobnym urządzeniu.
 
-## Punkty styku między urządzeniami
+## Założenia startowe (obowiązują wszystkich do odpowiedzi zespołu)
+
+| Temat | Założenie |
+|---|---|
+| Nazwa i wyzwanie | SARnik, „Dancing with the SARs” |
+| Hasło | „Deweloper ci tego nie powie. Radar tak.” / *The developer won't tell you. The radar will.* |
+| Obszar | Poznań i 17 gmin powiatu, tak jak w aplikacji |
+| Demo | przygotowujemy oba warianty: 7 slajdów i film 30 s; wybór należy do zespołu |
+| Bramka | niedziela 12:00: bez flag z pikseli NISAR zespół rozważa plan awaryjny z `docs/BURZA_MOZGOW.md` |
+| Ocena miejsca | osobne flagi (zielona / żółta / czerwona), bez jednej zbiorczej oceny 0–100 |
+
+Urządzenie 1 może w `RUNDA_1.md` zakwestionować każde z tych założeń; zmiany wchodzą dopiero w kroku „Scalanie”.
+
+## Statusy funkcji na start (Urządzenie 2 używa tej tabeli w pitchu)
+
+| Status | Funkcje |
+|---|---|
+| **Działa dziś** (w aplikacji) | karta miejsca; zabudowa 1975–2035 z modelem sprawdzonym na latach 2015–2020; wycinka; ceny powiatowe; trendy MODIS; podtopienia PIG-PIB; zagłębienia terenu; zmiana Sentinel-1 2017→2024; podgląd przelotów NISAR z NASA GIBS |
+| **W PR** (Urządzenie 3) | nazwa SARnik; sekcja „Radar NISAR” i licznik ostrzeżeń; „Co tam powstanie” (decyzje WUIA); strefa ISOK; „Jak widzi radar” (pasmo L kontra C, suchy kontra mokry, jako podgląd obrazów); ruch gruntu EGMS i osuwiska |
+| **Po danych NISAR** | flagi „Mokry grunt” i „Budowa obok”; liczby z weryfikacji (radar kontra decyzje, flaga kontra strefy ISOK) |
+| **Kierunek rozwoju** | ruch gruntu z NISAR, iły poznańskie, mokradła, infrastruktura, cała Polska |
+
+## Scalanie po zakończeniu (jedyny krok po kolei, nie blokuje pracy)
 
 | Co | Daje | Bierze | Kiedy |
 |---|---|---|---|
-| `docs/grilling/FAKTY.md`, `ZALOZENIA.json` | 1 | 2 (przed czerwonym zespołem), 3 (przed przeglądem) | zaraz po merge'u części 1; kto ich jeszcze nie ma, pracuje na własnych założeniach oznaczonych `[ZAŁOŻENIE]` |
+| `docs/grilling/FAKTY.md`, `ZALOZENIA.json` | 1 | 2 i 3: krótka poprawka tam, gdzie fakty lub rekomendacje różnią się od założeń startowych | gdy część 1 jest w `main` |
 | `docs/grilling/RUNDA_1.md` | 1 | cały zespół | burza mózgów |
-| Link do PR aplikacji i lista prawdziwych statusów funkcji | 3 | 2 (tabela dowodów w pitchu) | po otwarciu PR |
+| Link do PR aplikacji i lista statusów funkcji, które faktycznie weszły | 3 | 2: aktualizacja tabeli dowodów, jeśli coś odpadło z tabeli „Statusy funkcji na start” | gdy PR aplikacji jest otwarty |
 | Odpowiedzi zespołu | zespół | 1 (runda 2), 2 (przypisy), 3 (stałe w kodzie) | po burzy mózgów |
 | `nisar_*.png` + `nisar.json` | osoba z plikami GCOV (skrypt z części 3) | autor aplikacji | po uruchomieniu `process_nisar.py` |
 
@@ -60,7 +87,7 @@ Trzymaj się sekcji „Zasady wspólne” i pisz tylko w swoim folderze.
 
 ## Urządzenie 1: Grilling zespołu (22 agentów, +2 przy dodatkowej rundzie)
 
-**Wynik** w `docs/grilling/`: `RUNDA_1.md`, `FAKTY.md`, `ZALOZENIA.json`, `README.md` (jak prowadzić sesję). PR + merge od razu po zakończeniu, bo części 2 i 3 czekają na fakty i założenia.
+**Wynik** w `docs/grilling/`: `RUNDA_1.md`, `FAKTY.md`, `ZALOZENIA.json`, `README.md` (jak prowadzić sesję). PR + merge od razu po zakończeniu.
 
 | Faza | Agenci | Co robią |
 |---|---|---|
@@ -87,20 +114,19 @@ Każde pytanie jest sformułowane tak, żeby „tak” przyjmowało rekomendacj�
 
 ## Urządzenie 2: Deep pitch (14 agentów)
 
-**Wejście:** `docs/pitch.md` (źródło SARnik), `PITCH.md` (liczby i test modelu), `docs/pomysly-sar/`, a gdy już są: `docs/grilling/FAKTY.md` i `ZALOZENIA.json`. **Wynik:** `docs/deep-pitch/DEEP_PITCH.md` (EN) i `DEEP_PITCH_PL.md`, PR + merge.
+**Wejście:** `docs/pitch.md` (źródło SARnik), `PITCH.md` (liczby i test modelu), `docs/pomysly-sar/` oraz tabele „Założenia startowe” i „Statusy funkcji na start” z tego pliku. Twierdzenia z sekcji „Niepotwierdzone” w `pomysly-sar/zrodla.md` traktuj jako niepotwierdzone, dopóki nie ma `FAKTY.md`. **Wynik:** `docs/deep-pitch/DEEP_PITCH.md` (EN) i `DEEP_PITCH_PL.md`, PR + merge.
 
 | Faza | Agenci | Co robią |
 |---|---|---|
 | Szkice | 3 × Opus | Trzy niezależne wersje: problem kupującego („Deweloper ci tego nie powie. Radar tak.”); nauka NISAR (pasmo L kontra C, przyczyny fizyczne); dowód („model przewidział, NISAR widzi, urząd potwierdza”). |
 | Jury | 5 × Opus | Po jurorze na kryterium, ocena 1–5. Szkice oznaczone A, B, C, żeby ocena była ślepa. |
 | Synteza | 1 × Opus (`xhigh`) | Zwycięzca plus najlepsze elementy pozostałych. |
-| `git pull` | — | Pobranie `FAKTY.md` i `ZALOZENIA.json` z części 1, jeśli już są. |
 | Czerwony zespół | 3 × Opus | Fizyka SAR i nadmierne obietnice (względem `docs/pitch.md` §6); każda liczba kontra źródło (liczba bez znacznika odpada); zasady zgłoszenia. |
 | Finał | 2 × Opus | Wersja EN, a po jej zamrożeniu wersja PL na event lokalny. |
 
 **Zawartość:** jedno zdanie; problem ze źródłami; dlaczego radar; produkt; tabela dowodów ze statusem zgodnym ze stanem faktycznym (działa dziś / w PR / po danych NISAR / kierunek); 7 slajdów z notatkami; film 30 s; tekst strony projektu z odpowiedziami na pytania wyzwania; bank trudnych pytań jury; ograniczenia. Założenia zależne od zespołu są przypisami `[ZAŁOŻENIE Qn]`, nigdy tekstem na slajdzie.
 
-**Gotowe, gdy:** każda liczba ma źródło, slajdów jest 7, film mieści się w 30 s, a statusy w tabeli dowodów zgadzają się z listą od Urządzenia 3.
+**Gotowe, gdy:** każda liczba ma źródło, slajdów jest 7, film mieści się w 30 s, a statusy w tabeli dowodów zgadzają się z tabelą „Statusy funkcji na start”.
 
 ---
 
@@ -144,7 +170,7 @@ Każde pytanie jest sformułowane tak, żeby „tak” przyjmowało rekomendacj�
 - **Playwright** z systemowym Chrome (`channel="chrome"`, zaślepka Nominatim i hak `__map` z `promo/capture.py`) na lokalnym `http.server`: PL i EN, 1440×900 i 390×844; punkt przy moście Rocha (strefa ISOK) i „Dopiewo”; okno porównania z suwakiem na 50%; warstwy EGMS i SOPO; przebieg z zablokowanymi usługami ISOK i PIG-PIB; manifest NISAR nieobecny, potem obecny. Błąd w konsoli albo `undefined` / `NaN` w treści strony przerywa test.
 - `process_nisar.py --self-test`: sztuczne pliki HDF5 o udokumentowanej strukturze GCOV z podłożoną mokrą plamą i placem budowy; wynik 956×898, flaga tylko w oczekiwanych komórkach, odmowa przy zmieszanych wersjach. Na prawdziwych plikach skrypt będzie sprawdzony dopiero przez osobę, która je ma; opis PR mówi to wprost.
 
-**Gotowe, gdy:** testy przechodzą, PR ma zrzuty ekranu, log testów i listę kontrolną wdrożenia, a Urządzenie 2 dostało listę statusów.
+**Gotowe, gdy:** testy przechodzą, PR ma zrzuty ekranu, log testów i listę kontrolną wdrożenia, a opis PR zawiera listę funkcji, które faktycznie weszły.
 
 ---
 
@@ -153,4 +179,4 @@ Każde pytanie jest sformułowane tak, żeby „tak” przyjmowało rekomendacj�
 - Flagi „Mokry grunt” i „Budowa obok” są niewidoczne do czasu dostarczenia danych NISAR; progi w manifeście są wstępne i wymagają oceny osoby od SAR.
 - Wdrożenie zależy od właściciela projektu Firebase.
 - Bramka w niedzielę o 12:00 może cofnąć rebranding, dlatego nazwa siedzi w jednym kluczu.
-- Części 2 i 3 startują przed odpowiedziami zespołu: wszystko, co od nich zależy, jest oznaczone jako założenie i trzymane w stałych, żeby zmiana decyzji była poprawką, a nie pisaniem od nowa.
+- Wszystkie części startują przed odpowiedziami zespołu i bez wyników pozostałych urządzeń: wszystko, co od nich zależy, jest oznaczone jako założenie i trzymane w stałych, żeby zmiana była poprawką w kroku „Scalanie”, a nie pisaniem od nowa.
