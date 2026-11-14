@@ -132,7 +132,7 @@ window.I18N = {
       built: "Zabudowa 1975–2035", prob: "Gdzie miasto urośnie", forest: "Wycinka lasu 2001–2024",
       night: "Letnie noce: trend", day: "Letnie dni: trend", ndvi: "Zieleń: trend",
       year: "Letnie noce rok po roku", mean: "Letnie noce: średnia",
-      nisar: "Przeloty radaru NISAR (NASA-ISRO)", radar: "Jasność radaru (Sentinel-1)", radarchange: "Zmiana radaru 2017–2024",
+      nisar: "Przeloty radaru NISAR (NASA-ISRO)", wuia: "Decyzje budowlane (WUIA)", radar: "Jasność radaru (Sentinel-1)", radarchange: "Zmiana radaru 2017–2024",
       dem: "Wysokość terenu (radar TanDEM-X)", growthpop: "Zmiana liczby mieszkańców", none: "Nic",
     },
     Lsub: {
