@@ -446,3 +446,103 @@ body, .card, .drawer, .sheet { transition: background-color .25s ease, color .25
 @media (max-width: 760px) { .rh-grid { grid-template-columns: 1fr; } .rh-fig svg { max-width: 320px; } }
 .hist-h { margin: 16px 0 0; font-size: 13px; font-weight: 650; color: var(--ink-2); }
 .hist-h + .chip { margin-top: 6px; }
+
+/* ===================== SARnik v3: plain language for everyone ===================== */
+/* lenses: one map question at a time (same pressed style as the drawing tools) */
+.lenses { height: 52px; display: flex; align-items: center; padding: 0 6px; gap: 2px; }
+.lenses:empty { display: none; }
+.lenses button { height: 40px; border: 0; background: none; border-radius: 10px; padding: 0 12px; cursor: pointer; color: var(--ink-2); font-size: 14.5px; white-space: nowrap; }
+.lenses button:hover { color: var(--ink); background: var(--soft); }
+.lenses button[aria-pressed="true"] { background: var(--ink); color: var(--card); font-weight: 600; }
+
+/* verdict + plain check-up in the card */
+.verdict { margin: 14px 0 4px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.vd-n { font-size: 21px; font-weight: 720; line-height: 1.2; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+.vd-n::before { content: ""; width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--risk-3); }
+.verdict.all-ok .vd-n::before { background: var(--risk-1); }
+.vd-s { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
+.plain { list-style: none; margin: 0; padding: 0; }
+.pl { display: grid; grid-template-columns: 12px 1fr; gap: 0 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.pl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--risk-1); }
+.pl-info .pl-dot { background: none; box-shadow: inset 0 0 0 1.8px var(--ink-3); }
+.pl-warn .pl-dot { background: var(--risk-3); }
+.pl-risk .pl-dot { background: var(--risk-5); border-radius: 2px; transform: rotate(45deg) scale(.9); }
+.pl-t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-weight: 650; font-size: 15px; }
+.pl-l { font-weight: 500; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.pl-warn .pl-l, .pl-risk .pl-l { color: var(--ink); font-weight: 600; }
+.pl-v { font-size: 14px; line-height: 1.4; margin-top: 2px; }
+.pl-src { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+
+/* everything technical behind one disclosure */
+.tech { margin-top: 6px; }
+.tech > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0 6px; font-size: 14px; font-weight: 600; margin: 0; color: var(--ink-2); }
+.tech > summary:hover { color: var(--ink); }
+.tech > summary::-webkit-details-marker { display: none; }
+.tech > summary::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(45deg); margin: -4px 4px 0 0; }
+.tech[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.tech-sub { margin-top: 0 !important; }
+.tech .radar-block { margin-top: 10px; }
+
+/* drawer: plain choices first */
+.simple-sec { padding: 18px 24px 16px; border-bottom: 1px solid var(--line); }
+.simple-sec .sh { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.lens-list { display: flex; flex-direction: column; }
+.lens-item { display: grid; grid-template-columns: 18px 1fr; gap: 1px 12px; text-align: left; border: 0; background: none; padding: 10px 0; cursor: pointer; color: var(--ink); }
+.lens-item + .lens-item { border-top: 1px solid var(--line); }
+.lens-item::before { content: ""; grid-row: span 2; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px var(--ink-3); }
+.lens-item[aria-pressed="true"]::before { box-shadow: inset 0 0 0 1.6px var(--ink), inset 0 0 0 4.5px var(--card), inset 0 0 0 9px var(--ink); }
+.lens-item b { font-weight: 640; font-size: 15px; }
+.lens-item span { font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.lens-item:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.expert-row { margin: 0; padding: 16px 24px; border-bottom: 1px solid var(--line); gap: 16px; }
+.expert-row label { cursor: pointer; }
+.expert-row b { font-weight: 640; }
+.expert-row small { display: block; font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.sec.adv > .sec-body { padding: 0; }
+.sec.adv .sec { border-bottom: 0; border-top: 1px solid var(--line); }
+.sec.adv .sec > summary { padding-left: 24px; }
+.drawer-body > .checkrow:not(.expert-row), .sec.adv .checkrow { padding: 4px 24px 18px; }
+
+/* no timeline when the map shows radar (it does not change with the year) */
+body.no-tl .timeline { display: none; }
+body.no-tl .legend { bottom: var(--gap); }
+body.no-tl .leaflet-bottom.leaflet-right { bottom: 0; }
+body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--legend-h, 96px)); }
+
+/* the lenses move under the search bar when the top row is too narrow */
+@media (max-width: 1099px) {
+  .topbar { flex-wrap: wrap; max-width: calc(100vw - 2 * var(--gap) - 62px); }
+  .lenses { order: 3; height: 44px; overflow-x: auto; scrollbar-width: none; }
+  .lenses::-webkit-scrollbar { display: none; }
+  .lenses button { height: 34px; padding: 0 10px; font-size: 14px; }
+}
+@media (min-width: 761px) and (max-width: 1099px) {
+  .sidecard { top: calc(var(--gap) + 62px + 54px); max-height: calc(100vh - 116px - var(--gap) * 4 - 116px - var(--legend-h, 96px)); }
+  body.no-tl .sidecard { max-height: calc(100vh - 116px - var(--gap) * 3 - var(--legend-h, 96px)); }
+}
+@media (max-width: 760px) {
+  .topbar { max-width: none; gap: 8px; }
+  .lenses { flex: 1 0 100%; height: 42px; padding: 0 4px; }
+  .lenses button { padding: 0 9px; font-size: 13.5px; }
+  .drawhint { top: 112px; }
+  body.no-tl .sidecard { bottom: var(--gap); max-height: 48vh; }
+  .vd-n { font-size: 18px; }
+  .simple-sec, .expert-row { padding-left: 18px; padding-right: 18px; }
+}
+.sec.adv > summary, .sec.link > summary { letter-spacing: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); padding: 16px 24px; }
+
+/* SAR mark: which answers come from radar */
+.sar-i { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--c-radar); stroke-width: 1.8; stroke-linecap: round; }
+.sar-i circle { fill: var(--c-radar); stroke: none; }
+.sar-i.part { opacity: .45; }
+.sar-tag { display: inline-flex; margin-left: 7px; vertical-align: -1px; }
+.lenses button { display: inline-flex; align-items: center; gap: 6px; }
+.lenses button[aria-pressed="true"] .sar-i { stroke: currentColor; }
+.lenses button[aria-pressed="true"] .sar-i circle { fill: currentColor; }
+.sar-key { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); margin: 10px 0 0; }
+.sar-key .sar-i { margin-top: 1px; }
+.sidecard.min .sar-key { display: none; }
+.pl-h { display: flex; align-items: center; gap: 7px; margin: 16px 0 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.pl-h.is-sar { color: var(--ink); }
+.verdict + .pl-h { margin-top: 12px; }
+.verdict { border-bottom: 0; padding-bottom: 0; }

@@ -299,3 +299,154 @@
   Object.assign(window.I18N.pl.ui.Lsub, { wuia: "2 420 pozwoleń i wniosków VI–XI 2026, miasto Poznań (GEOPOZ)" });
   Object.assign(window.I18N.en.ui.Lsub, { wuia: "2,420 permits and applications, Jun–Nov 2026, city of Poznań (GEOPOZ)" });
 })();
+
+/* ===== v3: plain language for everyone ("Kowalski"); the technical wording stays for expert mode ===== */
+(() => {
+  const pl = window.I18N.pl.ui, en = window.I18N.en.ui;
+  const plRzecz = (n) => (n === 1 ? "1 rzecz do sprawdzenia" : `${n} rzeczy do sprawdzenia`);
+  pl.plain = {
+    lvl: { ok: "w normie", info: "informacja", warn: "do sprawdzenia", risk: "uwaga", price: "informacja" },
+    flags: plRzecz, flagsSub: "Zapytaj o to sprzedającego i urząd, zanim podpiszesz umowę.",
+    noFlags: "Nic niepokojącego", noFlagsSub: "Radar i mapy nie pokazują tu problemów. To nie zastępuje oględzin ani badania gruntu.",
+    buildT: "Nowe budowy obok",
+    buildYes: (p) => `W ostatnim roku radar zauważył tu nowe budynki lub place budowy (${p}% terenu wokół).`,
+    buildOther: "Radar widzi zmiany terenu, ale raczej na polach i przy pracach ziemnych, nie nowe budynki.",
+    buildNo: "W ostatnim roku nic nowego tu nie wyrosło.",
+    buildSrc: "Radar Sentinel-1, jesień 2025 i jesień 2026",
+    nextT: "Co może powstać obok",
+    nextHigh: (p, s) => `Wolny teren obok najpewniej zostanie zabudowany: ok. ${p}% szans w 5 lat, więcej niż w ${s}% wolnych miejsc wokół Poznania. Sprawdź plan miejscowy.`,
+    nextMid: (p, s) => `Wolny teren obok może zostać zabudowany: ok. ${p}% szans w 5 lat, więcej niż w ${s}% wolnych miejsc wokół Poznania.`,
+    nextLow: "Raczej nic dużego tu nie powstanie w ciągu 5 lat.",
+    nextBuilt: "Okolica jest już zabudowana, wolnego terenu prawie nie ma.",
+    nextSrc: "Nasza prognoza z 50 lat zdjęć Landsat, sprawdzona na latach 2015–2020",
+    waterT: "Woda",
+    waterFlood: "Miejsce leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.",
+    waterFloodArea: (p) => `${p}% terenu leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.`,
+    waterHollow: (m) => `Miejsce leży ok. ${m} m niżej niż okolica, więc po ulewie może się tu zbierać woda.`,
+    waterHollowArea: (p) => `${p}% terenu leży w zagłębieniach, gdzie po ulewie może się zbierać woda.`,
+    waterSoaks: (p) => `Po deszczu ziemia wyraźnie nasiąka (${p}% otwartego terenu). To nie musi być problem, ale zapytaj o drenaż.`,
+    waterOk: "Nic nie wskazuje na problemy z wodą.",
+    waterSrc: "Mapa podtopień PIG-PIB, model terenu z radaru TanDEM-X, radar NISAR",
+    waterSrcFlood: "Mapa obszarów zagrożonych podtopieniami PIG-PIB",
+    waterSrcHollow: "Model terenu Copernicus DEM, zmierzony radarem TanDEM-X",
+    waterSrcSoak: "Radar NISAR, 25 czerwca i 24 sierpnia 2026",
+    grpSar: "Z radaru SAR", grpOther: "Tło z innych źródeł (bez radaru)",
+    groundT: "Czy grunt się rusza",
+    groundOk: "Grunt jest stabilny.",
+    groundSinks: (m) => `Grunt osiada średnio ok. ${m} mm na rok. Sprawdź fundamenty i ściany budynków.`,
+    groundSpots: (m) => `Grunt jest w większości stabilny, ale są tu miejsca, które osiadają do ${m} mm na rok.`,
+    groundNone: "Brak pomiarów w tym miejscu, co jest typowe dla pól i lasów.",
+    groundSrc: "Radar Sentinel-1, pomiary ruchu gruntu EGMS 2016–2020",
+    treesT: "Drzewa",
+    treesCut: (ha) => `Od 2001 roku wycięto tu ok. ${ha} ha drzew.`,
+    treesOk: (ha) => `Drzewa w okolicy w większości stoją (od 2001 roku ubyło ok. ${ha} ha).`,
+    treesSrc: "Zdjęcia satelitarne Landsat, 2001–2024",
+    heatT: "Upał latem",
+    heatFast: (d) => `Lato robi się tu cieplejsze szybciej niż w okolicy, o ok. ${d} °C na 10 lat.`,
+    heatOk: "Lato nie ociepla się tu szybciej niż w okolicy.",
+    heatSrc: "Satelita NASA MODIS, lata 2000–2024",
+    priceT: "Cena",
+    priceV: (zl, w, y, city) => `Metr kwadratowy mieszkania kosztuje ${city ? "w Poznaniu" : "w powiecie poznańskim"} średnio ok. ${zl} zł, czyli ${w} przeciętnej pensji (${y}).`,
+    priceSrc: "GUS",
+  };
+  en.plain = {
+    lvl: { ok: "fine", info: "information", warn: "worth checking", risk: "warning", price: "information" },
+    flags: (n) => (n === 1 ? "1 thing to check" : `${n} things to check`), flagsSub: "Ask the seller and the planning office about this before you sign.",
+    noFlags: "Nothing worrying", noFlagsSub: "Radar and maps show no problems here. This does not replace a viewing or a soil survey.",
+    buildT: "New building next door",
+    buildYes: (p) => `In the last year radar saw new buildings or building sites here (${p}% of the land around).`,
+    buildOther: "Radar sees the land changing, but more likely fields and earthworks than new buildings.",
+    buildNo: "Nothing new has gone up here in the last year.",
+    buildSrc: "Sentinel-1 radar, autumn 2025 and autumn 2026",
+    nextT: "What may be built next door",
+    nextHigh: (p, s) => `The open land next door is likely to be built on: about ${p}% chance in 5 years, more than ${s}% of open places around Poznań. Check the local plan.`,
+    nextMid: (p, s) => `The open land next door may be built on: about ${p}% chance in 5 years, more than ${s}% of open places around Poznań.`,
+    nextLow: "Nothing big is likely to go up here within 5 years.",
+    nextBuilt: "The area is already built up; there is hardly any open land.",
+    nextSrc: "Our projection from 50 years of Landsat images, tested on 2015–2020",
+    waterT: "Water",
+    waterFlood: "This spot lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.",
+    waterFloodArea: (p) => `${p}% of the land lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.`,
+    waterHollow: (m) => `This spot lies about ${m} m lower than its surroundings, so water can gather here after a storm.`,
+    waterHollowArea: (p) => `${p}% of the land lies in hollows where water can gather after a storm.`,
+    waterSoaks: (p) => `After rain the ground soaks up a lot of water (${p}% of open land). Not necessarily a problem, but ask about drainage.`,
+    waterOk: "Nothing points to water problems.",
+    waterSrc: "PIG-PIB groundwater-flood map, terrain model from the TanDEM-X radar, NISAR radar",
+    waterSrcFlood: "PIG-PIB map of areas at risk of groundwater flooding",
+    waterSrcHollow: "Copernicus DEM terrain model, measured by the TanDEM-X radar",
+    waterSrcSoak: "NISAR radar, 25 June and 24 August 2026",
+    grpSar: "From SAR radar", grpOther: "Background from other sources (no radar)",
+    groundT: "Is the ground moving",
+    groundOk: "The ground is stable.",
+    groundSinks: (m) => `The ground sinks by about ${m} mm a year on average. Check foundations and walls.`,
+    groundSpots: (m) => `The ground is mostly stable, but some spots here sink by up to ${m} mm a year.`,
+    groundNone: "No measurements here, which is typical for fields and forests.",
+    groundSrc: "Sentinel-1 radar, EGMS ground-motion measurements 2016–2020",
+    treesT: "Trees",
+    treesCut: (ha) => `About ${ha} ha of trees were cut here since 2001.`,
+    treesOk: (ha) => `Most trees around are still standing (about ${ha} ha lost since 2001).`,
+    treesSrc: "Landsat satellite images, 2001–2024",
+    heatT: "Summer heat",
+    heatFast: (d) => `Summers here are warming faster than around, by about ${d} °C per 10 years.`,
+    heatOk: "Summers here are not warming faster than around.",
+    heatSrc: "NASA MODIS satellite, 2000–2024",
+    priceT: "Price",
+    priceV: (zl, w, y, city) => `A square metre of flat costs about ${zl} zł on average ${city ? "in Poznań" : "in Poznań county"}, which is ${w} average monthly wages (${y}).`,
+    priceSrc: "Statistics Poland (GUS)",
+  };
+  Object.assign(pl, {
+    techSummary: "Szczegóły techniczne: radar, wykresy, statystyka",
+    lens: { radar: "Radar", build: "Nowe budowy", water: "Woda", ground: "Grunt", trees: "Drzewa", history: "Historia" },
+    lensTip: { radar: "Tak satelita radarowy widzi okolicę", build: "Gdzie w ostatnim roku stanęły nowe budynki", water: "Gdzie po deszczu ziemia nasiąka i gdzie grożą podtopienia", ground: "Czy i gdzie grunt osiada", trees: "Gdzie od 2001 roku wycięto drzewa", history: "Jak rosła zabudowa od 1975 roku i co mówi prognoza na 2035" },
+    showOnMap: "Co pokazać na mapie", expertT: "Tryb ekspercki", expertSub: "dB, polaryzacje, testy statystyczne i wszystkie suwaki", allLayers: "Wszystkie warstwy i ustawienia",
+    lensBar: "Co pokazać na mapie", baseT: "Podkład mapy", sourcesT: "Źródła danych",
+    sarYes: "z radaru SAR", sarPart: "częściowo z radaru SAR", sarKeyShort: "Ten znak oznacza dane z radaru SAR (NISAR, Sentinel-1). Bez znaku: inne źródła, np. zdjęcia optyczne Landsat.",
+    lgPlain: { sarchange: "Co się zmieniło w ostatnim roku", wallsNow: "nowe budynki", brighterNow: "inne zmiany: pola, prace ziemne", darkerNow: "coś zniknęło: rozbiórka, wycinka, nowy asfalt",
+      nisarwet: "Gdzie po deszczu ziemia nasiąka (radar NISAR)", wetter: "mocno nasiąka", drier: "przesycha", s1rgb: "Tak radar widzi okolicę", egms: "Ruch gruntu", sinks: "osiada", rises: "podnosi się" },
+    hov: { walls: "Radar: tu stanęły nowe budynki", brighter: "Radar: zmiana terenu (pole lub prace ziemne)", darker: "Radar: coś zniknęło albo wyrównano teren", noChange: "Radar: bez zmian",
+      soaks: "Po deszczu ziemia mocno nasiąka", dries: "Po deszczu ziemia przesycha (żniwa)", steady: "Po deszczu bez wyraźnej zmiany",
+      noPoints: "Ruch gruntu: brak pomiarów", sinks: (m) => `Grunt osiada ok. ${m} mm na rok`, rises: (m) => `Grunt podnosi się ok. ${m} mm na rok`, stable: "Grunt stabilny" },
+    caseIntro: "Wpisz adres, kliknij mapę albo obrysuj działkę. Radar satelitarny powie, czy obok coś się buduje, czy ziemia nasiąka wodą i czy grunt się rusza.",
+  });
+  Object.assign(en, {
+    techSummary: "Technical details: radar, charts, statistics",
+    lens: { radar: "Radar", build: "New buildings", water: "Water", ground: "Ground", trees: "Trees", history: "History" },
+    lensTip: { radar: "How the radar satellite sees the area", build: "Where new buildings went up in the last year", water: "Where the ground soaks up rain and where groundwater floods threaten", ground: "Whether and where the ground sinks", trees: "Where trees were cut since 2001", history: "How building grew since 1975 and what the projection says for 2035" },
+    showOnMap: "What to show on the map", expertT: "Expert mode", expertSub: "dB, polarisations, statistical tests and every slider", allLayers: "All layers and settings",
+    lensBar: "What to show on the map", baseT: "Map background", sourcesT: "Data sources",
+    sarYes: "from SAR radar", sarPart: "partly from SAR radar", sarKeyShort: "This mark means SAR radar data (NISAR, Sentinel-1). No mark: other sources, such as Landsat optical images.",
+    lgPlain: { sarchange: "What changed in the last year", wallsNow: "new buildings", brighterNow: "other changes: fields, earthworks", darkerNow: "something disappeared: demolition, felling, new asphalt",
+      nisarwet: "Where the ground soaks up rain (NISAR radar)", wetter: "soaks up a lot", drier: "dries out", s1rgb: "How radar sees the area", egms: "Ground motion", sinks: "sinking", rises: "rising" },
+    hov: { walls: "Radar: new buildings here", brighter: "Radar: land changed (field or earthworks)", darker: "Radar: something disappeared or the land was levelled", noChange: "Radar: no change",
+      soaks: "After rain the ground soaks up a lot", dries: "After rain the ground dries out (harvest)", steady: "After rain no clear change",
+      noPoints: "Ground motion: no measurements", sinks: (m) => `Ground sinks about ${m} mm a year`, rises: (m) => `Ground rises about ${m} mm a year`, stable: "Ground stable" },
+    caseIntro: "Search an address, click the map or draw a plot. Radar from space tells you whether building is going on next door, whether the ground soaks up water and whether it moves.",
+  });
+  window.I18N.pl.caseTitle = "Przegląd działki z kosmosu";
+  window.I18N.en.caseTitle = "A land check-up from space";
+  // findings in plain words (numbers in ha, %, mm; no dB, no p-values)
+  const fp = window.I18N.pl.f, fe = window.I18N.en.f;
+  // expert mode keeps the technical wording (dB, p-values, polarisations)
+  window.I18N.pl.fX = { ...fp }; window.I18N.en.fX = { ...fe };
+  const oL = { pl: fp.lband, en: fe.lband };
+  fp.wet = (d) => ({ t: "Ziemia nasiąka po deszczu", b: `Na ${d.share}% pól i łąk radar widzi, jak ziemia robi się mokra po deszczu i przesycha w suche dni.` });
+  fe.wet = (d) => ({ t: "The ground soaks up rain", b: `On ${d.share}% of fields and meadows radar sees the ground getting wet after rain and drying out on dry days.` });
+  fp.lband = (d) => (!d.nisar || !d.wd ? oL.pl(d) : { t: "Nowy satelita NASA widzi, gdzie ziemia nasiąka",
+    b: `Radar NISAR (NASA i Indie) przelatuje nad Poznaniem co 12 dni. Po deszczu 24 sierpnia ziemia wyraźnie nasiąkła na ${d.wd.share}% pól i łąk. Kliknij, żeby zobaczyć gdzie.` });
+  fe.lband = (d) => (!d.nisar || !d.wd ? oL.en(d) : { t: "NASA's new satellite sees where the ground soaks up rain",
+    b: `The NISAR radar (NASA and India) passes over Poznań every 12 days. After the rain of 24 August the ground clearly soaked up water on ${d.wd.share}% of fields and meadows. Click to see where.` });
+  fp.radar = (d) => ({ t: "Gdzie w tym roku stanęły nowe budynki",
+    b: `Radar porównał jesień 2026 z jesienią 2025: nowe budynki widać na ${d.wha} ha.` + (d.sig ? ` Na działkach z pozwoleniem na budowę zmiany są ${d.ratio} razy częstsze niż w reszcie miasta.` : "") });
+  fe.radar = (d) => ({ t: "Where new buildings went up this year",
+    b: `Radar compared autumn 2026 with autumn 2025: new buildings show on ${d.wha} ha.` + (d.sig ? ` On plots with a building permit, changes are ${d.ratio} times as common as in the rest of the city.` : "") });
+  fp.modelRadar = (d) => ({ t: "Prognoza się sprawdza",
+    b: d.wSig ? `Tam, gdzie nasza prognoza przewidywała nowe osiedla, radar już widzi nowe budynki ${d.wRatio} razy częściej niż gdzie indziej.`
+      : d.sig ? `Tam, gdzie nasza prognoza przewidywała nowe osiedla, radar widzi zmiany ${d.ratio} razy częściej niż gdzie indziej.`
+      : "Radar nie widzi jeszcze więcej budów tam, gdzie przewiduje je prognoza. Rok to za mało, by budowa się pokazała." });
+  fe.modelRadar = (d) => ({ t: "The projection holds up",
+    b: d.wSig ? `Where our projection expected new estates, radar already sees new buildings ${d.wRatio} times as often as elsewhere.`
+      : d.sig ? `Where our projection expected new estates, radar sees change ${d.ratio} times as often as elsewhere.`
+      : "Radar does not yet see more building where the projection expects it. One year is too short for building to show." });
+  fp.ground = (d) => ({ t: "Czy ziemia pod Poznaniem osiada?", b: `Prawie nigdzie: typowy ruch gruntu to ${d.med} mm na rok. Tylko w ${d.n} miejscach grunt osiada o 5 mm na rok lub szybciej.` });
+  fe.ground = (d) => ({ t: "Is the ground under Poznań sinking?", b: `Almost nowhere: typical ground motion is ${d.med} mm a year. Only ${d.n} spots sink by 5 mm a year or faster.` });
+})();

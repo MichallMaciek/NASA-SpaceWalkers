@@ -285,6 +285,8 @@
     },
     sel: null, // {kind: 'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}
     findingsOpen: innerWidth >= 760, finding: null, testVar: "built",
+    expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
+    lens: "radar",
   };
   let NISAR_DATES = [];
   let sar = null; // data/land/sar.json (radar products of SARnik v2); null if not built
@@ -706,6 +708,7 @@
   const TL_MIN = 1975;
   const pos = (y) => ((y - TL_MIN) / (horizonEnd() - TL_MIN)) * 100;
   function renderTimeline() {
+    document.body.classList.remove("no-tl"); // the timeline stays in every view (team decision, 14.11)
     const u = U(), inp = $("#year"), end = horizonEnd();
     inp.max = end; inp.min = TL_MIN;
     if (state.year > end) state.year = end;
@@ -768,15 +771,16 @@
     const ramp_ = (stops, lo, hi) => `<div class="ramp" style="background:${gradient(stops)}"></div><div class="ticks"><span>${lo}</span><span>${hi}</span></div>`;
     const L_ = state.lyr;
     if (sar) {
+      const lg = state.expert ? u.lg : { ...u.lg, ...u.lgPlain };
       const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
-      if (L_.sarchange.on) blocks.push(`<div class="lt">${u.lg.sarchange}</div>${sw(RAMPS.up[1], u.lg.wallsNow)}${sw(RAMPS.upSoft[2], u.lg.brighterNow)}${sw(RAMPS.down[2], u.lg.darkerNow)}`);
-      if (L_.nisarwet.on && sar.nisar) blocks.push(`<div class="lt">${u.lg.nisarwet}</div>${sw(RAMPS.wet[2], u.lg.wetter)}${sw(RAMPS.brown[2], u.lg.drier)}`);
-      if (L_.sarwet.on) blocks.push(`<div class="lt">${u.lg.sarwet}</div>${ramp_(RAMPS.wet, u.lg.weak, u.lg.strong)}`);
-      if (L_.sarwater.on) blocks.push(`<div class="lt">${u.lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
-      if (L_.egms.on) blocks.push(`<div class="lt">${u.lg.egms}</div>${sw(RAMPS.sink[2], u.lg.sinks)}${sw(RAMPS.cool[2], u.lg.rises)}`);
+      if (L_.sarchange.on) blocks.push(`<div class="lt">${lg.sarchange}</div>${sw(RAMPS.up[1], lg.wallsNow)}${sw(RAMPS.upSoft[2], lg.brighterNow)}${sw(RAMPS.down[2], lg.darkerNow)}`);
+      if (L_.nisarwet.on && sar.nisar) blocks.push(`<div class="lt">${lg.nisarwet}</div>${sw(RAMPS.wet[2], lg.wetter)}${sw(RAMPS.brown[2], lg.drier)}`);
+      if (L_.sarwet.on) blocks.push(`<div class="lt">${lg.sarwet}</div>${ramp_(RAMPS.wet, lg.weak, lg.strong)}`);
+      if (L_.sarwater.on) blocks.push(`<div class="lt">${lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
+      if (L_.egms.on) blocks.push(`<div class="lt">${lg.egms}</div>${sw(RAMPS.sink[2], lg.sinks)}${sw(RAMPS.cool[2], lg.rises)}`);
       if (L_.s1rgb.on || L_.alos.on) {
         const kk = L_.alos.on && !L_.s1rgb.on ? "alos" : "s1rgb";
-        blocks.push(`<div class="lt">${kk === "alos" ? (L_.alos.y === 2026 ? u.lg.nisarL : u.lg.alos(L_.alos.y)) : u.lg.s1rgb}</div>` +
+        blocks.push(`<div class="lt">${kk === "alos" ? (L_.alos.y === 2026 ? lg.nisarL : lg.alos(L_.alos.y)) : lg.s1rgb}</div>` +
           RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
       }
     }
@@ -793,6 +797,51 @@
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");
     // the side card above it shrinks so the legend is never covered
     document.documentElement.style.setProperty("--legend-h", `${blocks.length ? $("#legend").offsetHeight + 8 : 0}px`);
+  }
+
+  /* ================= SAR mark (v3): what comes from radar and what does not ================= */
+  const SAR_ICON = (part) => `<svg class="sar-i${part ? " part" : ""}" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13.5a11 11 0 0 1 11-11"/><path d="M5.5 13.5a8 8 0 0 1 8-8"/><path d="M8.5 13.5a5 5 0 0 1 5-5"/><circle cx="13" cy="13" r="1.2"/></svg>`;
+  function sarMark(lvl) {
+    if (lvl !== "yes" && lvl !== "part") return "";
+    const t = lvl === "yes" ? U().sarYes : U().sarPart;
+    return `<span class="sar-tag" role="img" aria-label="${t}" title="${t}">${SAR_ICON(lvl === "part")}</span>`;
+  }
+  const LENS_SAR = { radar: "yes", build: "yes", water: "part", ground: "yes", trees: "no", history: "no" };
+  const FIND_SAR = { lband: "yes", radar: "yes", wet: "yes", ground: "yes", modelRadar: "part" };
+
+  /* ================= lenses (v3): one plain question per map view ================= */
+  const LENSES = () => {
+    const all = [
+      { k: "radar", layers: ["s1rgb"] },
+      { k: "build", layers: ["sarchange"] },
+      { k: "water", layers: sar && sar.nisar ? ["nisarwet", "flood"] : ["sarwet", "flood"] },
+      { k: "ground", layers: ["egms"] },
+      { k: "trees", layers: ["forest"] },
+      { k: "history", layers: ["built"] },
+    ];
+    return sar ? all : all.filter((l) => l.k === "trees" || l.k === "history");
+  };
+  async function setLens(k) {
+    const lens = LENSES().find((l) => l.k === k);
+    if (!lens) return;
+    state.lens = k;
+    Object.keys(state.lyr).forEach((key) => { state.lyr[key].on = lens.layers.includes(key); });
+    await Promise.all(lens.layers.map(ensure));
+    if (k === "trees") setYear(2024); // forest loss up to the latest year
+    renderLenses(); renderDrawer(); renderTimeline(); redraw();
+  }
+  function renderLenses() {
+    const box = $("#lenses"), u = U();
+    if (!box) return;
+    box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${LENS_SAR[l.k] === "no" ? "" : ` (${LENS_SAR[l.k] === "yes" ? u.sarYes : u.sarPart})`}">${LENS_SAR[l.k] === "no" ? "" : SAR_ICON(LENS_SAR[l.k] === "part")}${u.lens[l.k]}</button>`).join("");
+    box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => setLens(b.dataset.lens)));
+  }
+  function setExpert(on) {
+    state.expert = on;
+    try { localStorage.setItem("ptd-expert", on ? "1" : "0"); } catch (e) { /* ignore */ }
+    document.body.classList.toggle("expert", on);
+    renderDrawer(); renderLegend(); renderTimeline(); redraw();
+    if (state.sel && state.sel.ready) renderCard(); else if (!state.sel) renderFindings();
   }
 
   /* ================= drawer (map settings) ================= */
@@ -837,7 +886,7 @@
       <details class="sec" open><summary>${u.secSar}</summary><div class="sec-body">
         ${layerRow("dem", dem)}${layerRow("radar", radar)}${layerRow("nisar", nis)}${layerRow("activity", act)}
       </div></details>`;
-    $("#drawer-body").innerHTML = `${radarSecs}
+    const full = `${radarSecs}
       <details class="sec" ${sar ? "" : "open"}><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
         ${layerRow("built")}${layerRow("forest")}${layerRow("price")}${layerRow("flood")}${layerRow("wuia")}
       </div></details>
@@ -850,11 +899,17 @@
       <details class="sec"><summary>${u.secNasa}</summary><div class="sec-body">
         ${layerRow("night")}${layerRow("day")}${layerRow("ndvi")}${layerRow("nightyear")}
       </div></details>
-      <details class="sec"><summary>${u.secBase}</summary><div class="sec-body">
-        <div class="basegrid">${["map", "orto", "poz2025", "poz1940"].map((k) => `<button type="button" data-base="${k}" aria-pressed="${state.base === k}">${T().B[k] || u.baseMap}</button>`).join("")}</div>
-        <div class="checkrow"><span>${T().borders}</span><span class="switch"><input type="checkbox" id="borders" ${map.hasLayer(borderLayer) ? "checked" : ""}><span></span></span></div>
-      </div></details>
-      <details class="sec link" id="sources-link"><summary>${u.secSources}</summary></details>`;
+      <div class="checkrow"><span>${T().borders}</span><span class="switch"><input type="checkbox" id="borders" ${map.hasLayer(borderLayer) ? "checked" : ""}><span></span></span></div>`;
+    // v3: plain choices first (one map question at a time, background, expert switch); every layer and slider below
+    const simpleTop = `
+      <section class="simple-sec"><h3 class="sh">${u.showOnMap}</h3>
+        <div class="lens-list">${LENSES().map((l) => `<button type="button" class="lens-item" data-lens="${l.k}" aria-pressed="${state.lens === l.k}"><b>${u.lens[l.k]}${sarMark(LENS_SAR[l.k])}</b><span>${u.lensTip[l.k]}</span></button>`).join("")}</div></section>
+      <section class="simple-sec"><h3 class="sh">${u.baseT}</h3>
+        <div class="basegrid">${["map", "orto", "poz2025", "poz1940"].map((k) => `<button type="button" data-base="${k}" aria-pressed="${state.base === k}">${T().B[k] || u.baseMap}</button>`).join("")}</div></section>
+      <div class="checkrow expert-row"><label for="expert-sw"><b>${u.expertT}</b><small>${u.expertSub}</small></label><span class="switch"><input type="checkbox" id="expert-sw" ${state.expert ? "checked" : ""}><span></span></span></div>`;
+    $("#drawer-body").innerHTML = simpleTop +
+      (state.expert ? full : `<details class="sec adv"><summary>${u.allLayers}</summary><div class="sec-body">${full}</div></details>`) +
+      `<details class="sec link" id="sources-link"><summary>${u.sourcesT}</summary></details>`;
     $("#drawer-foot").textContent = u.footer;
     wireDrawer();
   }
@@ -877,6 +932,11 @@
       state.lyr[k].on = cb.checked;
       cb.closest(".lyr").classList.toggle("off", !cb.checked);
       if (cb.checked) await ensure(k);
+      // a lens stays highlighted only while the map shows exactly its layers
+      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => state.lyr[key].on === l.layers.includes(key)));
+      state.lens = match ? match.k : null;
+      renderLenses(); renderTimeline();
+      body.querySelectorAll(".lens-item").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === state.lens)));
       redraw();
     }));
     body.querySelectorAll(".rng input").forEach((inp) => inp.addEventListener("input", () => {
@@ -904,6 +964,9 @@
       setBase(b.dataset.base);
       body.querySelectorAll("[data-base]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     }));
+    body.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => setLens(b.dataset.lens)));
+    const ex = $("#expert-sw");
+    if (ex) ex.addEventListener("change", () => setExpert(ex.checked));
     const bd = $("#borders");
     if (bd) bd.addEventListener("change", () => {
       if (bd.checked) borderLayer.addTo(map); else map.removeLayer(borderLayer);
@@ -925,7 +988,15 @@
     const { lat, lng } = e.latlng, f = areaAt(lat, lng);
     if (!f) { tip.hidden = true; return; }
     const lines = [], u = U(), c = land && landCell(lat, lng);
-    if (sar && c) {
+    if (sar && c && !state.expert) {
+      const Ly = state.lyr, h = u.hov;
+      if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) {
+        const d = changeOf(L8.sar_change[c.i]), r = L8.sar_dratio[c.i] ? changeOf(L8.sar_dratio[c.i]) : 0;
+        lines.push(d >= Ly.sarchange.min ? (r >= (sar.s1.wall_db || 1.5) ? h.walls : h.brighter) : d <= -Ly.sarchange.min ? h.darker : h.noChange);
+      }
+      if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) { const d = changeOf(L8.nisar_wetdry[c.i]); lines.push(d >= 2 ? h.soaks : d <= -2 ? h.dries : h.steady); }
+      if (Ly.egms.on && ready("egms")) { const v = L8.sar_egms[c.i] ? egmsOf(L8.sar_egms[c.i]) : null; lines.push(v == null ? h.noPoints : v <= -2 ? h.sinks(num(-v, 0)) : v >= 2 ? h.rises(num(v, 0)) : h.stable); }
+    } else if (sar && c) {
       const Ly = state.lyr;
       if ((Ly.s1rgb.on && ready("s1rgb")) || (Ly.alos.on && ready("alos"))) {
         const [hn, vn] = lbandNames(Ly.alos.y);
@@ -1378,13 +1449,16 @@
     // risk
     const rk = riskOf(sel.cells);
     const risk = rk ? riskHTML(rk, sel) : `<div class="risk"><div class="risk-head"><span class="rl">${u.riskTitle}</span></div><p>${u.riskBuilt}</p></div>`;
-    // technical inspection checklist
-    const check = inspectionHTML(sel, rk);
     // more data
     const more = moreHTML(sel);
     const moreOpen = !!(card.querySelector("details.more") || {}).open; // keep "More data" open while the year changes
+    // v3: plain check-up first; every technical number (dB, statistics, model score, history) behind one disclosure
+    const techOpen = state.expert || !!(card.querySelector("details.tech") || {}).open;
     card.innerHTML = `<div class="collapse-head"><h2>${title}</h2></div>
-      <p class="sub">${sub} · ${range}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
+      <p class="sub">${sub}${sel.area ? ` · ${esc(sel.area)}` : ""}</p>
+      ${plainHTML(sel)}
+      <details class="tech" ${techOpen ? "open" : ""}><summary>${u.techSummary}</summary>
+      <p class="sub tech-sub">${range}</p>
       ${sar && L8.sar_series ? radarBlock(sel) : ""}
       ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
       <div class="rows">
@@ -1395,14 +1469,70 @@
       <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}</div>
       ${foot ? `<p class="foot">${foot}</p>` : ""}
       ${risk}
-      ${check}
       ${more}
       <button type="button" class="btn-primary" id="open-test">${tp.fullTest}</button>
+      </details>
       <p class="foot"><button type="button" class="linkish" id="clear-sel">${u.clear}</button></p>`;
     if (moreOpen && card.querySelector("details.more")) card.querySelector("details.more").open = true;
     // open the dialog first, so the chart measures its real width (on phones it would otherwise draw at 680 px)
     $("#open-test").addEventListener("click", () => { $("#test-sheet").showModal(); renderTest(); });
     $("#clear-sel").addEventListener("click", clearSelection);
+  }
+  /* ---- plain-language check-up (default card): one traffic light and one sentence per question ---- */
+  function waterFacts(sel) {
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null;
+    const rel = own ? localRelief([own.i]) : localRelief(sel.cells);
+    const floodShare = own ? (inFlood(sel.lat, sel.lng) ? 1 : 0)
+      : (() => { const sample = sel.cells.filter((_, k) => k % Math.max(1, Math.floor(sel.cells.length / 1500)) === 0);
+        const w = land.width, [a, , c, , e, f] = land.transform3857;
+        const hit = sample.filter((i) => { const [la, lo] = mercToLatLng(c + ((i % w) + 0.5) * a, f + (Math.floor(i / w) + 0.5) * e); return inFlood(la, lo); }).length;
+        return sample.length ? hit / sample.length : 0; })();
+    return { own, floodShare, hollow: own ? rel.mean <= -1.5 : rel.lowShare > 0.3, depth: Math.abs(rel.mean), lowShare: rel.lowShare };
+  }
+  function plainChecks(sel) {
+    const p = U().plain, items = [];
+    const pctS = (v) => num(Math.max(0, v) * 100, 0);
+    const s = sar && L8.sar_change ? sarStats(sel.cells) : null;
+    // 1. building now (radar, year on year)
+    if (s) items.push(s.walls > 0.02 ? { lvl: "warn", t: p.buildT, v: p.buildYes(pctS(s.walls)), src: p.buildSrc }
+      : s.up > 0.05 ? { lvl: "info", t: p.buildT, v: p.buildOther, src: p.buildSrc } : { lvl: "ok", t: p.buildT, v: p.buildNo, src: p.buildSrc });
+    // 2. what may be built next door (model)
+    const rk = riskOf(sel.cells);
+    items.push(!rk ? { lvl: "ok", t: p.nextT, v: p.nextBuilt, src: p.nextSrc }
+      : rk.level >= 4 ? { lvl: "warn", t: p.nextT, v: p.nextHigh(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc }
+      : rk.level === 3 ? { lvl: "info", t: p.nextT, v: p.nextMid(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc } : { lvl: "ok", t: p.nextT, v: p.nextLow, src: p.nextSrc });
+    // 3. water: official groundwater-flood areas, hollows, how the ground soaks after rain (NISAR)
+    const wf = waterFacts(sel), nw = s && sar.nisar ? s.nisarWetUp : NaN;
+    items.push(wf.floodShare > (wf.own ? 0 : 0.05) ? { lvl: "risk", t: p.waterT, v: wf.own ? p.waterFlood : p.waterFloodArea(pctS(wf.floodShare)), src: p.waterSrcFlood, sar: "no" }
+      : wf.hollow ? { lvl: "warn", t: p.waterT, v: wf.own ? p.waterHollow(num(wf.depth, 0)) : p.waterHollowArea(pctS(wf.lowShare)), src: p.waterSrcHollow, sar: "yes" }
+      : isFinite(nw) && nw > 0.5 ? { lvl: "info", t: p.waterT, v: p.waterSoaks(pctS(nw)), src: p.waterSrcSoak, sar: "yes" } : { lvl: "ok", t: p.waterT, v: p.waterOk, src: p.waterSrc, sar: "part" });
+    // 4. ground motion (EGMS)
+    if (s) items.push(!s.egN ? { lvl: "info", t: p.groundT, v: p.groundNone, src: p.groundSrc }
+      : s.egMed <= -3 ? { lvl: "risk", t: p.groundT, v: p.groundSinks(num(Math.abs(s.egMed), 0)), src: p.groundSrc }
+      : s.egMin <= -5 ? { lvl: "warn", t: p.groundT, v: p.groundSpots(num(Math.abs(s.egMin), 0)), src: p.groundSrc } : { lvl: "ok", t: p.groundT, v: p.groundOk, src: p.groundSrc });
+    // 5. trees
+    const lost = forestLost(sel.cells, 2024), perKm2 = lost / ((sel.cells.length * cellHa()) / 100);
+    items.push({ lvl: perKm2 > 2 ? "warn" : "ok", t: p.treesT, v: perKm2 > 2 ? p.treesCut(num(lost, lost < 10 ? 1 : 0)) : p.treesOk(num(lost, lost < 10 ? 1 : 0)), src: p.treesSrc });
+    // 6. summer heat (MODIS)
+    if (sel.sq.length) {
+      const r = testSeries(heatSeries("day", sel.sq), HEAT_YEARS), pc = percentile(rankPool.day, r.perDec);
+      items.push(r.p < 0.05 && pc >= 60 ? { lvl: "warn", t: p.heatT, v: p.heatFast(num(r.perDec, 1)), src: p.heatSrc } : { lvl: "ok", t: p.heatT, v: p.heatOk, src: p.heatSrc });
+    }
+    // 7. price (information only, never a warning)
+    const pz = priceSeries(unitFor(sel), "633677"), wage = priceSeries(unitFor(sel), "64428"), wy = [2024, 2023].find((y) => wage[y] && pz[y]);
+    if (wy) items.push({ lvl: "price", t: p.priceT, v: p.priceV(fmtInt(Math.round(pz[wy] / 100) * 100), num(pz[wy] / wage[wy], 1), wy, sel.area === "Poznań"), src: p.priceSrc });
+    const SARK = { [p.buildT]: "yes", [p.groundT]: "yes" };
+    items.forEach((it) => { if (!it.sar) it.sar = SARK[it.t] || "no"; });
+    return items;
+  }
+  function plainHTML(sel) {
+    const p = U().plain, items = plainChecks(sel), flags = items.filter((it) => it.lvl === "warn" || it.lvl === "risk").length;
+    const mark = { ok: "ok", info: "info", warn: "warn", risk: "risk", price: "info" };
+    return `<div class="verdict ${flags ? "has-flags" : "all-ok"}"><div class="vd-n">${flags ? p.flags(flags) : p.noFlags}</div><div class="vd-s">${flags ? p.flagsSub : p.noFlagsSub}</div></div>
+      ${[[p.grpSar, items.filter((it) => it.sar !== "no"), true], [p.grpOther, items.filter((it) => it.sar === "no"), false]].filter(([, list]) => list.length).map(([h, list, isSar]) => `
+      <h3 class="pl-h${isSar ? " is-sar" : ""}">${isSar ? SAR_ICON() : ""}${h}</h3>
+      <ul class="plain">${list.map((it) => `<li class="pl pl-${mark[it.lvl]}"><span class="pl-dot" aria-hidden="true"></span><div>
+        <div class="pl-t"><span>${it.t}${it.sar === "part" ? sarMark("part") : ""}</span><span class="pl-l">${p.lvl[it.lvl]}</span></div><div class="pl-v">${it.v}</div><div class="pl-src">${it.src}</div></div></li>`).join("")}</ul>`).join("")}`;
   }
   function riskHTML(rk, sel) {
     const u = U(), s = rk.score;
@@ -1583,11 +1713,11 @@
   const fitAll = () => map.flyToBounds(borderLayer.getBounds(), { ...fitPad(), duration: 0.8 });
   const showOnly = async (...ks) => { only(...ks); await Promise.all(ks.map(ensure)); };
   const SAR_FINDINGS = {
-    radar: async () => { await showOnly("sarchange"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
-    wet: async () => { await showOnly("sarwet", "flood"); clearSelection(); fitAll(); },
-    ground: async () => { await showOnly("egms"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
-    lband: async () => { if (sar.nisar) { state.lyr.alos.y = 2026; await showOnly("alos", "nisarwet"); } else await showOnly("alos"); clearSelection(); fitAll(); renderDrawer(); },
-    modelRadar: async () => { await showOnly("built", "sarchange"); state.horizon = 10; setYear(2030); clearSelection(); map.flyTo(OLD_MARKET, 11, { duration: 0.8 }); },
+    radar: async () => { await setLens("build"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
+    wet: async () => { await setLens("water"); clearSelection(); fitAll(); },
+    ground: async () => { await setLens("ground"); clearSelection(); map.flyTo(OLD_MARKET, 12, { duration: 0.8 }); },
+    lband: async () => { await setLens("water"); clearSelection(); fitAll(); },
+    modelRadar: async () => { await setLens("history"); state.lyr.sarchange.on = true; await ensure("sarchange"); state.horizon = 10; setYear(2030); clearSelection(); map.flyTo(OLD_MARKET, 11, { duration: 0.8 }); },
   };
   const V1_FINDINGS = {
     sprawl: async () => { only("built"); await ensure("built"); setYear(2020); clearSelection(); fitAll(); },
@@ -1601,9 +1731,14 @@
   // v2: radar findings first, then the strongest history findings
   const FIND = () => {
     if (!sar) return V1_FINDINGS;
-    const F = SAR_FINDINGS, hist = { sprawl: V1_FINDINGS.sprawl, forecast: V1_FINDINGS.forecast, forest: V1_FINDINGS.forest };
+    const F = SAR_FINDINGS, hist = {
+      sprawl: async () => { await setLens("history"); setYear(2020); clearSelection(); fitAll(); },
+      forecast: async () => { await setLens("history"); state.horizon = 10; setYear(2035); fitAll(); },
+      forest: async () => { await setLens("trees"); setYear(2020); clearSelection(); fitAll(); },
+    };
     // with NISAR pixels in, the NISAR finding leads (the challenge is about NISAR)
-    return sar.nisar ? { lband: F.lband, radar: F.radar, modelRadar: F.modelRadar, wet: F.wet, ground: F.ground, ...hist } : { ...F, ...hist };
+    // plain mode skips the C-band wetness finding: NISAR already tells that story
+    return sar.nisar ? { lband: F.lband, radar: F.radar, modelRadar: F.modelRadar, ...(state.expert ? { wet: F.wet } : {}), ground: F.ground, ...hist } : { ...F, ...hist };
   };
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
@@ -1611,13 +1746,14 @@
     card.innerHTML = `<div class="collapse-head"><h2>${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold">${state.findingsOpen ? u.hide : u.show}</button></div>
       <p class="sub">${u.caseIntro}</p>
-      <ol class="findings">${Object.keys(FIND()).map((k, i) => { const x = t.f[k](d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
-        <span class="n">${i + 1}</span><span class="t">${x.t}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
+      ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
+      <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
+        <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
     $("#fold").addEventListener("click", () => { state.findingsOpen = !state.findingsOpen; renderFindings(); });
     card.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", async () => {
       state.finding = b.dataset.f;
       await FIND()[state.finding]();
-      renderDrawer(); redraw();
+      renderLenses(); renderDrawer(); renderTimeline(); redraw();
       if (!state.sel) renderFindings();
     }));
   }
@@ -1767,7 +1903,7 @@
     if (sar) $("#radar-body").innerHTML = u.radarHtml({ upHa: fmtInt(sar.s1.up3db_ha), wetShare: num(sar.checks.wet.share_sig_study * 100, 0),
       bands: sar.nisar ? sar.nisar.checks.bands : null, fmt: (v) => num(v, 1) });
     stopPlay();
-    renderDrawer(); renderTimeline(); renderLegend(); renderCard();
+    renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); renderCard();
     if ($("#test-sheet").open) renderTest();
   }
   function wire() {
@@ -1808,6 +1944,7 @@
     initDraw();
     initSearch();
     wire();
+    document.body.classList.toggle("expert", state.expert);
     applyLang();
     await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));
     redraw();
