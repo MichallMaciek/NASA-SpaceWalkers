@@ -27,6 +27,10 @@
 | O2 | **Siatka / jednostka analizy** | 🟡 OTWARTE | Opcje w §7 |
 | O3 | **SAR ~0,5 m** | 🟡 OTWARTE (debata) | Brak darmowych danych nad Poznaniem (§4.3). Do decyzji pracujemy na 10–25 m |
 
+> **Dopisek wajlk (2026-11-14), bez zmiany ustaleń powyżej:**
+> - **O1:** wg Mateusza RCN to ❓. Wg wajlk: WFS RCN działa i ma transakcje z ceną, metrażem i datą (szczegóły w §8).
+> - **O3:** wg Mateusza pracujemy na 10–25 m. Wg wajlk: NISAR nad Poznaniem daje **20 m** (GCOV); ~10 m tylko z GSLC albo Sentinel-1 RTC (szczegóły w §4.1).
+
 ## 2. Produkt
 **Mapa + karta lokalizacji („ogłoszenie terenu”).**
 - **Mapa:** heatmapa zabudowy i lasu w czasie; warstwy NISAR (kompozycja HH/HV); zmiany; ryzyka; ortofoto miasta 2001–2025 na żywo.
@@ -67,6 +71,13 @@ Poznań (262 km²) + gminy graniczące, wyznaczone z warstwy GEOPOZ `granice:gmi
 | 2020–2025 | EGMS (Copernicus, PSInSAR) | punkty / 100 m | Ruchy gruntu | ❓ EU Login |
 | 2012 → dziś | NASA Black Marble (VIIRS) | 500 m | Światła nocne (stretch) | ❓ Earthdata |
 
+> **Dopisek wajlk (2026-11-14), bez zmiany tabeli powyżej:**
+> - **Rozdzielczość NISAR:** wg Mateusza GCOV 10–20 m. Wg wajlk: wszystkie przeloty nad Poznaniem są w trybie **20+5 MHz**, a według tabel w dokumentacji ASF daje to **GCOV 20 m** (pasmo B 80 m), GUNW 80 m, SME2 200 m. GSLC ma 5×10 m, więc ~10 m da się zrobić tylko z GSLC (≈12 GB/plik, mocny speckle). Źródło: <https://nisar-docs.asf.alaska.edu/gcov/> i `/gslc/`.
+> - **Wersje danych:** oprócz BETA i PROVISIONAL są już **VALIDATED** (wydane 2026-11-06, przeloty od 2026-10-21). PROVISIONAL obejmuje 2026-06-17 → 2026-10-23. ASF ostrzega przed mieszaniem wersji w jednej analizie.
+> - **Liczby z ASF:** 130 produktów nad AOI miasta (48 GCOV, 38 GUNW, 44 SME2); 38 przelotów GCOV od czerwca 2026. Pełna lista z deszczem i wilgotnością gleby w dniu przelotu: [`progres/p1/dane/nisar_poznan_przeloty.csv`](../progres/p1/dane/nisar_poznan_przeloty.csv).
+> - **EGMS:** wg Mateusza ❓ EU Login. Wg wajlk: w Explorerze są wydania 2020–2024 i 2020–2025; pobieranie wymaga darmowego konta CLMS i tokenu API. Bez konta: warstwa PIG-PIB 2016–2020 (`cbdgmapa.pgi.gov.pl/arcgis/rest/services/geozagrozenia/egms_2016_2020_pion/ImageServer`).
+> - **GHSL i WSF Evolution:** serwery z danymi odpowiadają (HTTP 200), ale zawartości nie sprawdzałem. Hansen niesprawdzony.
+
 **Narracja L-band:** ALOS-1 (2007–10) → ALOS mozaiki (2015–21) → NISAR (2025→) daje ~19 lat porównywalnych obserwacji
 w paśmie L, w tych samych polaryzacjach. Pasmo L przenika korony drzew, więc dobrze wychwytuje utratę lasu (spadek HV).
 
@@ -85,6 +96,19 @@ w paśmie L, w tych samych polaryzacjach. Pasmo L przenika korony drzew, więc d
   Licencja: atrybucja „Miasto Poznań, serwis poznan.pl”.
 - **Krajowe** ❓: BDOT10k, Bank Danych o Lasach, Krajowa Integracja MPZP, GUS BDL.
 - **Pogoda w dniach przelotów:** Meteomatics (Global Offer, 1000 zapytań/dzień; dostęp tylko w trakcie hackathonu → zapis do JSON).
+
+> **Dopisek wajlk (2026-11-14), bez zmiany listy powyżej:**
+> - **ERA5 z portalu:** wg Mateusza ERA5 1940–2026. Wg wajlk: to dane **miesięczne** z siatki 2×1 punktów (0,25°); wilgotność, temperatura i śnieg **kończą się w I 2026**, opady w XII 2025, więc nie pokrywają przelotów NISAR. Dzienne dane do 2026-11-12: Open-Meteo (`archive-api.open-meteo.com`, bez konta) albo IMGW (synop Poznań-Ławica do X 2026).
+> - **`aquanet:z_aquanet_awarie_wod_kan`:** tylko bieżące awarie (14.11: 0 rekordów), bez archiwum.
+> - **Brakująca warstwa do walidacji:** `decyzje:v_decyzje_wuia_group_mapa_sql`, czyli decyzje i wnioski budowlane z datą i poligonem działki. VI–XI 2026: 2 420 rekordów, w tym 751 decyzji dla nowej budowy. Gotowy plik: [`progres/p1/dane/wuia_decyzje.geojson`](../progres/p1/dane/wuia_decyzje.geojson), skrypt: [`progres/p1/skrypty/geopoz_wuia.py`](../progres/p1/skrypty/geopoz_wuia.py).
+> - **Krajowe (❓ wg Mateusza), sprawdzone przez wajlk:**
+>   - BDOT10k GPKG: Poznań `opendata.geoportal.gov.pl/bdot10k/schemat2021/GPKG/30/3064_GPKG.zip` (36 MB), powiat `…/3021_GPKG.zip` (122 MB); bez CORS.
+>   - ULDK (`uldk.gugik.gov.pl`): poligon działki z numeru lub punktu, CORS `*`.
+>   - ISOK, strefy powodziowe Q10%/Q1%/Q0,2%: WMS `wody.isok.gov.pl/wss/INSPIRE/INSPIRE_NZ_HY_MZPMRP_WMS`, CORS `*`, rysuje się dopiero od skali 1:50 000.
+>   - NMT 1 m: WCS GUGiK (`DTM_PL-KRON86-NH_TIFF`), bez CORS; x = easting, y = northing w EPSG:2180.
+>   - GUNB RWDZ: `wyszukiwarka.gunb.gov.pl/pliki_pobranie/wynik_wielkopolskie.zip` (36 MB, CC0, aktualizacja 2026-11-13), bez współrzędnych, łączyć przez ULDK.
+>   - IMGW na żywo: `danepubliczne.imgw.pl/api/data/hydro/id/152160140` (Warta, Most Rocha), CORS `*`; dzienne stany wody za 2026 nie są jeszcze opublikowane.
+> - Pełny katalog z endpointami: [`progres/p1/poznan-pod-radarem.html`](../progres/p1/poznan-pod-radarem.html).
 
 ### 4.3 Wysoka rozdzielczość (O3), stan wiedzy
 Sprawdzone 2026-11-14 (liczba produktów nad Poznaniem w ASF): Sentinel-1 16 741, NISAR 226, ALOS 18; UAVSAR, AIRSAR, SIR-C, ERS, JERS i RADARSAT-1: 0.
@@ -181,6 +205,12 @@ Zasady niezależnie od wyboru: **nie obchodzimy zabezpieczeń antybotowych**. W 
 (np. mediana zł/m² per jednostka × okres), bez treści ogłoszeń i danych ogłoszeniodawców. Źródło zawsze podpisane.
 Kontekst dochodowy (płaca minimalna, mediana wynagrodzeń) to rozszerzenie.
 
+> **Dopisek wajlk (2026-11-14), bez zmiany tabeli powyżej:**
+> - **RCN:** wg Mateusza ❓ zakres bezpłatnego dostępu. Wg wajlk: dane są bezpłatne od nowelizacji z 2025 r. i działa WFS `https://mapy.geoportal.gov.pl/wss/service/rcn` (warstwy `ms:lokale`, `ms:budynki`, `ms:dzialki`).
+> - W ramce 52.38–52.42 N, 16.88–16.96 E (centrum Poznania) jest **ok. 76 tys. transakcji lokali** z ceną brutto, powierzchnią użytkową, liczbą izb, datą aktu i punktem (EPSG:2180). W próbkach daty 2015–2024; pełnego zakresu lat nie sprawdziłem.
+> - Filtr po dacie w WFS nie działa (zwraca 0), więc trzeba pobrać i filtrować lokalnie.
+> - Rekordy zawierają nazwiska notariuszy, więc zgodnie z zasadą powyżej publikujemy tylko agregaty.
+
 ## 9. Kontrakty danych (front i pipeline równolegle)
 - **CRS:** obliczenia w EPSG:2180; web w EPSG:3857/4326.
 - `units.pmtiles`: `unit_id, gmina, pop, built_p_<rok>, forest_p_<rok>, built_change, forest_loss_cause,`
@@ -190,6 +220,8 @@ Kontekst dochodowy (płaca minimalna, mediana wynagrodzeń) to rozszerzenie.
 - Rastry: `nisar_rgb_<data>.pmtiles`, `builtup_<rok>.pmtiles` (wartości), `forest_loss.pmtiles`, `dem.pmtiles`.
 - `era5.json`, `weather_passes.json`, `admin.geojson` (gminy, osiedla).
 - **Dane testowe** w tym schemacie gotowe w ~H+3, żeby frontend nie czekał.
+
+> **Dopisek wajlk (2026-11-14):** zawartość `weather_passes.json` (deszcz z 3 dni i wilgotność gleby dla każdego przelotu) jest już w [`progres/p1/dane/nisar_poznan_przeloty.csv`](../progres/p1/dane/nisar_poznan_przeloty.csv); skrypt [`progres/p1/skrypty/nisar_pogoda.py`](../progres/p1/skrypty/nisar_pogoda.py) odtwarza go bez konta.
 
 ## 10. Struktura repozytorium
 ```
