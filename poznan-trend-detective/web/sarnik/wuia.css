@@ -1,0 +1,8 @@
+/* Moduł SARnik „Plany budowlane obok” (wuia): zwijana lista najbliższych spraw w wierszu przeglądu. */
+.sk-wuia-more { margin-top: 6px; font-size: 13px; line-height: 1.35; }
+.sk-wuia-more > summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.sk-wuia-near { list-style: none; margin: 2px 0 0; padding: 0; }
+.sk-wuia-near li { padding: 3px 0; border-top: 1px dashed var(--line); }
+.sk-wuia-near li:first-child { border-top: 0; }
+.sk-wuia-near span[lang] { color: var(--ink-2); }
+.sk-wuia-note { margin: 4px 0 0; color: var(--ink-2); }
