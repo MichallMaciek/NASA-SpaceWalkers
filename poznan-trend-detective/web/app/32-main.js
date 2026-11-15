@@ -48,7 +48,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         e.target.value = passOn() ? pass : state.ryear; // the input event already moved to the year with data
       } else {
         let y = +e.target.value;
-        if (Math.abs(y - NOW_YEAR) <= 0.5) y = NOW_YEAR;
+        if (state.lens === "history" && Math.abs(y - NOW_YEAR) <= 0.5) y = NOW_YEAR;
         else y = Math.round(y);
         setYear(y, { now: true });
       }
@@ -67,10 +67,16 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     });
     // "Today" on the time line; on the radar time line the class "now" only marks the selected year
     $("#tl-ticks").addEventListener("click", (e) => {
-      if (!radarTL() && e.target.closest(".now")) { stopPlay(); setYear(NOW_YEAR, { now: true }); }
+      const nowEl = e.target.closest(".now");
+      if (nowEl && state.lens === "history") { stopPlay(); setYear(NOW_YEAR, { now: true }); return; }
+      const span = e.target.closest("span");
+      if (span && !nowEl) {
+        const y = parseInt(span.textContent, 10);
+        if (y && !isNaN(y)) { stopPlay(); setYear(y, { now: true }); }
+      }
     });
     $("#tl-ticks").addEventListener("keydown", (e) => {
-      if (!radarTL() && (e.key === "Enter" || e.key === " ") && e.target.closest(".now")) {
+      if (state.lens === "history" && (e.key === "Enter" || e.key === " ") && e.target.closest(".now")) {
         e.preventDefault(); stopPlay(); setYear(NOW_YEAR, { now: true });
       }
     });
