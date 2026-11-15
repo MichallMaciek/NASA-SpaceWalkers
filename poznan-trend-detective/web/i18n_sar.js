@@ -574,3 +574,28 @@
   });
   pl.passDate = "Przelot"; en.passDate = "Pass";
 })();
+
+/* ===== plots on the map (ULDK, GUGiK) and the circle tool (web/app/21a-parcels.js, 20-draw.js) ===== */
+(() => {
+  const pl = window.I18N.pl.ui, en = window.I18N.en.ui;
+  Object.assign(pl, {
+    toolCircle: "Zaznacz koło",
+    hintCircle: (r) => `Kliknij mapę, aby zaznaczyć koło o promieniu ${r}. Przybliż albo oddal mapę, żeby zmienić promień.`,
+    zoomForParcel: "Przybliż, aby wybrać działkę",
+    parcelTitle: (p) => `Działka ${p.number}, obręb ${p.obreb}, ${p.gmina}`,
+    parcelTip: (p) => `Działka ${p.number}, obręb ${p.obreb}`,
+    noParcel: "nie znaleziono tu działki",
+    radiusAround: (r) => `${r} wokół punktu`,
+    parcelNotFound: "Nie znaleziono działki z linku.",
+  });
+  Object.assign(en, {
+    toolCircle: "Select a circle",
+    hintCircle: (r) => `Click the map to select a circle with a ${r} radius. Zoom in or out to change the radius.`,
+    zoomForParcel: "Zoom in to pick a plot",
+    parcelTitle: (p) => `Plot ${p.number}, precinct ${p.obreb}, ${p.gmina}`,
+    parcelTip: (p) => `Plot ${p.number}, precinct ${p.obreb}`,
+    noParcel: "no plot found here",
+    radiusAround: (r) => `${r} around the point`,
+    parcelNotFound: "The plot from the link was not found.",
+  });
+})();

@@ -47,7 +47,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   function renderTest() {
     const t = T(), tp = t.place, tt = t.test, u = U(), sel = state.sel;
-    $("#test-title").textContent = tt.title(sel.kind === "area" ? u.selectedArea : (sel.label || sel.area));
+    $("#test-title").textContent = tt.title(sel.kind === "area" ? u.selectedArea : sel.kind === "parcel" ? u.parcelTitle(sel.parcel) : (sel.label || sel.area));
     const vars = [["built", tt.builtVar, "%", 1, "#E0332F"]];
     if (sel.sq.length) vars.push(["night", tp.night, "°C", 2, RAMPS.warm[2]], ["day", tp.day, "°C", 2, RAMPS.warm[2]], ["ndvi", tp.ndvi, "NDVI", 3, RAMPS.green[2]]);
     vars.push(["price", u.rowPrice, "zł/m²", 0, css("--c-price")]);

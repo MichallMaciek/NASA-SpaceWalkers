@@ -21,23 +21,27 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     draw.mode = mode; draw.pts = [];
     $("#tool-free").setAttribute("aria-pressed", String(mode === "free"));
     $("#tool-poly").setAttribute("aria-pressed", String(mode === "poly"));
+    $("#tool-circle").setAttribute("aria-pressed", String(mode === "circle"));
     $("#map").classList.add("drawing");
-    drawHint(mode === "free" ? U().hintFree : U().hintPoly);
-    map.dragging.disable(); map.doubleClickZoom.disable(); map.touchZoom.disable(); map.boxZoom.disable();
+    $("#drawhint").classList.remove("note");
+    drawHint(mode === "free" ? U().hintFree : mode === "circle" ? U().hintCircle(radiusLabel(circleKm())) : U().hintPoly);
+    // the circle tool is one click, so the map stays movable; drawing an outline holds the map still
+    if (mode !== "circle") { map.dragging.disable(); map.doubleClickZoom.disable(); map.touchZoom.disable(); map.boxZoom.disable(); }
     draw.vtx = L.layerGroup().addTo(map);
   }
   function stopDraw() {
     draw.mode = null; draw.pts = []; draw.down = false;
     [draw.shape, draw.guide, draw.vtx].forEach((l) => l && map.removeLayer(l));
     draw.shape = draw.guide = draw.vtx = null;
-    $("#tool-free").setAttribute("aria-pressed", "false"); $("#tool-poly").setAttribute("aria-pressed", "false");
+    $("#tool-free").setAttribute("aria-pressed", "false"); $("#tool-poly").setAttribute("aria-pressed", "false"); $("#tool-circle").setAttribute("aria-pressed", "false");
     $("#map").classList.remove("drawing"); drawHint("");
     map.dragging.enable(); map.doubleClickZoom.enable(); map.touchZoom.enable(); map.boxZoom.enable();
   }
-  function updateShape(closed) {
-    const style = { ...AREA_STYLE(), interactive: false, fillOpacity: closed ? 0.12 : 0, dashArray: closed ? null : "6 5" };
-    if (!draw.shape) draw.shape = L.polygon(draw.pts, style).addTo(map);
-    else { draw.shape.setLatLngs(draw.pts); draw.shape.setStyle(style); }
+  // while drawing only the open outline shows: no fill and no closing segment; the filled area appears once the shape
+  // is closed (selectArea draws it)
+  function updateShape() {
+    if (!draw.shape) draw.shape = L.polyline(draw.pts, { ...AREA_STYLE(), interactive: false, fill: false, dashArray: null }).addTo(map);
+    else draw.shape.setLatLngs(draw.pts);
   }
   function redrawVertices(hoverFirst) {
     if (!draw.vtx) return;
@@ -95,6 +99,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   function initDraw() {
     $("#tool-free").addEventListener("click", () => (draw.mode === "free" ? stopDraw() : startDraw("free")));
     $("#tool-poly").addEventListener("click", () => (draw.mode === "poly" ? stopDraw() : startDraw("poly")));
+    $("#tool-circle").addEventListener("click", () => (draw.mode === "circle" ? stopDraw() : startDraw("circle")));
+    // circle tool: its radius follows the zoom (circleKm, 21a-parcels.js); the dashed preview follows the mouse
+    map.on("zoomend", () => {
+      if (draw.mode !== "circle") return;
+      drawHint(U().hintCircle(radiusLabel(circleKm())));
+      if (draw.guide) draw.guide.setRadius(circleKm() * 1000);
+    });
     $("#tool-clear").addEventListener("click", () => { stopDraw(); clearSelection(); });
     const el = map.getContainer();
     const llOf = (e) => map.mouseEventToLatLng(e);
@@ -118,6 +129,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         if (!draw.guide) draw.guide = L.polyline(tail, { color: css("--area"), weight: 2, dashArray: "4 6", pane: "sel", interactive: false }).addTo(map);
         else draw.guide.setLatLngs(tail);
         if (hover !== draw.hoverFirst) { draw.hoverFirst = hover; redrawVertices(hover); }
+      } else if (draw.mode === "circle" && e.pointerType === "mouse") {
+        const ll = llOf(e), rm = circleKm() * 1000;
+        if (!draw.guide) draw.guide = L.circle(ll, { radius: rm, pane: "sel", interactive: false, color: css("--ink"), weight: 1.5, dashArray: "4 6", fill: false }).addTo(map);
+        else { draw.guide.setLatLng(ll); draw.guide.setRadius(rm); }
       }
     }, true);
     const endFree = (e) => {

@@ -10,6 +10,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const { lat, lng } = e.latlng, f = areaAt(lat, lng);
     if (!f) { tip.hidden = true; return; }
     const lines = [], u = U(), c = land && landCell(lat, lng);
+    const plot = parcelTipLine(lat, lng); // the highlighted plot (21a-parcels.js)
+    if (plot) lines.push(plot);
     if (sar && c && !state.expert) {
       const Ly = state.lyr, h = u.hov;
       if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) {

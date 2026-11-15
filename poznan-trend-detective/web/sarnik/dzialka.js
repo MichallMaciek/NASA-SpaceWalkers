@@ -11,7 +11,6 @@
   if (!SK) return; // bez rdzenia moduł jest bezczynny
 
   const ULDK = "https://uldk.gugik.gov.pl/";
-  const WMS = "https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaEwidencjiGruntow";
   // Progi. NISAR: w komórkach, które Sentinel-1 widzi jako wodę w co najmniej połowie przelotów, mediana HH z NISAR
   // wynosi -15,3 dB; tak ciemne jest tylko 1,7% obszaru badań. Woda i wilgoć: te same progi co karta miejsca.
   const LIM = { nisarDb: -15, water: 0.2, sinkMm: -2, riseDb: 3 };
@@ -29,7 +28,9 @@
     `${ULDK}?request=GetParcelByXY&xy=${Number(lng).toFixed(6)},${Number(lat).toFixed(6)},4326` +
     "&result=teryt,commune,region,parcel,geom_wkt&srid=4326";
 
-  // "0\n<teryt>|<gmina>|<obręb>|<numer>|SRID=4326;POLYGON((lng lat,...))"; null, gdy nie ma działki
+  // "0\n<teryt>|<gmina>|<obręb>|<numer>|SRID=4326;POLYGON((lng lat,...))"; null, gdy nie ma działki.
+  // W aplikacji działkę pobiera i parsuje rdzeń (web/app/21a-parcels.js, jedna funkcja z pamięcią podręczną): moduł
+  // dostaje ją w sel.parcel albo przez ctx.uldk. Własne pobieranie zostaje tylko na rdzeń bez ctx.uldk (testy w Node).
   function parse(text) {
     if (typeof text !== "string") return null;
     const lines = text.trim().split("\n");
@@ -47,6 +48,9 @@
   }
 
   const districtKey = (p) => `${p.unit}_${p.obreb}`;
+  // działka z rdzenia (sel.parcel albo ctx.uldk: { id, number, obreb: nazwa, gmina, unit, obrebNo, ring }) w kształcie modułu
+  const fromCore = (p) => (p && Array.isArray(p.ring) ? { id: p.id, unit: p.unit, obreb: p.obrebNo, number: p.number, commune: p.gmina, region: p.obreb, ring: p.ring } : null);
+  const isParcelSel = (sel) => !!(sel && sel.kind === "parcel" && sel.parcel);
 
   // wiersz rejestru: "<numer>,<nowe>,<rozbudowy>,<rozbiórki>,<rok - 2000>"
   function findPermits(rows, number) {
@@ -171,9 +175,7 @@
   };
 
   SK.register("dzialka", {
-    pure: { parse, buildUrl, findPermits, grade, inRing, areaM2, districtKey, hiresIn, LIM },
-    // granice działek z krajowej integracji ewidencji (GUGiK), tylko przy dużym przybliżeniu
-    overlay: { wms: WMS, layers: "dzialki,numery_dzialek", minZoom: 16, attribution: "Działki &copy; GUGiK (KIEG)" },
+    pure: { parse, buildUrl, findPermits, grade, inRing, areaM2, districtKey, hiresIn, fromCore, LIM },
     i18n: {
       pl: {
         title: "Grunt działki z radaru",
@@ -271,18 +273,21 @@
     },
 
     onSelect(sel, ctx) {
-      if (!sel || sel.kind !== "point" || sel.lat == null || sel.lng == null) return;
+      const own = isParcelSel(sel);
+      if (!sel || (!own && sel.kind !== "point") || sel.lat == null || sel.lng == null) return;
       // warstwy radaru (część jest już załadowana przez kartę miejsca) i ostry NISAR, jeśli punkt leży w oknie miasta
       ctx.fetchOnce(sel, "dzialkaSar", () => Promise.all(LAYERS.map((n) => ctx.loadGray(n)))
         .then(() => ctx.loadJSON("land/hires.json").catch(() => null))
         .then((hi) => (hi && (hi.layers || []).includes("nisar_hh_med") && hiresIn([[sel.lat, sel.lng], [sel.lat, sel.lng], [sel.lat, sel.lng]], ctx.land, hi)
           ? ctx.loadGray("hr_nisar_hh_med").then(() => hi, () => null) : null)), 20000);
-      ctx.fetchOnce(sel, "dzialka", (signal) => fetch(buildUrl(sel.lat, sel.lng), { signal })
-        .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-        .then((text) => {
-          const parcel = parse(text);
+      // wybrana działka: bez zapytania; koło: działka pod jego środkiem, przez wspólne pobieranie rdzenia
+      const find = (signal) => (own ? Promise.resolve(fromCore(sel.parcel))
+        : ctx.uldk ? ctx.uldk.byXY(sel.lat, sel.lng, signal).then(fromCore)
+        : fetch(buildUrl(sel.lat, sel.lng), { signal }).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); }).then(parse));
+      ctx.fetchOnce(sel, "dzialka", (signal) => find(signal)
+        .then((parcel) => {
           if (!parcel) return { parcel: null };
-          if (ctx.outline) ctx.outline(sel, parcel.ring);
+          if (!own && ctx.outline) ctx.outline(sel, parcel.ring); // a picked plot is outlined by the core already
           if (!/^(3064|3021)/.test(parcel.unit)) return { parcel, permits: { st: "out" } };
           return ctx.loadJSON("sarnik/dzialka/meta.json")
             .then((meta) => {
@@ -296,7 +301,7 @@
     },
 
     checks(sel, ctx) {
-      if (!sel || sel.kind !== "point") return null;
+      if (!sel || (sel.kind !== "point" && !isParcelSel(sel))) return null;
       const s = ctx.t("dzialka"), r = sel.ext && sel.ext.dzialka, rs = sel.ext && sel.ext.dzialkaSar;
       const base = { id: "prog", t: s.title, src: "ULDK GUGiK", sar: "no" };
       if (!r || r.st === "loading") return { ...base, lvl: "info", pending: true, word: s.checking_word, v: s.checking };

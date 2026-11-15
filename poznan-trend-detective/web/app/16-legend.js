@@ -46,6 +46,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const boot = BOOT[lang] || BOOT.pl;
     layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");
+    $("#legend").hidden = !blocks.length; // no layer on: no legend
     $("#legend").querySelectorAll("[data-retry-layer]").forEach((b) => b.addEventListener("click", () => ensure(b.dataset.retryLayer).then(redraw)));
     // the side card above it shrinks so the legend is never covered
     document.documentElement.style.setProperty("--legend-h", `${blocks.length ? $("#legend").offsetHeight + 8 : 0}px`);

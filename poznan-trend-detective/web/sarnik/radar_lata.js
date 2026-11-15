@@ -195,7 +195,7 @@
         fail: "Nie udało się wczytać zapisu zabudowy z radaru.",
         bad_word: "brak danych",
         bad: "Plik z zapisem radaru jest niepełny, więc nie liczę tu zabudowy.",
-        where: (area) => (area ? "na tym obszarze" : "w promieniu 1 km"),
+        where: (kind, r) => (kind === "area" ? "na tym obszarze" : kind === "parcel" ? "na tej działce" : `w promieniu ${r}`),
         grew: (d) => dot(`Po 2020 r., gdzie kończy się mapa optyczna, radar widzi ${d.where} ok. ${d.ha} ha nowej i gęstszej zabudowy` +
           (d.peak ? (d.q ? ` (${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.)` : `, ${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.`) : "") +
           (d.q ? `, więcej niż w ${d.q}% miejsc wokół Poznania` : "")),
@@ -218,7 +218,7 @@
         p_tiny: "mniej niż 0,1%",
         p_word: (p) => `szansa ${p}`,
         p_none_word: "brak wolnego terenu",
-        p_none: (area) => `Radar nie widzi tu wolnego terenu: ${area ? "na tym obszarze" : "w promieniu 1 km"} wszystko jest już zabudowane albo poza zasięgiem prognozy.`,
+        p_none: (kind, r) => `Radar nie widzi tu wolnego terenu: ${kind === "area" ? "na tym obszarze" : kind === "parcel" ? "na tej działce" : `w promieniu ${r}`} wszystko jest już zabudowane albo poza zasięgiem prognozy.`,
         p_src: (d) => `Prognoza zespołu: start ze stanu z radaru w ${d.start} r.` +
           (d.tr ? `; uczona ${[d.tr.what, d.tr.years ? `na latach ${d.tr.years}` : ""].filter(Boolean).join(", ")}` : ""),
       },
@@ -233,7 +233,7 @@
         fail: "Could not load the radar record of buildings.",
         bad_word: "no data",
         bad: "The radar record file is incomplete, so buildings are not counted here.",
-        where: (area) => (area ? "in this area" : "within 1 km"),
+        where: (kind, r) => (kind === "area" ? "in this area" : kind === "parcel" ? "on this plot" : `within ${r}`),
         grew: (d) => `After 2020, where the optical map ends, the radar sees about ${d.ha} ha of new and denser building ${d.where}` +
           (d.peak ? (d.q ? ` (${d.only ? "all" : "most"} in ${d.peak})` : `, ${d.only ? "all" : "most"} in ${d.peak}`) : "") +
           (d.q ? `, more than in ${d.q}% of places around Poznań.` : "."),
@@ -255,7 +255,7 @@
         p_tiny: "less than 0.1%",
         p_word: (p) => `chance ${p}`,
         p_none_word: "no open land",
-        p_none: (area) => `The radar sees no open land here: ${area ? "in this area" : "within 1 km"} everything is already built or outside the forecast.`,
+        p_none: (kind, r) => `The radar sees no open land here: ${kind === "area" ? "in this area" : kind === "parcel" ? "on this plot" : `within ${r}`} everything is already built or outside the forecast.`,
         p_src: (d) => `Team forecast: starts from the radar picture of ${d.start}` +
           (d.tr ? `; trained ${[d.tr.what, d.tr.years ? `on ${d.tr.years}` : ""].filter(Boolean).join(", ")}` : ""),
       },
@@ -272,7 +272,9 @@
 
     checks(sel, ctx) {
       if (!sel || !Array.isArray(sel.cells)) return null;
-      const s = ctx.t(NAME), area = sel.kind === "area", point = sel.kind === "point";
+      const s = ctx.t(NAME), point = sel.kind === "point", area = !point; // a plot reads like an area ("on this plot")
+      // the circle tool picks 0.25-3 km; the near_1km quantiles were measured on 1 km circles, so new hectares are divided by r²
+      const rKm = point && Number(sel.r) > 0 ? Number(sel.r) : 1, rTxt = rKm < 1 ? `${Math.round(rKm * 1000)} m` : `${rKm} km`;
       const base = { id: "historia", t: s.title, sar: "yes", lvl: "info", src: s.src_base };
       const L = S.lata, r = sel.ext && sel.ext[NAME];
       const fy = arrOf("lata", ctx);
@@ -288,9 +290,10 @@
       if (!h.valid) return { ...base, src, word: s.nodata_word, v: s.nodata };
 
       const nearQ = isObj(meta.near_1km) ? quants(meta.near_1km.new_ha_since_2020_quantiles) : null;
-      const q = point && h.newHa > 0 ? above(h.newHa, nearQ) : null;
+      const perKm = h.newHa / (rKm * rKm); // new hectares as on a 1 km circle
+      const q = point && h.newHa > 0 ? above(perKm, nearQ) : null;
       const ha = haTxt(h.newHa, ctx);
-      const where = s.where(area), parts = [];
+      const where = s.where(sel.kind, rTxt), parts = [];
       if (h.fresh) {
         parts.push(s.grew({ where, ha, peak: h.peak, only: h.only, q }));
         if (h.old) parts.push(s.total({ start: m.sy, ha: haTxt(h.totalHa, ctx) }));
@@ -300,8 +303,8 @@
       if (cover < FULL) parts.push(s.part(pctTxt(100 * cover, ctx)));
       let lvl = "info";
       if (point && nearQ && passed(meta, "zmiana_po_2020")) {
-        if (h.newHa >= nearQ["90"]) lvl = "warn";
-        else if (h.newHa < nearQ["75"] && cover >= FULL) lvl = "ok";
+        if (perKm >= nearQ["90"]) lvl = "warn";
+        else if (perKm < nearQ["75"] && cover >= FULL) lvl = "ok";
       }
       const rows = [{ ...base, src, lvl, word: h.fresh ? s.word_new(ha) : s.word_same, v: ctx.esc(parts.join(" ")) }];
 
@@ -313,7 +316,7 @@
         const hz = Number.isInteger(pm.horizon_years) && pm.horizon_years > 0 ? pm.horizon_years : 5;
         const pb = { id: "prognoza", t: s.p_title, sar: "part", lvl: "info", src: s.p_src({ start, tr: training(pm) }) + (pm.provisional === true ? s.prov : "") };
         const f = forecast(sel.cells, fy, p5);
-        if (!f.open) rows.push({ ...pb, word: s.p_none_word, v: ctx.esc(s.p_none(area)) });
+        if (!f.open) rows.push({ ...pb, word: s.p_none_word, v: ctx.esc(s.p_none(sel.kind, rTxt)) });
         else {
           const pq = quants(pm.quantiles_open), pc = 100 * f.mean;
           const qq = above(f.mean, pq);

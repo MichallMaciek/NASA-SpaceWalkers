@@ -1,8 +1,8 @@
-/* SARnik styles, part 18 of 18: design of 15.11 (quick look 6 "Lustro" from the Figma file "SARnik · redesign").
+/* SARnik styles, part 19 of 19: design of 15.11 (quick look 6 "Lustro" from the Figma file "SARnik · redesign").
    Design only, no change to markup or logic: Helvetica Neue everywhere, milky liquid glass on every floating container,
    the search bar of the look (wordmark, hairline, field, magnifier on the right), round glass buttons on the right, and
    the place card as one quiet list (no score container, no coloured pros/cons boxes). Loaded last by index.html, so it
-   wins over parts 1-17; rules: web/css/README.md */
+   wins over parts 1-18; rules: web/css/README.md */
 :root {
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --radius: 22px;

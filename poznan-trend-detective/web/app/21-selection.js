@@ -3,7 +3,8 @@
 // they share one scope, so a top-level name declared in one part is visible in every other part. Rules: web/app/README.md
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
-  /* ================= selection: a point (1 km circle) or a drawn area ================= */
+  /* ================= selection: a plot (21a-parcels.js), a circle around a point, or a drawn area ================= */
+  const CIRCLE_KM = [0.25, 0.5, 1, 2, 3]; // radii of the circle tool; a link or a click without one gets 1 km
   const PLACE_LAYERS = () => [...builtNames(), "prob_2025", "prob_2030", "prob_2035", "study", "forest_loss", "forest2000_frac", "loss_frac",
     "loss_cum_2005", "loss_cum_2010", "loss_cum_2015", "loss_cum_2020", "dem", "s1_2017", "s1_2024", ...SAR_PLACE()];
   function clearSelection() {
@@ -43,14 +44,14 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   async function selectPoint(lat, lng, label, opts = {}) {
     if (!opts.keep) state.finding = null;
-    const f = areaAt(lat, lng);
-    const ring = circleRing(lat, lng, 1);
+    const f = areaAt(lat, lng), r = CIRCLE_KM.includes(opts.r) ? opts.r : 1;
+    const ring = circleRing(lat, lng, r);
     selLayer.clearLayers();
     selOutline(ring, true);
     pinMarker = L.marker([lat, lng], { pane: "sel", icon: L.divIcon({ className: "", html: '<div class="pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false, interactive: false }).addTo(selLayer);
     $("#tool-clear").disabled = false;
-    state.sel = { kind: "point", lat, lng, ring, label: label || null, area: f ? f.properties.name : null, sq: [], ready: false }; // sq is filled in finishSelection
-    try { history.replaceState(null, "", `#${lat.toFixed(5)},${lng.toFixed(5)}`); } catch (e) { /* ignore */ } // shareable link to this place
+    state.sel = { kind: "point", lat, lng, r, ring, label: label || null, note: opts.note || null, area: f ? f.properties.name : null, sq: [], ready: false }; // sq is filled in finishSelection
+    try { history.replaceState(null, "", `#${lat.toFixed(5)},${lng.toFixed(5)}${r !== 1 ? `,${r}` : ""}`); } catch (e) { /* ignore */ } // shareable link to this place
     // fit the 1 km circle into the part of the screen the card leaves free (on phones the card sits at the bottom)
     if (opts.zoom) map.flyToBounds(L.latLngBounds(ring), { ...selPad(), maxZoom: opts.zoom, duration: 0.8 });
     await finishSelection(state.sel);
@@ -83,6 +84,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (!sel.sq.length) { const s = cellAt(gL, sel.lat, sel.lng); if (s >= 0) sel.sq = [s]; }
     if (!rankPool.risk) prepareRiskPool();
     sel.cells = cellsInRing(sel.ring).filter((i) => L8.study[i]);
+    // a plot or a small drawn area can miss every cell centre (a cell is about 73 m): then the cells it touches count
+    if (!sel.cells.length && sel.kind !== "point") sel.cells = cellsTouching(sel.ring).filter((i) => L8.study[i]);
     sel.ready = true;
     sel.ext = sel.ext || {};
     if (skShown(sel)) skSelect(sel); // extension modules start their requests once per place
