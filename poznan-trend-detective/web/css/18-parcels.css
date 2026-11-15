@@ -1,5 +1,0 @@
-/* Plots on the map and the circle tool (web/app/21a-parcels.js, 20-draw.js) */
-/* a short note in the drawing-hint box ("Zoom in to pick a plot") has no Esc key */
-.drawhint.note kbd { display: none; }
-/* waiting for the land register after a click */
-#map.picking, #map.picking .leaflet-interactive { cursor: progress; }
