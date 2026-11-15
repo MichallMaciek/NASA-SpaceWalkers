@@ -3,7 +3,7 @@
 //
 // Mapa optyczna zabudowy kończy się na 2020 r. Radar (Sentinel-1 2015–2026, ALOS PALSAR 2007–2010, NISAR 2026)
 // mówi, co powstało później, i to co rok. Dwa wiersze karty:
-//   1. "historia": udział zabudowy dziś i na początku zapisu, hektary nowej zabudowy po 2020 r., rok największego przyrostu,
+//   1. "historia": udział zabudowy dziś i na początku zapisu, hektary nowej i gęstszej zabudowy po 2020 r., rok największego przyrostu,
 //   2. "prognoza": średnia szansa zabudowy wolnego terenu w 5 lat, licząc od stanu z radaru w 2026 r. (tylko gdy jest
 //      drugi zestaw danych; bez niego wiersza nie ma).
 // Warstwy PNG moduł czyta sam z bajtów pliku (jak decodeGrayPNG w web/app.js), bo ctx.loadGray rdzenia wersji 1 czyta
@@ -196,7 +196,7 @@
         bad_word: "brak danych",
         bad: "Plik z zapisem radaru jest niepełny, więc nie liczę tu zabudowy.",
         where: (area) => (area ? "na tym obszarze" : "w promieniu 1 km"),
-        grew: (d) => dot(`Po 2020 r., gdzie kończy się mapa optyczna, radar widzi ${d.where} ok. ${d.ha} ha nowej zabudowy` +
+        grew: (d) => dot(`Po 2020 r., gdzie kończy się mapa optyczna, radar widzi ${d.where} ok. ${d.ha} ha nowej i gęstszej zabudowy` +
           (d.peak ? (d.q ? ` (${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.)` : `, ${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.`) : "") +
           (d.q ? `, więcej niż w ${d.q}% miejsc wokół Poznania` : "")),
         total: (d) => `Od ${d.start} r. łącznie ok. ${d.ha} ha.`,
@@ -234,7 +234,7 @@
         bad_word: "no data",
         bad: "The radar record file is incomplete, so buildings are not counted here.",
         where: (area) => (area ? "in this area" : "within 1 km"),
-        grew: (d) => `After 2020, where the optical map ends, the radar sees about ${d.ha} ha of new buildings ${d.where}` +
+        grew: (d) => `After 2020, where the optical map ends, the radar sees about ${d.ha} ha of new and denser building ${d.where}` +
           (d.peak ? (d.q ? ` (${d.only ? "all" : "most"} in ${d.peak})` : `, ${d.only ? "all" : "most"} in ${d.peak}`) : "") +
           (d.q ? `, more than in ${d.q}% of places around Poznań.` : "."),
         total: (d) => `Since ${d.start}, about ${d.ha} ha in all.`,
