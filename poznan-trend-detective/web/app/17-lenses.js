@@ -84,17 +84,52 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     await setLens(state.lens === k ? null : k); // a second click on the active view switches it off
     if (had && !state.sel) renderFindings();
   }
+  // The views bar is one button, "View: Plot score ▾", that opens the list of views under it. The first entry, "Default
+  // view", switches every thematic view off. Esc, a click outside the list or the button again close it. Whether a view
+  // uses radar is said in its tooltip only (the drawer's list keeps the SAR marks).
+  let lensMenuOpen = false;
+  function setLensMenu(open) {
+    lensMenuOpen = open;
+    const box = $("#lenses"), btn = box && box.querySelector("#lens-toggle"), list = box && box.querySelector("#lens-menu");
+    if (btn) btn.setAttribute("aria-expanded", String(open));
+    if (list) list.hidden = !open;
+    if (box) box.classList.toggle("open", open);
+  }
+  async function pickFromMenu(k) {
+    setLensMenu(false);
+    const btn = $("#lens-toggle");
+    if (btn) btn.focus({ preventScroll: true }); // the list closes, so the focus goes back to its button
+    if (k === state.lens) return; // picking the view already on keeps it (a second click in the old bar switched it off)
+    if (k) { await pickLens(k); return; }
+    const had = state.finding;
+    state.finding = null;
+    await setLens(null);
+    if (had && !state.sel) renderFindings();
+  }
   function renderLenses() {
     const box = $("#lenses"), u = U();
     if (!box) return;
+    const tip = (k) => `${u.lensTip[k]}${lensSar(k) === "no" ? "" : ` (${lensSar(k) === "yes" ? u.sarYes : u.sarPart})`}`;
     keepFocus(box, () => {
-      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${lensSar(l.k) === "no" ? "" : ` (${lensSar(l.k) === "yes" ? u.sarYes : u.sarPart})`}">${lensSar(l.k) === "no" ? "" : SAR_ICON(lensSar(l.k) === "part")}${u.lens[l.k]}</button>`).join("");
+      box.innerHTML = `<button type="button" class="lens-toggle" id="lens-toggle" aria-expanded="${lensMenuOpen}" aria-controls="lens-menu">${esc(u.lensView)}: ${esc(state.lens ? u.lens[state.lens] : u.lensDefaultShort)}<span class="lens-caret" aria-hidden="true">▾</span></button>` +
+        `<div class="lens-menu card" id="lens-menu"${lensMenuOpen ? "" : " hidden"}>` +
+        `<button type="button" data-lens="" aria-pressed="${!state.lens}" title="${esc(u.lensDefaultTip)}">${esc(u.lensDefault)}</button><span class="lens-sep" aria-hidden="true"></span>` +
+        LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${esc(tip(l.k))}">${esc(u.lens[l.k])}</button>`).join("") +
+        "</div>";
     });
-    box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickLens(b.dataset.lens)));
-    // narrow screens: the bar scrolls sideways; a fade on the right edge shows that more views follow
-    const more = () => box.classList.toggle("more", box.scrollWidth - box.scrollLeft - box.clientWidth > 4);
-    if (!box.dataset.wired) { box.dataset.wired = "1"; box.addEventListener("scroll", more, { passive: true }); window.addEventListener("resize", more); }
-    more();
+    box.classList.toggle("open", lensMenuOpen);
+    box.querySelector("#lens-toggle").addEventListener("click", () => setLensMenu(!lensMenuOpen));
+    box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickFromMenu(b.dataset.lens || null)));
+    if (box.dataset.wired) return;
+    box.dataset.wired = "1";
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !lensMenuOpen) return;
+      e.preventDefault(); // the drawer's own Escape handler skips a handled key
+      setLensMenu(false);
+      const btn = $("#lens-toggle");
+      if (btn) btn.focus({ preventScroll: true });
+    });
+    document.addEventListener("click", (e) => { if (lensMenuOpen && !box.contains(e.target)) setLensMenu(false); });
   }
   function setExpert(on) {
     state.expert = on;
