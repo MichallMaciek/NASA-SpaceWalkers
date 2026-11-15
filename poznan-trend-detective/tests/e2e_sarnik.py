@@ -1036,6 +1036,35 @@ async def s9_no_radar_data(run, b, lang, vp):
         await ctx.close()
 
 
+async def s10_demo_tiles(run, b, lang, vp):
+    """the demo tiles on the start card: the number on a tile is the score of the card it opens (computed, never typed in)"""
+    ctx, pg, errs = await new_page(b, run, lang, vp)
+    try:
+        n = await pg.locator("#sidecard .f-spot").count()
+        if not n:
+            return errs, "this version has no demo tiles", {}
+        # the numbers arrive once the place layers have loaded in the background
+        await pg.wait_for_function("(() => { const t = document.querySelectorAll('#sidecard .f-spot'); "
+                                   "return t.length && [...t].every((b) => b.querySelector('.f-badge')); })()", timeout=60000)
+        tiles = await pg.evaluate("[...document.querySelectorAll('#sidecard .f-spot')].map((b) => ({ k: b.dataset.spot, "
+                                  "badge: b.querySelector('.f-badge').textContent.trim(), small: b.querySelector('small').textContent.trim() }))")
+        seen = []
+        for t in tiles:
+            check(f"{t['badge']}/100" in t["small"], f"tile {t['k']}: label {t['small']!r} and badge {t['badge']!r} disagree")
+            await pg.evaluate("(k) => document.querySelector(`#sidecard .f-spot[data-spot=\"${k}\"]`).click()", t["k"])
+            await wait_card(pg)
+            await settle(pg, 300)
+            ci = await card_info(pg)
+            check(ci["score"].strip() == t["badge"], f"tile {t['k']} shows {t['badge']}, the card it opens shows {ci['score'].strip()!r}")
+            seen.append(f"{t['k']} {t['badge']}")
+            await pg.evaluate("document.querySelector('#sidecard #clear-sel').click()")
+            await pg.wait_for_function("document.querySelector('#sidecard .f-spot .f-badge')", timeout=20000)
+            await pg.wait_for_timeout(200)
+        return errs, f"{len(tiles)} tiles, each equal to its card: " + ", ".join(seen), {}
+    finally:
+        await ctx.close()
+
+
 SCENARIOS = [
     ("1 start page", s1_start),
     ("2a place by link: centre (Stary Rynek)", lambda r, b, l, v: s2_place_hash(r, b, l, v, "centre", CENTRE, need_rows=True)),
@@ -1051,6 +1080,7 @@ SCENARIOS = [
     ("7 language and theme with a card open, persistence", s7_lang_theme),
     ("8 hover tooltip: Polish words, hides off the map", s8_hover),
     ("9 page without the radar data sets (radar_lata, anim)", s9_no_radar_data),
+    ("10 demo tiles show the score of the card they open", s10_demo_tiles),
 ]
 
 
