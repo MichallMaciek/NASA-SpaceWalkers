@@ -25,35 +25,36 @@
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <!-- the data every first view needs starts downloading before the core (app/*.js) runs; these URLs must equal the ones the
      core fetches, so the ?v= number here changes together with the one on app/01-helpers.js below (its DATA_V) -->
-<link rel="preload" as="fetch" crossorigin href="data/study.json?v=1794749552">
-<link rel="preload" as="fetch" crossorigin href="data/areas.geojson?v=1794749552">
-<link rel="preload" as="fetch" crossorigin href="data/land/land.json?v=1794749552">
-<link rel="preload" as="fetch" crossorigin href="data/podtopienia.geojson?v=1794749552">
-<link rel="preload" as="fetch" crossorigin href="data/land/hires.json?v=1794749552">
-<link rel="preload" as="fetch" crossorigin href="data/land/sar.json?v=1794749552">
+<link rel="preload" as="fetch" crossorigin href="data/study.json?v=1794749662">
+<link rel="preload" as="fetch" crossorigin href="data/areas.geojson?v=1794749662">
+<link rel="preload" as="fetch" crossorigin href="data/land/land.json?v=1794749662">
+<link rel="preload" as="fetch" crossorigin href="data/podtopienia.geojson?v=1794749662">
+<link rel="preload" as="fetch" crossorigin href="data/land/hires.json?v=1794749662">
+<link rel="preload" as="fetch" crossorigin href="data/land/sar.json?v=1794749662">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="css/01-base.css?v=1794749552">
-<link rel="stylesheet" href="css/02-search-tools.css?v=1794749552">
-<link rel="stylesheet" href="css/03-card.css?v=1794749552">
-<link rel="stylesheet" href="css/04-top-right.css?v=1794749552">
-<link rel="stylesheet" href="css/05-drawer.css?v=1794749552">
-<link rel="stylesheet" href="css/06-legend.css?v=1794749552">
-<link rel="stylesheet" href="css/07-timeline.css?v=1794749552">
-<link rel="stylesheet" href="css/08-map.css?v=1794749552">
-<link rel="stylesheet" href="css/09-dialogs.css?v=1794749552">
-<link rel="stylesheet" href="css/10-small-screens.css?v=1794749552">
-<link rel="stylesheet" href="css/11-inspection-theme-draw.css?v=1794749552">
-<link rel="stylesheet" href="css/12-sarnik-v2-radar.css?v=1794749552">
-<link rel="stylesheet" href="css/13-sarnik-v3-plain.css?v=1794749552">
-<link rel="stylesheet" href="css/14-qa-fixes.css?v=1794749552">
-<link rel="stylesheet" href="css/15-nisar-banner.css?v=1794749552">
-<link rel="stylesheet" href="css/16-score.css?v=1794749552">
-<link rel="stylesheet" href="css/17-pros-cons.css?v=1794749552">
-<link rel="stylesheet" href="css/18-parcels.css?v=1794749552">
-<link rel="stylesheet" href="css/19-helvetica-szklo.css?v=1794749552">
-<link rel="stylesheet" href="css/20-hex.css?v=1794749552">
-<link rel="stylesheet" href="css/21-pasek-widokow.css?v=1794749552">
+<link rel="stylesheet" href="css/01-base.css?v=1794749662">
+<link rel="stylesheet" href="css/02-search-tools.css?v=1794749662">
+<link rel="stylesheet" href="css/03-card.css?v=1794749662">
+<link rel="stylesheet" href="css/04-top-right.css?v=1794749662">
+<link rel="stylesheet" href="css/05-drawer.css?v=1794749662">
+<link rel="stylesheet" href="css/06-legend.css?v=1794749662">
+<link rel="stylesheet" href="css/07-timeline.css?v=1794749662">
+<link rel="stylesheet" href="css/08-map.css?v=1794749662">
+<link rel="stylesheet" href="css/09-dialogs.css?v=1794749662">
+<link rel="stylesheet" href="css/10-small-screens.css?v=1794749662">
+<link rel="stylesheet" href="css/11-inspection-theme-draw.css?v=1794749662">
+<link rel="stylesheet" href="css/12-sarnik-v2-radar.css?v=1794749662">
+<link rel="stylesheet" href="css/13-sarnik-v3-plain.css?v=1794749662">
+<link rel="stylesheet" href="css/14-qa-fixes.css?v=1794749662">
+<link rel="stylesheet" href="css/15-nisar-banner.css?v=1794749662">
+<link rel="stylesheet" href="css/16-score.css?v=1794749662">
+<link rel="stylesheet" href="css/17-pros-cons.css?v=1794749662">
+<link rel="stylesheet" href="css/18-parcels.css?v=1794749662">
+<link rel="stylesheet" href="css/19-helvetica-szklo.css?v=1794749662">
+<link rel="stylesheet" href="css/20-hex.css?v=1794749662">
+<link rel="stylesheet" href="css/21-pasek-widokow.css?v=1794749662">
+<link rel="stylesheet" href="css/22-kolory-statusu.css?v=1794749662">
 
 </head>
 <body>
@@ -201,42 +202,42 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="i18n.js?v=1794749552"></script>
-<script src="i18n_sar.js?v=1794749552"></script>
-<script src="sarnik/manifest.js?v=1794749552"></script>
-<script src="app/01-helpers.js?v=1794749552"></script>
-<script src="app/02-geometry.js?v=1794749552"></script>
-<script src="app/03-gray-layers.js?v=1794749552"></script>
-<script src="app/04-built-up.js?v=1794749552"></script>
-<script src="app/05-state.js?v=1794749552"></script>
-<script src="app/06-sarnik-ext.js?v=1794749552"></script>
-<script src="app/07-layer-keys.js?v=1794749552"></script>
-<script src="app/08-nisar-passes.js?v=1794749552"></script>
-<script src="app/09-layer-needs.js?v=1794749552"></script>
-<script src="app/10-map-layers.js?v=1794749552"></script>
-<script src="app/11-base-map.js?v=1794749552"></script>
-<script src="app/12-map-init.js?v=1794749552"></script>
-<script src="app/13-layers-hires.js?v=1794749552"></script>
-<script src="app/13a-hex-layers.js?v=1794749552"></script>
-<script src="app/14-layers.js?v=1794749552"></script>
-<script src="app/15-timeline.js?v=1794749552"></script>
-<script src="app/16-legend.js?v=1794749552"></script>
-<script src="app/17-lenses.js?v=1794749552"></script>
-<script src="app/18-drawer.js?v=1794749552"></script>
-<script src="app/19-hover.js?v=1794749552"></script>
-<script src="app/20-draw.js?v=1794749552"></script>
-<script src="app/21-selection.js?v=1794749552"></script>
-<script src="app/21a-parcels.js?v=1794749552"></script>
-<script src="app/22-place-numbers.js?v=1794749552"></script>
-<script src="app/23-radar-stats.js?v=1794749552"></script>
-<script src="app/24-card.js?v=1794749552"></script>
-<script src="app/25-card-checks.js?v=1794749552"></script>
-<script src="app/26-card-pros-cons.js?v=1794749552"></script>
-<script src="app/27-card-checkup-view.js?v=1794749552"></script>
-<script src="app/28-card-technical.js?v=1794749552"></script>
-<script src="app/29-findings.js?v=1794749552"></script>
-<script src="app/30-trend-test.js?v=1794749552"></script>
-<script src="app/31-search.js?v=1794749552"></script>
-<script src="app/32-main.js?v=1794749552"></script>
+<script src="i18n.js?v=1794749662"></script>
+<script src="i18n_sar.js?v=1794749662"></script>
+<script src="sarnik/manifest.js?v=1794749662"></script>
+<script src="app/01-helpers.js?v=1794749662"></script>
+<script src="app/02-geometry.js?v=1794749662"></script>
+<script src="app/03-gray-layers.js?v=1794749662"></script>
+<script src="app/04-built-up.js?v=1794749662"></script>
+<script src="app/05-state.js?v=1794749662"></script>
+<script src="app/06-sarnik-ext.js?v=1794749662"></script>
+<script src="app/07-layer-keys.js?v=1794749662"></script>
+<script src="app/08-nisar-passes.js?v=1794749662"></script>
+<script src="app/09-layer-needs.js?v=1794749662"></script>
+<script src="app/10-map-layers.js?v=1794749662"></script>
+<script src="app/11-base-map.js?v=1794749662"></script>
+<script src="app/12-map-init.js?v=1794749662"></script>
+<script src="app/13-layers-hires.js?v=1794749662"></script>
+<script src="app/13a-hex-layers.js?v=1794749662"></script>
+<script src="app/14-layers.js?v=1794749662"></script>
+<script src="app/15-timeline.js?v=1794749662"></script>
+<script src="app/16-legend.js?v=1794749662"></script>
+<script src="app/17-lenses.js?v=1794749662"></script>
+<script src="app/18-drawer.js?v=1794749662"></script>
+<script src="app/19-hover.js?v=1794749662"></script>
+<script src="app/20-draw.js?v=1794749662"></script>
+<script src="app/21-selection.js?v=1794749662"></script>
+<script src="app/21a-parcels.js?v=1794749662"></script>
+<script src="app/22-place-numbers.js?v=1794749662"></script>
+<script src="app/23-radar-stats.js?v=1794749662"></script>
+<script src="app/24-card.js?v=1794749662"></script>
+<script src="app/25-card-checks.js?v=1794749662"></script>
+<script src="app/26-card-pros-cons.js?v=1794749662"></script>
+<script src="app/27-card-checkup-view.js?v=1794749662"></script>
+<script src="app/28-card-technical.js?v=1794749662"></script>
+<script src="app/29-findings.js?v=1794749662"></script>
+<script src="app/30-trend-test.js?v=1794749662"></script>
+<script src="app/31-search.js?v=1794749662"></script>
+<script src="app/32-main.js?v=1794749662"></script>
 </body>
 </html>

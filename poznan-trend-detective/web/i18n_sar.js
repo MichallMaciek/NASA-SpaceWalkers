@@ -682,3 +682,15 @@
     parcelNotFound: "The plot from the link was not found.",
   });
 })();
+
+/* ===== start card (web/app/29-findings.js): the three colours of the place card and the examples heading ===== */
+(() => {
+  Object.assign(window.I18N.pl.ui, {
+    featuredHead: "Przykładowe miejsca",
+    stKey: { label: "Kolory na karcie miejsca", ok: "W normie", warn: "Do sprawdzenia", risk: "Uwaga" },
+  });
+  Object.assign(window.I18N.en.ui, {
+    featuredHead: "Places to try",
+    stKey: { label: "Colours on the place card", ok: "Fine", warn: "Worth checking", risk: "Warning" },
+  });
+})();
