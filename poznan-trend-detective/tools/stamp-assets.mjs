@@ -3,7 +3,8 @@
 //
 // Every script, stylesheet and data file is addressed with ?v=<number>, so that a new deploy is never mixed with
 // files a browser still holds from the previous one. index.html also preloads six data files; a preload is only
-// used when its address is exactly the one app.js fetches, and app.js takes its number from its own <script> tag.
+// used when its address is exactly the one the core fetches, and the core (app/01-helpers.js, DATA_V) takes its number
+// from its own <script> tag.
 // One number in all places is therefore required, and easy to get wrong by hand.
 //
 //   node tools/stamp-assets.mjs            write a new number (the current Unix time) into every ?v= of web/*.html

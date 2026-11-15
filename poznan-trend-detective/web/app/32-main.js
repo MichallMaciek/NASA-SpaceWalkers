@@ -160,6 +160,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     window.addEventListener("hashchange", openHash);
     openHash();
   }
+  skLoadModules(); // the extension modules (web/sarnik/) start after every core part has run, as with the single app.js
   main().catch((e) => {
     console.error(e); // the technical detail stays in the console
     if (location.protocol === "file:") {

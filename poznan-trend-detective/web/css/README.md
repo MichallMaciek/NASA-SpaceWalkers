@@ -31,3 +31,5 @@ Zasady:
 - **Kolejność ma znaczenie:** późniejszy plik wygrywa przy tej samej szczegółowości selektora. Nie zmieniaj kolejności
   linków bez sprawdzenia wyglądu.
 - Style modułów karty mieszkają przy modułach: `web/sarnik/<nazwa>.css` (patrz `docs/planwyd/KONTRAKT.md`).
+- Nowy `<link>` dostaje ten sam numer `?v=` co pozostałe; numer podbija tylko osoba robiąca deploy
+  (`node poznan-trend-detective/tools/stamp-assets.mjs`).

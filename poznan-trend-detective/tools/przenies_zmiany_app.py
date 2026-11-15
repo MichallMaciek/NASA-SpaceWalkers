@@ -44,18 +44,20 @@ def show(ref, name):
 
 
 def merge(kind, ref, base_ref):
+    """3-way merge of one old file into its parts. Returns (conflicts, changed parts, moved: False if left for hand work)."""
     name = "app.js" if kind == "js" else "styles.css"
     theirs, base = show(ref, name), show(base_ref, name)
     if theirs is None or base is None:
         print(f"{name}: not in {ref if theirs is None else base_ref}, nothing to move")
-        return 0, []
+        return 0, [], True
     if theirs == base:
         print(f"{name}: no changes in {ref}")
-        return 0, []
+        return 0, [], True
     d, ext = ("app", "js") if kind == "js" else ("css", "css")
     files = sorted((WEB / d).glob(f"[0-9][0-9]*.{ext}"))
+    names = [f.name for f in files]
     texts = [f.read_text(encoding="utf-8") for f in files]
-    current = P.join_js(texts) if kind == "js" else P.join_css(texts)
+    current = P.join_js(texts, names) if kind == "js" else P.join_css(texts, names)
     with tempfile.TemporaryDirectory() as t:
         t = Path(t)
         (t / "current").write_text(current, encoding="utf-8")
@@ -66,24 +68,29 @@ def merge(kind, ref, base_ref):
     if r.returncode < 0:
         sys.exit(f"{name}: git merge-file failed: {r.stderr}")
     merged, conflicts = r.stdout, r.returncode
+
+    def by_hand(why):
+        out = Path(tempfile.mkdtemp(prefix="przenies_")) / name
+        out.write_text(merged, encoding="utf-8")
+        print(f"{name}: NOT MOVED: {why}.\n  The merged file (your changes on top of today's code) is {out}.\n"
+              f"  Move your changes into web/{d}/ by hand; see what they are with: git diff {base_ref[:9]} {ref} -- {REL}/web/{name}")
+        return conflicts, [], False
     try:
         parts, _ = P.split_js(merged) if kind == "js" else P.split_css(merged)
-    except SystemExit as e:
-        out = WEB / f"{name}.merged"
-        out.write_text(merged, encoding="utf-8")
-        print(f"{name}: merged, but the result cannot be cut into parts ({e}). It is in {out}: move your changes by hand.")
-        return conflicts, []
-    names = [p[0] for p in parts]
-    if names != [f.name for f in files]:
-        print(f"{name}: the parts in web/{d}/ are not the ones this tool knows ({len(files)} files): moving by hand is safer")
-        (WEB / f"{name}.merged").write_text(merged, encoding="utf-8")
-        return conflicts, []
+    except (SystemExit, AssertionError, ValueError, StopIteration) as e:
+        return by_hand(f"the merged file cannot be cut into the parts ({e or 'a section marker or the start-up guard changed'})")
+    if [q[0] for q in parts] != names:
+        return by_hand(f"the parts do not match the files in web/{d}/")
     changed = []
+    hlen = P.js_hlen if kind == "js" else (lambda t: t.index("\n") + 1)
+    known = {q[0] for q in (P.JS if kind == "js" else P.CSS)}
     for (n, text, *_), f, old in zip(parts, files, texts):
+        if n not in known:  # a part added after the split keeps its own header
+            text = old[:hlen(old)] + text[hlen(text):]
         if text != old:
             f.write_text(text, encoding="utf-8")
             changed.append(f"web/{d}/{n}")
-    return conflicts, changed
+    return conflicts, changed, True
 
 
 def main():
@@ -91,22 +98,27 @@ def main():
         sys.exit(__doc__)
     ref = sys.argv[1]
     git("rev-parse", "--verify", "--quiet", ref + "^{commit}")
-    base = git("merge-base", ref, "HEAD").stdout.strip()
-    if ref.startswith("stash"):
-        base = git("rev-parse", ref + "^1").stdout.strip()  # the commit the stash was made on
+    stash = ref.startswith(("stash", "refs/stash"))
+    # the version you started from: for a stash its parent commit, for a branch where it left main
+    base = git("rev-parse", ref + "^1").stdout.strip() if stash else git("merge-base", ref, "HEAD").stdout.strip()
     print(f"your changes: {ref}; the version you started from: {base[:9]}")
-    total, touched = 0, []
+    total, touched, moved = 0, [], True
     for kind in ("js", "css"):
-        c, ch = merge(kind, ref, base)
+        c, ch, ok = merge(kind, ref, base)
         total += c
         touched += ch
+        moved = moved and ok
     if touched:
         print("changed parts:\n  " + "\n  ".join(touched))
-    if total:
-        print(f"{total} conflict(s): look for <<<<<<< in the parts above, fix them, then run node {REL}/tests/app_parts.mjs")
+    marked = [t for t in touched if any(l.startswith("<<<<<<< ") for l in (REPO / REL / t).read_text(encoding="utf-8").split("\n"))]
+    if marked:
+        print(f"{total} conflict(s), marked with <<<<<<< in: {', '.join(marked)}. Fix them, then run: node {REL}/tests/app_parts.mjs")
     elif touched:
         print(f"no conflicts. Check: node {REL}/tests/app_parts.mjs, then open the app")
-    return 1 if total else 0
+    if stash and moved:
+        print(f"next: git stash pop; git rm -q {REL}/web/app.js {REL}/web/styles.css; git stash drop"
+              "\n  (brings back your other files; app.js and styles.css come back as 'deleted by us': remove them)")
+    return 2 if not moved else 1 if marked else 0
 
 
 if __name__ == "__main__":
