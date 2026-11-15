@@ -807,12 +807,49 @@
     if (state.sel && state.sel.ready) renderCard(); else if (!state.sel) renderFindings();
   }
 
+  // Smooth zoom with the wheel and the trackpad. Every frame the map eases towards the zoom the wheel asks for, around
+  // the point under the pointer, the way Leaflet zooms during a pinch on a phone (tiles and canvases are only scaled);
+  // when the wheel has been still for 160 ms the layers redraw once, sharp, at the new zoom.
+  function smoothWheel(m) {
+    let active = false, goal = 0, z = 0, at = null, anchor = null, raf = 0, idle = 0;
+    const lim = (v) => Math.max(m.getMinZoom(), Math.min(m.getMaxZoom(), v));
+    const centreFor = (zoom) => m.unproject(m.project(anchor, zoom).subtract(at.subtract(m.getSize().divideBy(2))), zoom);
+    const frame = () => {
+      raf = 0;
+      if (!active) return;
+      const d = goal - z;
+      z = Math.abs(d) < 0.004 ? goal : z + d * 0.3;
+      m._move(centreFor(z), z, { pinch: true, round: false });
+      if (z !== goal) raf = requestAnimationFrame(frame);
+    };
+    const end = () => {
+      if (!active) return;
+      if (raf) { idle = setTimeout(end, 60); return; } // still easing: finish the motion first
+      active = false;
+      m.fire("zoom"); // a zoom event without the pinch flag: tile layers and canvases switch to this zoom and redraw
+      m._moveEnd(true);
+    };
+    m.getContainer().addEventListener("wheel", (e) => {
+      e.preventDefault();
+      if (m._animatingZoom) return; // a button or flyTo zoom is running; it ends in a quarter of a second
+      const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+      at = m.mouseEventToContainerPoint(e);
+      if (!active) { m._stop(); active = true; z = goal = m.getZoom(); m._moveStart(true, false); }
+      anchor = m.containerPointToLatLng(at); // the place under the pointer stays under it
+      goal = lim(goal - dy * (e.ctrlKey ? 0.012 : 0.0032)); // ctrlKey: a pinch on the trackpad sends small steps
+      if (!raf) raf = requestAnimationFrame(frame);
+      clearTimeout(idle); idle = setTimeout(end, 160);
+    }, { passive: false });
+    m.on("dragstart", () => { if (active) { clearTimeout(idle); if (raf) { cancelAnimationFrame(raf); raf = 0; } end(); } });
+  }
+
   let baseDead = false; // neither the vector base map nor its raster stand-in answered: only the plain background is left
   async function initMap(baseP) {
-    // Leaflet rounds every wheel burst up to a whole zoom level (2x), so a few small trackpad moves jumped 4 levels at once.
-    // Quarter steps and a slower wheel make scrolling over the map smooth; the + and - buttons still move one level.
+    // The wheel and the trackpad zoom smoothly (smoothWheel below), not through Leaflet's wheel handler, which waits
+    // for the wheel to pause and then jumps; the + and - buttons still move one level.
     map = L.map("map", { zoomControl: false, minZoom: 8, maxZoom: 18, preferCanvas: true, attributionControl: true,
-      zoomSnap: 0.25, zoomDelta: 1, wheelPxPerZoomLevel: 80, wheelDebounceTime: 30 }).setView(OLD_MARKET, 11);
+      zoomSnap: 0.25, zoomDelta: 1, scrollWheelZoom: false }).setView(OLD_MARKET, 11);
+    smoothWheel(map);
     map.createPane("land"); map.getPane("land").style.zIndex = 390;
     map.createPane("labels"); map.getPane("labels").style.zIndex = 650; map.getPane("labels").style.pointerEvents = "none";
     map.createPane("sel"); map.getPane("sel").style.zIndex = 660;

@@ -23,6 +23,24 @@ Dwie liczby pomocnicze, gdy ktoś zapyta „skąd wiecie, że to nie szum”:
 - Drugi satelita w paśmie L (ALOS-2) widzi tę samą zmianę 20 razy częściej (18–23).
 - NISAR potwierdza zabudowę, którą Sentinel-1 datuje na lata 2021–2024: 22 razy częściej (20–24).
 
+## Co bierzemy z radaru: sensor, lata, co wnosi
+
+| Radar | Lata | Ile | Co z niego bierzemy | Co to wnosi |
+|---|---|---|---|---|
+| **Sentinel-1** (ESA, pasmo C) | 2015–2026, każde lato | 240 przelotów | mapę zabudowy co rok i rok, w którym zabudowa się pojawiła | jedyne źródło tego, co powstało po 2020 r. (1839 ha); lata 2021–2026 na mapie i w karcie; mówi prognozie, który teren jest jeszcze wolny |
+| **Sentinel-1** | jesień 2025 i jesień 2026 | po 12 przelotów | zmianę rok do roku | „Nowe budowy obok”: ślad nowych ścian, 4 razy częściej na działkach z decyzją o budowie |
+| **EGMS** (pomiary z Sentinel-1) | 2016–2020 | – | ruch gruntu w mm na rok | „Czy grunt się rusza”; tego nie da się zmierzyć niczym innym |
+| **NISAR** (NASA i ISRO, pasmo L) | czerwiec–październik 2026 | 19 przelotów i 8 par koherencji | domyślny obraz mapy, animację 10 przelotów, potwierdzenie zabudowy z lat 2025–2026, wiersz „Co NISAR widział tego lata” | widzi zabudowę 22 razy częściej tam, gdzie Sentinel-1 datuje nowe osiedla; pokazuje, jak pola zmieniają się w ciągu lata |
+| **ALOS-2** (JAXA, pasmo L) | 2015–2021 | jedna mozaika na rok | obraz na osi czasu radaru i niezależne sprawdzenie | drugi satelita widzi tę samą zmianę zabudowy 20 razy częściej |
+| **TanDEM-X** (model terenu z radaru) | – | – | wysokość, nachylenie, zagłębienia | wiersz „Woda” i dwie z dziewięciu cech prognozy |
+
+**Nie z radaru:** historia zabudowy 1975–2020 (Landsat), strefy podtopień (PIG-PIB), drzewa (Landsat), upał (MODIS),
+ceny (GUS), pozwolenia i działki (GUNB, GUGiK).
+
+**Wersja na 20 sekund.** „Z radaru bierzemy trzy rzeczy. Co buduje się teraz: Sentinel-1, jesień do jesieni.
+Co powstało rok po roku od 2015: 240 przelotów Sentinel-1, a nowe budowy potwierdza NISAR. I czy grunt się rusza.
+Mapa ze zdjęć kończy się na 2020 roku; wszystko po niej, 1839 hektarów nowej zabudowy, wiemy tylko z radaru.”
+
 ## Propozycje do trzech kroków prezentacji
 
 **Krok „Co powstanie obok do 2035”.** Dziś: „Prognoza z 50 lat zdjęć Landsat, sprawdzona na latach 2015–2020”.
@@ -63,6 +81,13 @@ Aktualna, uczciwa wersja:
 - Nie „radar widzi każdy nowy dom”. Komórka ma ok. 73 m; pojedynczy dom na dużej działce często jej nie zmienia.
 - Nie „NISAR pokazuje historię”. NISAR ma dane od kilku miesięcy; lata 2015–2025 niesie Sentinel-1.
 - Nie „dokładny rok budowy”. Rok jest przybliżony, a lata 2025 i 2026 są zaniżone przez ostrożną regułę.
+- Nie „radar przewiduje, gdzie powstaną budynki” i nie „prognoza startuje ze stanu z NISAR”. Prognoza uczy się
+  na mapach optycznych i startuje z mapy z 2020 r.; radar tylko wyłącza z niej teren już zabudowany.
+  Prognoza uczona na radarze nie przeszła niezależnego sprawdzenia (15.11, 10:15).
+- Nie „NISAR wykrył zabudowę z trafnością 95%”. Liczba 0,95 mówi, jak dobrze NISAR odtwarza mapę zabudowy
+  na całym obszarze (0,5 to los), a nie jak pewny jest wynik dla jednej działki.
+- Nie „pola czekające na inwestycję”. Słabsza zmiana sezonowa tam, gdzie model przewiduje zabudowę, to
+  obserwacja bez ustalonej przyczyny.
 
 ## Obrazy
 
