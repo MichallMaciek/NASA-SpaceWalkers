@@ -68,7 +68,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#9CC6EC", "#2F7FCC"], dry: ["#EDC45A", "#B7801A"], wetS1: ["#9CC6EC", "#3F8FD6", "#155FA8"],
       water: ["#9ED0F5", "#3C93DE", "#0B4A8C"],
       sink: ["#F2A07B", "#D9572F", "#9E2A12"], stable: "#AFC2B6", rise: "#4A90D9",
-      flood: "#1F6FBF", edge: "rgba(255,255,255,0.75)", fill: 0.82,
+      flood: "#1F6FBF", edge: "rgba(255,255,255,0.75)", fill: 0.62,
     },
     dark: {
       score: ["#F26B35", "#B87650", "#5A6066", "#3F9C80", "#4FD8AE"],
@@ -78,7 +78,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#3A6E9E", "#7FC0FF"], dry: ["#8F7426", "#E5BE4E"], wetS1: ["#2F5F8F", "#3F8FD6", "#7FC0FF"],
       water: ["#24527F", "#2F7FD0", "#7CC4FF"],
       sink: ["#8C3A22", "#D9572F", "#FF7A50"], stable: "#4C5A52", rise: "#5DA8F0",
-      flood: "#5FA8EE", edge: "rgba(255,255,255,0.3)", fill: 0.86,
+      flood: "#5FA8EE", edge: "rgba(255,255,255,0.3)", fill: 0.58,
     },
   };
   const hexPal = () => HEX_PAL[dark() ? "dark" : "light"];
