@@ -31,7 +31,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
       }
       if (fy && yf > LAST_OBS()) { // new building radar saw from 2021 to the timeline year; that year's cells fade in
-        const rc = hexRgb(css("--c-radar")), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
+        const rc = hexRgb(css("--pred-recent") || "#8B5CF6"), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
         for (let i = 0; i < n; i++) {
           if (!st[i] || fy[i] <= y0) continue;
           const f = clamp(yr - (2000 + fy[i]) + 1, 0, 1);
@@ -39,7 +39,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         }
       }
       if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
-        const predColor = hexRgb(css("--pred"));
+        const predColor = hexRgb(css("--pred") || "#C084FC");
         const P25 = projSmoothed(2025), P30 = projSmoothed(2030);
         const P35 = horizonEnd() > 2030 ? projSmoothed(2035) : P30;
         const tp30 = clamp((yf - NOW_YEAR) / (2030 - NOW_YEAR), 0, 1);

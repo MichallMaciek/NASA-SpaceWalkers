@@ -97,7 +97,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
       <line x1="${x(land.epochs[obsN - 1])}" x2="${x(land.epochs[obsN - 1])}" y1="0" y2="${H}" stroke="${css("--line")}" stroke-width="1"/>
       <path d="${d1}" fill="none" stroke="${css("--ink")}" stroke-width="2"/>
-      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>${d3 ? `<path d="${d3}" fill="none" stroke="${css("--c-radar")}" stroke-width="2"/>` : ""}
+      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>${d3 ? `<path d="${d3}" fill="none" stroke="${css("--pred-recent") || pred}" stroke-width="2"/>` : ""}
       ${cy != null ? `<circle cx="${x(cur)}" cy="${cy}" r="4.5" fill="${css("--card")}" stroke="${cur > NOW_YEAR ? pred : css("--ink")}" stroke-width="2"/>` : ""}
     </svg>`;
   }

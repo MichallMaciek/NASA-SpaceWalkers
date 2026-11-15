@@ -93,7 +93,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-forest")}"></span>${u.rowForest}</span><span class="v">${forestV}<small>${forestNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-price")}"></span>${u.rowPrice}</span><span class="v">${priceV}<small>${priceNote}</small></span></div>
       </div>
-      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}${rs ? `<div class="mh"><span style="color:${css("--c-radar")}">${u.lg.radarNew(LAST_OBS() + 1, NOW_YEAR)}</span></div>` : ""}</div>
+      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}${rs ? `<div class="mh"><span style="color:${css("--pred-recent") || css("--pred")}">${u.lg.radarNew(LAST_OBS() + 1, NOW_YEAR)}</span></div>` : ""}</div>
       ${foot ? `<p class="foot">${foot}</p>` : ""}
       ${risk}
       ${more}

@@ -25,7 +25,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
           (pf ? `<div class="lrow">${u.lg.passNote}</div>` : ""));
       }
     }
-    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${state.lens === "history" && isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
+    if (L_.built.on) {
+      const predText = typeof u.lg.projected === "function" ? u.lg.projected(state.year) : u.lg.projected;
+      blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--pred-recent") || "#8B5CF6"}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${state.lens === "history" && isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred") || "#C084FC"}"></span>${predText}</div>` : ""}`);
+    }
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
     if (sar && sar.zips) {
