@@ -73,7 +73,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#9CC6EC", "#2F7FCC"], dry: ["#EDC45A", "#B7801A"], wetS1: ["#9CC6EC", "#3F8FD6", "#155FA8"],
       water: ["#9ED0F5", "#3C93DE", "#0B4A8C"],
       sink: ["#F2A07B", "#D9572F", "#9E2A12"], stable: "#AFC2B6", rise: "#4A90D9",
-      flood: "#1F6FBF", edge: "rgba(255,255,255,0.45)", fill: 0.38,
+      flood: "#1F6FBF", edge: "rgba(255,255,255,0.45)", fill: 0.38, tint: 0.28,
     },
     dark: {
       score: ["#F26B35", "#B87650", "#5A6066", "#3F9C80", "#4FD8AE"],
@@ -83,10 +83,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#3A6E9E", "#7FC0FF"], dry: ["#8F7426", "#E5BE4E"], wetS1: ["#2F5F8F", "#3F8FD6", "#7FC0FF"],
       water: ["#24527F", "#2F7FD0", "#7CC4FF"],
       sink: ["#8C3A22", "#D9572F", "#FF7A50"], stable: "#4C5A52", rise: "#5DA8F0",
-      flood: "#5FA8EE", edge: "rgba(255,255,255,0.16)", fill: 0.36,
+      flood: "#5FA8EE", edge: "rgba(255,255,255,0.16)", fill: 0.36, tint: 0.27,
     },
   };
   const hexPal = () => HEX_PAL[dark() ? "dark" : "light"];
+  // opacity of a class: its own (the clear neutral ones), else `fill` for the grey built-up classes, `tint` for colours
+  const hexAlpha = (k, j, c, P) => c.a || (k === "built" && j < 5 ? P.fill : P.tint);
   const hexPct = (x) => Math.round(x * 100);
   const hexRng = (a, b) => (b == null ? `≥ ${a}%` : `${a}–${b}%`);
   // classes from thresholds (shares 0..1): [t0, t1, ...] -> 0 below t1, 1 below t2, ...; -1 below t0
@@ -151,8 +153,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       classes() {
         const P = hexPal(), h = hexT(), r = hexRngs(BUILT_T);
         return P.built.map((c, j) => ({ c, g: h.builtCap, lab: r[j] }))
-          .concat([{ c: css("--c-radar"), lab: h.builtNew(U().lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast)), hexPct(NEW_T)), when: () => radarFirst() && state.year > LAST_OBS() },
-            { c: css("--pred"), lab: h.builtNew(U().lg.projected, hexPct(NEW_T)), when: () => state.lens === "history" && isFuture() }]);
+          .concat([{ c: css("--pred-recent") || "#8B5CF6", lab: h.builtNew(U().lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast)), hexPct(NEW_T)), when: () => radarFirst() && state.year > LAST_OBS() },
+            { c: css("--pred") || "#C084FC", lab: h.builtNew(typeof U().lg.projected === "function" ? U().lg.projected(state.year) : U().lg.projected, hexPct(NEW_T)), when: () => state.lens === "history" && isFuture() }]);
       },
       info(e, id) {
         const h = hexT(), out = [h.hovBuilt(hexPct(e.v[id]))];
@@ -210,11 +212,14 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       info: (e, id) => (e.fo[id] >= HEX_MIN ? [hexT().hovDist(hexPct(e.hi[id]), hexPct(e.lo[id]))] : []),
     },
     score: {
-      key: () => `${!!sar}`,
+      key: () => `${!!sar}|${!!L8.sar_water}`,
       calc(G) {
-        const s = hexCached(G, `score|${!!sar}`, () => { const S = cellScores(); return hexSum(G, (i) => S[i]); });
+        const H = hexCached(G, `score|${!!sar}|${!!L8.sar_water}`, () => { const S = cellScores(); return { sum: hexSum(G, (i) => (S[i] === S[i] ? S[i] : 0)), n: hexSum(G, (i) => (S[i] === S[i] ? 1 : 0)) }; });
         const K = G.K, cls = new Int8Array(K).fill(-1), v = new Float32Array(K);
-        for (let k = 0; k < K; k++) { if (!G.ok[k]) continue; v[k] = s[k] / G.cnt[k]; cls[k] = Math.max(0, hexStep(v[k], SCORE_T)); }
+        for (let k = 0; k < K; k++) { // a hexagon that is mostly water is not drawn
+          if (!G.ok[k] || H.n[k] < HEX_COVER * G.cnt[k]) continue;
+          v[k] = H.sum[k] / H.n[k]; cls[k] = Math.max(0, hexStep(v[k], SCORE_T));
+        }
         return { cls, v };
       },
       classes() {
@@ -299,7 +304,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       info: (e, id) => (e.v[id] >= 0.005 ? [hexT().hovFlood(hexPct(e.v[id]))] : []),
     },
   };
-  const FOREST_T = [0.2, 0.5, 0.8], FOREST_LOSS_T = [0.05, 0.12, 0.25], SCORE_T = [-Infinity, 55, 62, 68, 78];
+  const FOREST_T = [0.2, 0.5, 0.8], FOREST_LOSS_T = [0.05, 0.12, 0.25], SCORE_T = [-Infinity, 78, 81, 84, 86]; // hexagon means of the score sit between about 77 and 87 (base 82): steps inside that range
   const WALL_T = [0.02, 0.05, 0.15], WET_T = [0.2, 0.4], WETS1_T = [0.2, 0.4, 0.7], WATER_T = [0.1, 0.3, 0.6], SINK_T = [0.1, 0.25, 0.5], FLOOD_T = 0.75;
   // A layer that sorts each cell with data into a kind (0 = nothing to show, 1, 2, 3) and colours a hexagon by the shares
   // of the kinds among its cells with data. A hexagon with data in less than half of it is not drawn; for `cover` layers,
@@ -325,27 +330,32 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       },
     });
   }
-  // the plot score of every cell, the same formula as the place card (only the drawing averages it per hexagon)
+  // the plot score of every cell, the same formula as the heat map (part 14); open water is no plot: NaN, left out
   function cellScores() {
-    const n = land.width * land.height, st = L8.study, out = new Float32Array(n), fl = floodMask();
-    const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025, eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null;
+    const n = land.width * land.height, st = L8.study, out = new Float32Array(n).fill(NaN), fl = floodMask(), demOff = land.dem_offset || 45;
+    const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025, d = L8.dem;
+    const eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null, wat = sar ? L8.sar_water : null;
     for (let i = 0; i < n; i++) {
       if (!st[i]) continue;
-      let s = 68;
-      if (ff && ff[i]) s += (Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255) * 25; // forest that still stands: the 2000 share minus what was lost since
-      if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
-      if (b25 && b25[i] > 120) s -= 6;
+      if (wat && wat[i] && waterOf(wat[i]) >= 0.20) continue; // lakes and rivers
+      let s = 82; // a solid, safe plot in the agglomeration
+      const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, built = b25 ? b25[i] : 0, elev = d && d[i] ? d[i] / 2 + demOff : 70;
+      if (treeFrac >= 0.10 && treeFrac <= 0.65) s += 5; // trees around: an amenity
+      else if (treeFrac > 0.65) s += 2; // deep forest
+      else if (built > 100 && treeFrac < 0.05) s -= 4; // sealed urban core
+      if (fl[i]) { // groundwater-flood area: only low, unbuilt flood meadow is a hazard
+        if (elev < 55 && built < 20) s -= 18;
+        else if (built >= 20 || elev >= 56) s += 2;
+        else s -= 4;
+      }
       if (eg && eg[i]) {
         const v = egmsOf(eg[i]);
-        if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
-        else if (v >= -0.5 && v <= 1) s += 5;
+        if (v <= -2) s -= Math.min(32, Math.abs(v) * 7);
+        else if (v >= -0.5 && v <= 1) s += 3;
       }
-      if (sc && sc[i]) {
-        const ch = changeOf(sc[i]);
-        if (ch >= 3) s -= 15;
-      }
-      if (fl[i]) s -= 28; // groundwater-flood area (the cell burnt in from the PIG-PIB polygons, see floodMask)
-      out[i] = clamp(s, 5, 95);
+      if (sc && sc[i] && changeOf(sc[i]) >= 3) s -= 12; // building work seen by radar
+      if (p30 && p30[i] > 35 && built < 25) s -= Math.round((p30[i] / 255) * 12); // development pressure on open fields
+      out[i] = clamp(s, 10, 95);
     }
     return out;
   }
@@ -425,7 +435,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       // a slight blend between neighbours: each hexagon's colour spills a little over its edge, faintly, under the fills
       if (l.mark !== "ring" && Rp >= 5) l.paths.forEach((p, k) => {
         if (!p || !cl[k]) return;
-        ctx.globalAlpha = (cl[k].a || P.fill) * l.op * 0.3; ctx.strokeStyle = cl[k].c; ctx.lineWidth = Rp * 0.35; ctx.stroke(p);
+        ctx.globalAlpha = hexAlpha(l.k, k, cl[k], P) * l.op * 0.3; ctx.strokeStyle = cl[k].c; ctx.lineWidth = Rp * 0.35; ctx.stroke(p);
       });
       l.paths.forEach((p, k) => {
         if (!p || !cl[k]) return;
@@ -433,7 +443,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
           ctx.globalAlpha = l.op; ctx.strokeStyle = cl[k].c; ctx.lineWidth = Math.max(1.5, Rp * 0.13); ctx.stroke(p);
           return;
         }
-        ctx.globalAlpha = (cl[k].a || P.fill) * l.op; ctx.fillStyle = cl[k].c; ctx.fill(p);
+        ctx.globalAlpha = hexAlpha(l.k, k, cl[k], P) * l.op; ctx.fillStyle = cl[k].c; ctx.fill(p);
         if (edges) { ctx.globalAlpha = 1; ctx.strokeStyle = P.edge; ctx.lineWidth = l.mark === "inset" ? 0.6 : 0.8; ctx.stroke(p); }
       });
     }
@@ -480,10 +490,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // legend rows of one hexagon layer: its classes with their thresholds
   function hexLegend(k) {
     hexLegendSize = hexSizeFor(hexZoom());
-    const H = HEX[k], h = hexT(), P = hexPal(), out = [];
-    const sw = (c) => (c.ring ? `<span class="sw hex ring" style="--ring:${c.c}"></span>` : `<span class="sw hex" style="background:${c.c};opacity:${Math.min(1, (c.a || P.fill) + 0.1)}"></span>`);
+    const H = HEX[k], h = hexT(), P = hexPal(), out = [], all = H.classes();
+    const sw = (c) => (c.ring ? `<span class="sw hex ring" style="--ring:${c.c}"></span>` : `<span class="sw hex" style="background:${c.c};opacity:${Math.min(1, hexAlpha(k, all.indexOf(c), c, P) + 0.25)}"></span>`);
     // ordered classes of one group as a row of steps (swatch over its range), the rest one per row
-    H.classes().filter((c) => !c.when || c.when()).forEach((c) => {
+    all.filter((c) => !c.when || c.when()).forEach((c) => {
       const last = out[out.length - 1];
       if (c.g && last && last.g === c.g) last.items.push(c); else out.push(c.g ? { g: c.g, items: [c] } : c);
     });

@@ -13,14 +13,32 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // the hectare limits below were set for the 1 km circle: a circle of r km scales them by r², a plot by the area of the
     // cells it covers (a drawn area keeps them)
     const kHa = sel.kind === "point" ? (sel.r || 1) ** 2 : sel.kind === "parcel" ? Math.min(1, (sel.cells.length * cellHa()) / (Math.PI * 100)) : 1;
+    const bu = typeof builtShare === "function" ? (builtShare(sel.cells, 2025) || 0) : 0;
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null;
+    const isWater = !!(own && L8.sar_water && waterOf(L8.sar_water[own.i]) >= 0.20);
+    const isForestReserve = ff >= 70 && bu < 20;
 
     // 1. CONS / ALARMS (Najbardziej niepokojące fakty na pierwszy rzut oka)
-    if (wf.floodShare > 0) {
+    if (isWater) {
       cons.push({
-        lvl: "risk",
-        t: lang === "pl" ? "Wysokie ryzyko podtopień (woda gruntowa)" : "High groundwater flood risk",
-        d: lang === "pl" ? "Działka leży w strefie zagrożonej podtopieniami wg PIG-PIB. Ryzyko zalewania piwnic i fundamentów na wiosnę." : "Plot is in a groundwater flood zone (PIG-PIB). Risk of basement and foundation flooding in spring."
+        lvl: "info",
+        t: lang === "pl" ? "Teren wód powierzchniowych" : "Surface water body",
+        d: lang === "pl" ? "Punkt znajduje się w korycie rzeki lub czaszy zbiornika wodnego (radar SAR). Brak możliwości lokalizacji działki lądowej." : "Point is inside a river channel or open water body (SAR radar). Not a buildable land parcel."
       });
+    } else if (wf.floodShare > 0) {
+      if (bu >= 20 || wf.reliefMean >= 0.5) {
+        cons.push({
+          lvl: "info",
+          t: lang === "pl" ? "Sąsiedztwo doliny Warty" : "Warta valley corridor",
+          d: lang === "pl" ? "Działka leży w korytarzu doliny Warty wg PIG-PIB. Teren jest ukształtowany i wyniesiony ponad koryto rzeki (sprawdź poziom wód gruntowych przy fundamentach)." : "Plot lies in the Warta river corridor (PIG-PIB). Ground is elevated above river channel."
+        });
+      } else {
+        cons.push({
+          lvl: "risk",
+          t: lang === "pl" ? "Wysokie ryzyko podtopień (woda gruntowa)" : "High groundwater flood risk",
+          d: lang === "pl" ? "Działka leży w strefie zagrożonej podtopieniami wg PIG-PIB na otwartym/niskim terenie. Ryzyko zalewania piwnic i fundamentów na wiosnę." : "Plot is in a groundwater flood zone (PIG-PIB) on open/low ground. Risk of basement and foundation flooding in spring."
+        });
+      }
     } else if (wf.hollow) {
       cons.push({
         lvl: "warn",
@@ -88,13 +106,26 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     });
 
     // 2. PROS (Zalety na zielono - co jest bezpieczne i stabilne)
-    if (ff >= 15) {
+    if (!isWater && wf.floodShare > 0 && (bu >= 20 || wf.reliefMean >= 0.5)) {
       pros.push({
-        t: lang === "pl" ? `Bliskość zieleni i lasu (ok. ${num(ff, 0)}% otoczenia)` : `Close to forest & greenery (~${num(ff, 0)}%)`,
-        d: lang === "pl" ? "Duży udział koron drzew i roślinności. Czyste powietrze i naturalny mikroklimat." : "High tree canopy and vegetation share. Fresh air and natural microclimate."
+        t: lang === "pl" ? "Atrakcyjne sąsiedztwo nadrzeczne" : "Attractive riverside proximity",
+        d: lang === "pl" ? "Bliskość nadrzecznego korytarza rekreacyjnego (Wartostrada, tereny spacerowe) i naturalna cyrkulacja powietrza." : "Proximity to the riverside recreation corridor (Wartostrada, walking trails) and fresh air flow."
       });
     }
-    if (wf.floodShare === 0 && !wf.hollow) {
+
+    if (ff >= 10 && ff <= 65) {
+      pros.push({
+        t: lang === "pl" ? `Bliskość zieleni i ogrodów (ok. ${num(ff, 0)}% otoczenia)` : `Close to greenery & gardens (~${num(ff, 0)}%)`,
+        d: lang === "pl" ? "Wysoki udział koron drzew i roślinności. Czyste powietrze, cień latem i naturalny mikroklimat." : "High tree canopy and vegetation share. Clean air, summer shade, and pleasant microclimate."
+      });
+    } else if (ff > 65) {
+      pros.push({
+        t: lang === "pl" ? `Zwarta strefa leśna (ok. ${num(ff, 0)}% koron drzew)` : `Dense forest zone (~${num(ff, 0)}% canopy)`,
+        d: lang === "pl" ? "Kompleks leśny / rezerwat przyrody. Wybitny mikroklimat leśny, lecz rygorystyczne ograniczenia prawne dla zabudowy mieszkaniowej." : "Dense forest complex / nature reserve. Outstanding microclimate, but strict statutory restrictions on residential building."
+      });
+    }
+
+    if (!isWater && wf.floodShare === 0 && !wf.hollow) {
       if (wf.reliefMean >= 1.0) {
         pros.push({
           t: lang === "pl" ? `Wyniesiony teren (+${num(wf.reliefMean, 1)} m) i naturalny drenaż` : `Elevated terrain (+${num(wf.reliefMean, 1)} m) & natural drainage`,
@@ -137,12 +168,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         d: lang === "pl" ? "Brak gwałtownych pojaśnień i nowych hal przemysłowych w ostatnim roku." : "No abrupt brightening or industrial sheds constructed in the past year."
       });
     }
-    if (!rk) {
+    if (!rk && bu >= 35) {
       pros.push({
         t: lang === "pl" ? "W pełni ukształtowana tkanka miejska" : "Established urban fabric",
         d: lang === "pl" ? "Okolica jest w 100% zurbanizowana. Brak wolnych gruntów pod nagłą, niekontrolowaną ekspansję." : "Area is 100% built-up. No open land for sudden uncontrolled expansion."
       });
-    } else if (rk.chance < 0.08) {
+    } else if (rk && rk.chance < 0.08 && !isForestReserve) {
       pros.push({
         t: lang === "pl" ? "Spokojna okolica (niska presja zabudowy)" : "Peaceful area (low development pressure)",
         d: lang === "pl" ? `Niskie ryzyko nowej zabudowy (${num(rk.chance * 100, 1)}% w 5 lat). Krajobraz i zieleń pozostają stabilne.` : `Low development risk (${num(rk.chance * 100, 1)}% in 5 yrs). Stable landscape.`
@@ -150,22 +181,46 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     }
 
     // Overall Score (0-100)
-    let score = 70;
-    if (ff >= 25) score += 20;
-    else if (ff >= 12) score += 10;
-    if (wf.floodShare === 0 && !wf.hollow) score += 10;
-    if (wf.reliefMean >= 1.0 && wf.floodShare === 0) score += 5;
-    if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 5;
-    if (!rk) score += 4;
-    else if (rk.chance < 0.08) score += 7;
+    let score = 82; // baseline for solid habitable land in the agglomeration
 
-    if (wf.floodShare > 0) score -= 35;
-    if (wf.hollow) score -= 15;
-    if (s && s.egMed <= -3) score -= 25;
-    if (s && s.walls > 0.02) score -= 14;
-    if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0) score -= 18;
-    if (lost >= 2 * kHa) score -= 10;
-    score = clamp(Math.round(score), 10, 98);
+    // Greenery balance: optimal 10% to 65% canopy in the neighborhood
+    if (ff >= 10 && ff <= 65) score += 5;
+    else if (ff > 65) score += 2; // dense woodland: nature, not residential plot
+    else if (bu > 60 && ff < 5) score -= 4; // heavily sealed urban core
+
+    // River corridor & drainage
+    if (isWater) {
+      score = 25; // open water is not a plot
+    } else if (wf.floodShare > 0) {
+      if (bu >= 20 || wf.reliefMean >= 0.5) {
+        score += 2; // managed, elevated riverside urban fabric
+      } else {
+        score -= 18; // unpaved low-lying floodplain meadow
+      }
+    } else {
+      if (!wf.hollow) score += 3;
+      if (wf.reliefMean >= 1.0) score += 2;
+    }
+
+    if (!isWater && wf.hollow) score -= 12;
+
+    // Ground stability (InSAR / EGMS) - real satellite value!
+    if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 3;
+    else if (s && s.egMed <= -3) score -= 30;
+    else if (s && s.egMin <= -5) score -= 12;
+
+    // Sprawl pressure vs established fabric
+    if (bu >= 35) score += 3; // established urban fabric
+    else if (rk && rk.chance < 0.08) score += 4; // peaceful stable suburb
+    else if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0 && bu < 35) score -= 12;
+
+    // Active SAR construction (walls in 2026)
+    if (s && s.walls > 0.02) score -= 10;
+
+    // Tree loss
+    if (lost >= 2 * kHa) score -= 8;
+
+    score = clamp(Math.round(score), 10, 95);
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
     if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }

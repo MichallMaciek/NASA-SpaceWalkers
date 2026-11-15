@@ -22,9 +22,9 @@ taka sama jak wcześniej. `index.html` ładuje je po kolei.
 | `15-nisar-banner.css` | baner NISAR 2026 w karcie |
 | `16-score.css` | karta oceny miejsca |
 | `17-pros-cons.css` | wady i zalety |
-| `18-helvetica-szklo.css` | design 15.11 (Figma, quick look 6): Helvetica Neue, szkło na pływających kontenerach, pasek wyszukiwania, karta jako lista wierszy; sam wygląd, bez zmian w logice |
-| `19-parcels.css` | działki na mapie i narzędzie koła (web/app/21a-parcels.js): podpowiedź bez Esc, kursor w trakcie szukania działki |
-| `20-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień, przełącznik heksy / heatmapa |
+| `18-parcels.css` | mapa działek (granice z ULDK, wybrana działka) |
+| `19-helvetica-szklo.css` | design 15.11 (Figma, quick look 6): Helvetica Neue, szkło na pływających kontenerach, pasek wyszukiwania, karta jako lista wierszy; sam wygląd, bez zmian w logice |
+| `20-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień, przełącznik heatmapa / heksy |
 
 Zasady:
 - **Poprawka istniejącego elementu:** w części, w której jest jego reguła.

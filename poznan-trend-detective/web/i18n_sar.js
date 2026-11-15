@@ -461,6 +461,7 @@
     // hexagons on the map (app/13a-hex-layers.js): legend classes and tooltip lines; r is a range such as "5–15%"
     modeHex: "Mapa w heksach (średnie z siatki 120 m)", modeHeat: "Mapa ciepła (płynne przejścia)",
     hex: {
+      forestTitle: "Las i wycinka",
       size: (m) => `Heks ok. ${m} m: średnia albo udział komórek siatki 120 m w jego środku`,
       builtCap: "udział zabudowy w heksie",
       builtNew: (t, p) => `${t}: ≥ ${p}% heksa`,
@@ -547,6 +548,7 @@
     lgScoreRisk: "more issues / risk",
     modeHex: "Hexagon map (means of the 120 m grid)", modeHeat: "Heat map (smooth blend)",
     hex: {
+      forestTitle: "Forest and felling",
       size: (m) => `Hexagon about ${m} m: the mean or share of the 120 m grid cells whose centres it holds`,
       builtCap: "built-up share of the hexagon",
       builtNew: (t, p) => `${t}: ≥ ${p}% of the hexagon`,

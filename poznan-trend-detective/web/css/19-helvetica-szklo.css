@@ -1,12 +1,12 @@
-/* SARnik styles, part 18 of 18: design of 15.11 (quick look 6 "Lustro" from the Figma file "SARnik · redesign").
+/* SARnik styles, part 19 of 19: design of 15.11 (quick look 6 "Lustro" from the Figma file "SARnik · redesign").
    Design only, no change to markup or logic: Helvetica Neue everywhere, milky liquid glass on every floating container,
    the search bar of the look (wordmark, hairline, field, magnifier on the right), round glass buttons on the right, and
    the place card as one quiet list (no score container, no coloured pros/cons boxes). Loaded last by index.html, so it
-   wins over parts 1-17; rules: web/css/README.md */
+   wins over parts 1-18; rules: web/css/README.md */
 :root {
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --radius: 22px;
-  --glass: rgba(255, 255, 255, .58);
+  --glass: rgba(255, 255, 255, .74); /* the map opens on an orthophoto: enough milk to read on dark, busy pixels */
   --glass-solid: rgba(255, 255, 255, .95); /* lists that open over other glass (search suggestions) */
   --glass-line: rgba(255, 255, 255, .78);
   --glass-shadow: 0 10px 30px rgba(20, 20, 20, .10), inset 0 1px 0 rgba(255, 255, 255, .55);
@@ -16,13 +16,13 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --glass: rgba(24, 24, 27, .56); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+    --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
     --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
     --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
   }
 }
 :root[data-theme="dark"] {
-  --glass: rgba(24, 24, 27, .56); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+  --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
   --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
 }
@@ -34,7 +34,7 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 /* ---------- glass: every floating container ---------- */
 .card {
   background: var(--glass);
-  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(140%); backdrop-filter: blur(26px) saturate(140%);
   border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow);
 }
 /* a backdrop filter inside another one sees only its parent: the suggestions get a nearly solid sheet instead */
@@ -46,6 +46,7 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .search::before { content: "SARnik"; order: 0; flex: none; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--ink); }
 .search::after { content: ""; order: 1; flex: none; width: 1px; height: 20px; margin: 0 14px; background: var(--ink); opacity: .22; }
 .search input { order: 2; font-size: 15px; min-width: 0; }
+.search input::placeholder { color: var(--ink-2); }
 .search .ico { order: 3; width: 18px; height: 18px; color: var(--ink); opacity: .8; margin-left: 10px; }
 .search:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
 .tools { border-radius: 26px; padding: 0 6px; }
@@ -53,7 +54,8 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .tool:hover:not(:disabled) { background: var(--glass-press); }
 .tools-sep { background: var(--hair); }
 .lenses { border-radius: 26px; padding: 0 6px; }
-.lenses button { border-radius: 20px; }
+.lenses button { border-radius: 20px; color: var(--ink); }
+.lenses button[aria-pressed="true"] { color: var(--card); }
 .lenses button:hover { background: var(--glass-press); }
 .drawhint { border-radius: 26px; }
 

@@ -31,7 +31,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
       }
       if (fy && yf > LAST_OBS()) { // new building radar saw from 2021 to the timeline year; that year's cells fade in
-        const rc = hexRgb(css("--c-radar")), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
+        const rc = hexRgb(css("--pred-recent") || "#8B5CF6"), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
         for (let i = 0; i < n; i++) {
           if (!st[i] || fy[i] <= y0) continue;
           const f = clamp(yr - (2000 + fy[i]) + 1, 0, 1);
@@ -39,7 +39,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         }
       }
       if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
-        const predColor = hexRgb(css("--pred"));
+        const predColor = hexRgb(css("--pred") || "#C084FC");
         const P25 = projSmoothed(2025), P30 = projSmoothed(2030);
         const P35 = horizonEnd() > 2030 ? projSmoothed(2035) : P30;
         const tp30 = clamp((yf - NOW_YEAR) / (2030 - NOW_YEAR), 0, 1);
@@ -188,28 +188,70 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       }
     } else if (k === "score") {
       const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
-      const eg = L8.sar_egms, sc = L8.sar_change, lut = lutFor(RAMPS.score);
+      const eg = L8.sar_egms, sc = L8.sar_change, wat = L8.sar_water, d = L8.dem, lut = lutFor(RAMPS.score);
       const w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
+      const demOff = land.dem_offset || 45;
+
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
-        let s = 68;
-        if (ff && ff[i]) s += (Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255) * 25; // forest that still stands: the 2000 share minus what was lost since
-        if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
-        if (b25 && b25[i] > 120) s -= 6;
+        // Open water (lakes, reservoirs): leave transparent so blue base water shows
+        if (wat && wat[i] && waterOf(wat[i]) >= 0.20) continue;
+
+        // Base score for habitable land in the Poznań agglomeration:
+        // A solid, safe plot starts at a healthy, reassuring 82 ("Dobra")
+        let s = 82;
+
+        const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0;
+        const built = b25 ? b25[i] : 0;
+        const elev = d && d[i] ? d[i] / 2 + demOff : 70;
+
+        // 1. Greenery balance:
+        // 10% to 65% tree canopy in the neighbourhood is an optimal residential amenity (+5)
+        // Deep continuous forest (>65%): safe nature, but not extra residential points (+2)
+        if (treeFrac >= 0.10 && treeFrac <= 0.65) {
+          s += 5;
+        } else if (treeFrac > 0.65) {
+          s += 2;
+        } else if (built > 100 && treeFrac < 0.05) {
+          s -= 4; // heavily sealed urban core / heat island prone
+        }
+
+        // 2. River corridor & flood evaluation:
+        // In Poznań, the Warta valley is an attractive green recreational amenity (Wartostrada, parks).
+        // Established quarters (built >= 20) and elevated terraces (elev >= 56m) are safe (+2 riverside amenity).
+        // Only unpaved, low-lying ground directly in the active flood meadow carries flood hazard (-18).
+        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
+        if (inFlood(la, lo)) {
+          if (elev < 55 && built < 20) {
+            s -= 18; // genuine unbuilt low flood meadow
+          } else if (built >= 20 || elev >= 56) {
+            s += 2; // managed, elevated riverside urban fabric
+          } else {
+            s -= 4;
+          }
+        }
+
+        // 3. Geotechnical stability (InSAR / EGMS vertical motion) - primary satellite differentiator!
         if (eg && eg[i]) {
           const v = egmsOf(eg[i]);
-          if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
-          else if (v >= -0.5 && v <= 1) s += 5;
+          if (v <= -2) s -= Math.min(32, Math.abs(v) * 7); // sinking ground is dangerous!
+          else if (v >= -0.5 && v <= 1) s += 3;
         }
+
+        // 4. Active construction disturbance (SAR 2026 walls)
         if (sc && sc[i]) {
           const ch = changeOf(sc[i]);
-          if (ch >= 3) s -= 15;
+          if (ch >= 3) s -= 12;
         }
-        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
-        if (inFlood(la, lo)) s -= 28;
-        s = clamp(s, 5, 95);
-        const t = (s - 5) / 90, j = ((t * 255) | 0) * 3;
-        put(i, [lut[j], lut[j + 1], lut[j + 2]], 185);
+
+        // 5. Development pressure (AI forecast on open fields)
+        if (p30 && p30[i] > 35 && built < 25) {
+          s -= Math.round((p30[i] / 255) * 12);
+        }
+
+        s = clamp(s, 10, 95);
+        const t = (s - 10) / 85, j = ((t * 255) | 0) * 3;
+        put(i, [lut[j], lut[j + 1], lut[j + 2]], 180);
       }
     }
     o.ctx.putImageData(o.img, 0, 0);
