@@ -187,82 +187,14 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         put(i, [L[j], L[j + 1], L[j + 2]], 170 + t * 80);
       }
     } else if (k === "score") {
-      const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
-      const eg = L8.sar_egms, sc = L8.sar_change, wat = L8.sar_water, d = L8.dem, lut = lutFor(RAMPS.score);
-      const w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
-      const demOff = land.dem_offset || 45;
-
+      // one formula for the heat map and the hexagons: cellScores() in part 13a (risk first, see the comment there)
+      const S = cellScores(), lut = lutFor(RAMPS.score);
       for (let i = 0; i < n; i++) {
-        if (!st[i]) continue;
-        // Water bodies (rivers, lakes, reservoirs):
-        // Leave transparent so the natural blue river/water shows without any orange or green overlay!
-        const wFrac = wat && wat[i] ? waterOf(wat[i]) : 0;
-        if (wFrac >= 0.08) continue;
-
-        // Base score for standard, solid habitable land in the agglomeration:
-        // A typical normal plot starts at a balanced neutral 70 ("Standardowa w normie")
-        let s = 70;
-
-        const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0;
-        const built = b25 ? b25[i] : 0;
-        const elev = d && d[i] ? d[i] / 2 + demOff : 70;
-
-        // 1. Greenery balance:
-        // Optimal tree canopy in the neighbourhood (Sołacz, Strzeszyn, Puszczykowo) gives fresh green (+8 to +14)
-        if (treeFrac >= 0.20 && treeFrac <= 0.65) {
-          s += Math.round(treeFrac * 22);
-        } else if (treeFrac > 0.65) {
-          s += 5; // dense continuous forest: safe nature (+5)
-        } else if (built > 110 && treeFrac < 0.04) {
-          s -= 16; // heavily sealed urban core / heat island prone (-16 -> drops to warm yellow/amber)
-        }
-
-        // 2. River corridor & flood evaluation:
-        // The river bed itself is skipped above.
-        // On dry land: unpaved low-lying floodplain meadow (active water retention) gets a REAL hazard penalty (-38 -> drops to RED!)
-        // Managed, elevated urban riverfront (Garbary, Chwaliszewo, Wildeckie tarasy) is safe and close to Wartostrada (+2).
-        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
-        if (inFlood(la, lo)) {
-          if (elev < 55 && built < 20) {
-            s -= 38; // real low-lying floodplain meadow -> RED (score 32)
-          } else if (built >= 20 || elev >= 56) {
-            s += 2; // managed, elevated riverside urban fabric -> neutral/safe 72
-          } else {
-            s -= 16; // borderline terrace -> 54 (amber)
-          }
-        }
-
-        // 3. Geotechnical stability (InSAR / EGMS vertical motion) - radar differentiator!
-        if (eg && eg[i]) {
-          const v = egmsOf(eg[i]);
-          if (v <= -2.5) s -= Math.min(42, Math.round(Math.abs(v) * 12)); // ground sinking > 2.5 mm/yr -> RED!
-          else if (v <= -1.2) s -= 18; // moderate settlement -> AMBER/WARN
-          else if (v >= -0.5 && v <= 0.8) s += 3; // solid stable bedrock (+3)
-        }
-
-        // 4. Active construction disturbance (SAR 2026 walls)
-        if (sc && sc[i]) {
-          const ch = changeOf(sc[i]);
-          if (ch >= 3.5) s -= 16;
-          else if (ch >= 2.0) s -= 8;
-        }
-
-        // 5. Tree loss / deforestation
-        if (lf && lf[i] > 80) {
-          s -= 18;
-        }
-
-        // 6. Development pressure (AI forecast on open fields)
-        if (p30 && p30[i] > 40 && built < 20) {
-          s -= Math.round((p30[i] / 255) * 14);
-        }
-
-        s = clamp(s, 15, 95);
-        const t = (s - 15) / 80, j = ((t * 255) | 0) * 3;
-        // Adaptive opacity: neutral areas (65-75) are translucent (alpha ~85) so the satellite/street map is clearly visible;
-        // extreme alerts (RED risks or high GREEN prime spots) stand out with higher opacity (alpha ~140-190).
-        const dev = Math.abs(s - 70) / 35;
-        const alpha = Math.round(clamp(85 + dev * 95, 80, 190));
+        const v = S[i];
+        if (!st[i] || v !== v) continue; // outside the study area, or open water (transparent)
+        const t = (v - 15) / 80, j = ((t * 255) | 0) * 3;
+        // neutral cells are translucent so the photo or street map shows through; hazards and proven-safe ground stand out
+        const alpha = Math.round(clamp(85 + (Math.abs(v - 64) / 35) * 95, 80, 190));
         put(i, [lut[j], lut[j + 1], lut[j + 2]], alpha);
       }
     }
