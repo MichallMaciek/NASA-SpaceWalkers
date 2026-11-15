@@ -97,6 +97,11 @@ Aktualna, uczciwa wersja:
 
 ## Czego nie mówić
 
+- Nie „tam pękają domy” przy osiadaniu (notatka prelegenta w kroku „Czy grunt się rusza”). Ze 147 komórek, które
+  osiadają o 5 mm na rok lub szybciej, tylko 22 leżą w zabudowie; pozostałe 125 to teren otwarty (dopisek 15.11, 12:40).
+- Uwaga na sprzeczność: krok „Piszemy też, co się nie potwierdziło” mówi, że wilgotność gleby z NISAR nie odróżnia
+  terenów podtopień. Karta w `main` ma od 11:39 zaletę „NISAR potwierdza … woda opadowa nie tworzy trwałych zastoisk”.
+  Dopóki PR #41 nie jest scalony, aplikacja i pitch mówią rzeczy przeciwne (dopisek 15.11, 12:40).
 - Nie „1839 ha na pustym terenie” ani „1839 ha, których nie ma żadna mapa”. 460 ha z tego to komórki, które mapa
   optyczna z 2020 r. miała już jako częściowo zabudowane; radar widzi tam dogęszczenie. Na pytanie „ile ściśle
   nowej” odpowiedź to 1379 ha (dopisek 15.11, 12:10).
