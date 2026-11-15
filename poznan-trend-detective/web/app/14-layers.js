@@ -44,11 +44,18 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const P35 = horizonEnd() > 2030 ? projSmoothed(2035) : P30;
         const tp30 = clamp((yf - NOW_YEAR) / (2030 - NOW_YEAR), 0, 1);
         const tp35 = yf > 2030 ? clamp((yf - 2030) / 5, 0, 1) : 0;
+        const ff = L8.forest2000_frac, w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
         for (let i = 0; i < n; i++) {
           if (!st[i]) continue;
           // Established existing buildings (b25 >= thr) are never changed or overwritten!
           // Only newly converted open land shows the distinct prediction color.
           if (b25[i] >= thr || (fy && fy[i] >= 15)) continue; // nor cells radar already sees built (15 = by 2015)
+
+          // Respect protected natural zones & water (don't project concrete into parks or floodplains):
+          if (ff && ff[i] > 90) continue; // protected dense forest and parkland
+          if (L8.sar_water && waterOf(L8.sar_water[i]) > 0.25) continue; // lakes and rivers
+          const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
+          if (inFlood(la, lo)) continue; // river floodplains (water law restriction)
 
           const diff30 = Math.max(0, P30[i] - P25[i]);
           const diff35 = Math.max(0, P35[i] - P30[i]);
@@ -182,12 +189,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     } else if (k === "score") {
       const p30 = L8.prob_2030, ff = L8.forest2000_frac, b25 = L8.built_2025;
       const eg = L8.sar_egms, sc = L8.sar_change, lut = lutFor(RAMPS.score);
+      const w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
-        let s = 65;
+        let s = 68;
         if (ff && ff[i]) s += (ff[i] / 255) * 25;
-        if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 22;
-        if (b25 && b25[i] > 120) s -= 8;
+        if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
+        if (b25 && b25[i] > 120) s -= 6;
         if (eg && eg[i]) {
           const v = egmsOf(eg[i]);
           if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
@@ -197,6 +205,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
           const ch = changeOf(sc[i]);
           if (ch >= 3) s -= 15;
         }
+        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
+        if (inFlood(la, lo)) s -= 28;
         s = clamp(s, 5, 95);
         const t = (s - 5) / 90, j = ((t * 255) | 0) * 3;
         put(i, [lut[j], lut[j + 1], lut[j + 2]], 185);

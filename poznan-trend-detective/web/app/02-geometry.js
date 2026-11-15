@@ -68,8 +68,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const b = boxOf(f);
     return lng >= b[0] && lng <= b[2] && lat >= b[1] && lat <= b[3] && rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng));
   };
-  // official groundwater-flood areas (PIG-PIB): inside an outer ring and not inside one of its holes
-  const inFlood = (lat, lng) => flood.features.some((f) => rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng) && !poly.slice(1).some((h) => pointInRing(h, lat, lng))));
+  // official groundwater-flood areas (PIG-PIB): inside an outer ring and not inside one of its holes (with fast bbox filter)
+  const inFlood = (lat, lng) => !!(flood && flood.features && flood.features.some((f) => {
+    const b = boxOf(f);
+    if (lng < b[0] || lng > b[2] || lat < b[1] || lat > b[3]) return false;
+    return rings(f.geometry).some((poly) => pointInRing(poly[0], lat, lng) && !poly.slice(1).some((h) => pointInRing(h, lat, lng)));
+  }));
   const areaAt = (lat, lng) => areas.features.find((f) => inArea(f, lat, lng)) || null;
   const areaStats = (name) => study.areas.find((a) => a.name === name);
 

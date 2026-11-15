@@ -19,10 +19,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const all = [
       { k: "score", layers: ["score"] },
       { k: "history", layers: ["built"] },
-      { k: "build", layers: ["built", "sarchange"] },
-      { k: "water", layers: sar && sar.nisar ? ["built", "flood", "nisarwet"] : ["built", "flood", "sarwet"] },
-      { k: "ground", layers: ["built", "egms"] },
-      { k: "trees", layers: sar && sar.zips && sar.zips.dist ? ["built", "forest", "dist"] : ["built", "forest"] },
+      { k: "build", layers: ["sarchange"] },
+      { k: "water", layers: sar && sar.nisar ? ["flood", "nisarwet", "sarwater"] : ["flood", "sarwet", "sarwater"] },
+      { k: "ground", layers: ["egms"] },
+      { k: "trees", layers: sar && sar.zips && sar.zips.dist ? ["forest", "dist"] : ["forest"] },
       { k: "radar", layers: sar && sar.nisar ? ["alos"] : ["s1rgb"] },
     ];
     return sar ? all : all.filter((l) => l.k === "score" || l.k === "trees" || l.k === "history");
@@ -41,8 +41,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (!LENSES().some((l) => l.k === k)) return;
     stopPlay();
     state.lens = k; pass = -1;
+    if (k === "trees") setYear(2024);
+    else if (k !== "history" && state.year > NOW_YEAR) setYear(NOW_YEAR);
     await applyLens();
-    if (k === "trees") setYear(2024); // forest loss up to the latest year
     renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
   }
   // moving right picks the next year with data, moving left the previous one (keyboard arrows cross the 2022-2025 gap);

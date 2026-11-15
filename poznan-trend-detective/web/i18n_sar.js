@@ -418,8 +418,8 @@
   };
   Object.assign(pl, {
     techSummary: "Szczegóły techniczne: radar, wykresy, statystyka",
-    lens: { score: "Ocena działki", history: "Zabudowa i prognoza", build: "Nowe mury (SAR)", water: "Ryzyko zalania", ground: "Osiadanie terenu", trees: "Ubytek zieleni", radar: "Satelita NISAR" },
-    lensTip: { score: "Ogólna ocena działki: zalety (zieleń, stabilność, spokój) i wady (podtopienia, osiadanie)", history: "Rozwój miasta od 1975 roku i prognoza zabudowy AI do 2035 roku", build: "Gdzie radar Sentinel-1 widzi w ostatnim roku fizyczny ślad nowych ścian", water: "Strefy podtopień (ISOK) i wilgoć po deszczu (radar NISAR)", ground: "Pomiary osiadania i ruchów gruntu z satelitów radarowych (EGMS)", trees: "Gdzie od 2001 roku wycięto las", radar: "Bezpośredni obraz mikrofalowy z satelity radarowego NASA-ISRO NISAR (pasmo L, 2026)" },
+    lens: { score: "Ocena działki", history: "Prognoza 2035 (AI)", build: "Place budowy 2026 (SAR)", water: "Ryzyko zalania", ground: "Osiadanie terenu", trees: "Ubytek zieleni", radar: "Satelita NISAR" },
+    lensTip: { score: "Ogólna ocena działki: zalety (zieleń, drenaż, stabilność, spokój) i wady (podtopienia, osiadanie)", history: "Długoterminowa prognoza AI rozwoju miasta do 2035 r. z ochroną lasów i dolin", build: "Gdzie radar Sentinel-1 widzi w ostatnim roku fizyczny ślad nowych ścian i budów", water: "Strefy podtopień PIG-PIB i letnie wysychanie gleby (spadek wilgoci o 40% wg NISAR 2026)", ground: "Pomiary osiadania i ruchów gruntu z satelitów radarowych (EGMS)", trees: "Gdzie od 2001 roku wycięto las", radar: "Bezpośredni obraz mikrofalowy z satelity radarowego NASA-ISRO NISAR (pasmo L, 2026)" },
     showOnMap: "Co pokazać na mapie", expertT: "Tryb ekspercki", expertSub: "dB, polaryzacje, testy statystyczne i wszystkie suwaki", allLayers: "Wszystkie warstwy i ustawienia",
     lensBar: "Co pokazać na mapie", baseT: "Podkład mapy", sourcesT: "Źródła danych",
     aboutLink: '<p class="about-more"><a href="about.html">Nauka, dowody i ograniczenia: pełna strona „O projekcie”</a></p>',
@@ -458,11 +458,16 @@
     lgScore: "Ocena działki (zielony = zalety, czerwony = wady)",
     lgScoreGood: "korzystna / bezpieczna",
     lgScoreRisk: "więcej wad / ryzyko",
+    featuredHead: "Szybkie przykłady – zobacz kontrasty w terenie:",
+    fMorasko: "Oaza zieleni · 92/100",
+    fWarta: "Zagrożenie powodziowe · 35/100",
+    fNaramowice: "Plac budowy (SAR) · 56/100",
+    fRynek: "Śródmieście · 80/100",
   });
   Object.assign(en, {
     techSummary: "Technical details: radar, charts, statistics",
-    lens: { score: "Plot score", history: "City & forecast", build: "New walls (SAR)", water: "Flood risk", ground: "Ground sinking", trees: "Tree loss", radar: "NISAR satellite" },
-    lensTip: { score: "Overall land score: pros (greenery, stability, quiet) and cons (floods, sinking, construction)", history: "City expansion since 1975 and AI forecast up to 2035", build: "Where Sentinel-1 radar detects new construction walls since last year", water: "Groundwater-flood areas (ISOK) and field moisture change (NISAR radar)", ground: "Millimeter-level ground sinking from satellite radar (EGMS)", trees: "Where forest has been cleared since 2001", radar: "Direct microwave radar imagery from NASA-ISRO NISAR (L-band, 2026)" },
+    lens: { score: "Plot score", history: "Forecast 2035 (AI)", build: "Active builds 2026 (SAR)", water: "Flood risk", ground: "Ground sinking", trees: "Tree loss", radar: "NISAR satellite" },
+    lensTip: { score: "Overall land score: pros (greenery, drainage, stability, quiet) and cons (floods, sinking, construction)", history: "Long-term AI forecast of city expansion to 2035 with nature & floodplain preservation", build: "Where Sentinel-1 radar detects physical walls under construction in 2026", water: "PIG-PIB flood zones and summer soil drying (moisture drops 40% via NISAR 2026)", ground: "Millimeter-level ground sinking from satellite radar (EGMS)", trees: "Where forest has been cleared since 2001", radar: "Direct microwave radar imagery from NASA-ISRO NISAR (L-band, 2026)" },
     showOnMap: "What to show on the map", expertT: "Expert mode", expertSub: "dB, polarisations, statistical tests and every slider", allLayers: "All layers and settings",
     lensBar: "What to show on the map", baseT: "Map background", sourcesT: "Data sources",
     aboutLink: '<p class="about-more"><a href="about.html">The science, the evidence and the limits: the full “About the project” page</a></p>',
@@ -501,6 +506,11 @@
     lgScore: "Plot score (green = pros, red = cons)",
     lgScoreGood: "advantageous / safe",
     lgScoreRisk: "more issues / risk",
+    featuredHead: "Quick demo spots – see real contrasts:",
+    fMorasko: "Green sanctuary · 92/100",
+    fWarta: "Flood hazard zone · 35/100",
+    fNaramowice: "Active SAR building site",
+    fRynek: "Downtown center · 80/100",
   });
   window.I18N.pl.caseTitle = "Przegląd działki z kosmosu";
   window.I18N.en.caseTitle = "A land check-up from space";

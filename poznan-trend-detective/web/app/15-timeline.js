@@ -65,9 +65,19 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     $("#tl-pred").textContent = u.predicted;
     $("#tl-pred").style.left = `${(nowP + 100) / 2}%`;
     $("#tl-year").textContent = state.year;
-    $("#tl-kind").textContent = isFuture() ? u.modelForecast : state.lyr.built.on && radarFirst() && state.year > LAST_OBS() ? u.fromRadar : u.fromMeasurements;
+    $("#tl-kind").textContent = state.lens === "water"
+      ? (lang === "pl" ? "Woda i podtopienia (PIG-PIB) · w lecie wilgotność gleby spada o 40% (NISAR 2026)" : "Flood risk & water (PIG-PIB) · summer drying drops soil moisture ~40% (NISAR 2026)")
+      : state.lens === "build"
+      ? (lang === "pl" ? "Place budowy SAR · zmiany ścian i geometrii w 2026 r." : "SAR construction sites · active wall & geometry changes in 2026")
+      : state.lens === "ground"
+      ? (lang === "pl" ? "Osiadanie podłoża (EGMS radar) · przemieszczenia pionowe w mm/rok" : "Ground subsidence (EGMS radar) · vertical displacement in mm/yr")
+      : state.lens === "score"
+      ? (lang === "pl" ? "Ocena działki (SARnik Score) · syntetyczny wskaźnik przydatności i ryzyka" : "Plot score (SARnik Score) · synthetic suitability & risk index")
+      : state.lens === "trees"
+      ? (lang === "pl" ? "Ubytek drzew i lasów (Hansen GFC) · historia od 2001 do 2024 r." : "Tree canopy loss (Hansen GFC) · observed from 2001 to 2024")
+      : isFuture() ? u.modelForecast : state.lyr.built.on && radarFirst() && state.year > LAST_OBS() ? u.fromRadar : u.fromMeasurements;
     inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
-    $("#timeline").classList.toggle("future", isFuture());
+    $("#timeline").classList.toggle("future", state.lens === "history" && isFuture());
     const ticks = innerWidth < 760 ? [1975, 2000] : [1975, 1985, 1995, 2005, 2015];
     // keep "Today" and the end year apart on narrow tracks: shorten the label, then drop the end year
     const gap = ((100 - nowP) / 100) * ($("#tl-ticks").offsetWidth || innerWidth);
