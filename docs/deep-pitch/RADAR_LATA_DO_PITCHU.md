@@ -15,7 +15,7 @@ po 2020 r., gdzie kończy się mapa ze zdjęć optycznych.
 | Liczba | Co znaczy | Skąd |
 |---|---|---|
 | **265 przelotów, 12 lat** | Sentinel-1 każdego lata od 2015 do 2026 r. (240), NISAR w 2026 r. (19), ALOS PALSAR (6) | `passes.total` |
-| **1839 ha** | tyle nowej zabudowy radar widzi po 2020 r. wokół Poznania; z tego 393 ha w samym mieście | `study.new_ha_since_2020`, `study.city_new_ha_since_2020` |
+| **1839 ha** | tyle nowej i gęstszej zabudowy radar widzi po 2020 r. wokół Poznania; z tego 393 ha w samym mieście. Ściśle nowa (tam, gdzie mapa optyczna z 2020 r. nie miała zabudowy) to 1379 ha; 460 ha to dogęszczenie (dopisek 12:10) | `study.new_ha_since_2020`, `study.city_new_ha_since_2020` |
 | **46 razy** | tam, gdzie mapa optyczna pokazuje nową zabudowę z lat 2015–2020, radar datuje ją na te lata 46 razy częściej niż gdzie indziej (przedział 40–53) | `checks.metoda_2015_2020` |
 
 Dwie liczby pomocnicze, gdy ktoś zapyta „skąd wiecie, że to nie szum”:
@@ -39,7 +39,7 @@ ceny (GUS), pozwolenia i działki (GUNB, GUGiK).
 
 **Wersja na 20 sekund.** „Z radaru bierzemy trzy rzeczy. Co buduje się teraz: Sentinel-1, jesień do jesieni.
 Co powstało rok po roku od 2015: 240 przelotów Sentinel-1, a nowe budowy potwierdza NISAR. I czy grunt się rusza.
-Mapa ze zdjęć kończy się na 2020 roku; wszystko po niej, 1839 hektarów nowej zabudowy, wiemy tylko z radaru.”
+Mapa ze zdjęć kończy się na 2020 roku; wszystko po niej, 1839 hektarów nowej i gęstszej zabudowy, wiemy tylko z radaru.”
 
 ### Dopisek wajlk, 15.11.2026, 11:45: trzy warstwy radarowe, które doszły do `main` o 11:33
 
@@ -97,6 +97,11 @@ Aktualna, uczciwa wersja:
 
 ## Czego nie mówić
 
+- Nie „1839 ha na pustym terenie” ani „1839 ha, których nie ma żadna mapa”. 460 ha z tego to komórki, które mapa
+  optyczna z 2020 r. miała już jako częściowo zabudowane; radar widzi tam dogęszczenie. Na pytanie „ile ściśle
+  nowej” odpowiedź to 1379 ha (dopisek 15.11, 12:10).
+- Nie „NISAR potwierdza, że gleba wysycha o 40% i woda nie stoi”. Liczby 0,28 i 0,17 to mediany całego obszaru
+  z 25.06 i 11.10, a w strefach podtopień gleba wyschła tak samo. Szczegóły: `docs/przeglad-v2/MAPY_PRZEGLAD_1511.md`.
 - Nie „radar potwierdza pozwolenia na budowę”. Test na decyzjach z 2026 r. nie przeszedł (2,1 raza, przedział 0,3–4,8).
 - Nie „radar widzi każdy nowy dom”. Komórka ma ok. 73 m; pojedynczy dom na dużej działce często jej nie zmienia.
 - Nie „NISAR pokazuje historię”. NISAR ma dane od kilku miesięcy; lata 2015–2025 niesie Sentinel-1.
