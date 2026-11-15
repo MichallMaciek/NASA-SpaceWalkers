@@ -157,7 +157,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (!sar) { SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
     if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
     // start on the radar view: NISAR 2026 at the end of the L-band time line. Its rasters download while the map is set up.
-    const firstP = sar ? applyLens() : Promise.resolve();
+    const firstP = sar || state.lens ? applyLens() : Promise.resolve();
     await settingsP;
     await initMap(baseP);
     initDraw();

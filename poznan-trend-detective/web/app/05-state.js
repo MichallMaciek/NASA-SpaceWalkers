@@ -35,7 +35,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
     // the rating and quantity layers as the smooth heat map (false, the default) or as hexagons (true); the pill above the zoom buttons
     hex: (() => { try { return localStorage.getItem("ptd-hex") === "1"; } catch (e) { return false; } })(),
-    lens: null, // no view and no layer at the start: a clean map; the view buttons switch them on
+    lens: "score", // the start view is the plot score (15 Nov 2026); "Default view" in the views list switches it off
     ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];

@@ -66,7 +66,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // judgement. On the dark map the strongest class is the brightest one.
   const HEX_PAL = {
     light: {
-      score: ["#DC2626", "#F97316", "#C9C4B8", "#52B788", "#16A34A"],
+      score: ["#DC2626", "#F59E0B", "#94A3B8", "#34D399", "#059669"],
       built: ["#DDD8CF", "#BEB6AA", "#9A9083", "#71685D", "#4A433A"],
       forest: ["#CDE5C4", "#85BE78", "#3D8A3A"], loss: ["#F2B36B", "#E0702B", "#A8360C"], dist: ["#E9A6D2", "#D0479F", "#9C1069"],
       walls: ["#F3A257", "#E2551C", "#A3300C"], brighter: "#E3D3A0", darker: "#7C93B5",
@@ -76,7 +76,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       flood: "#1F6FBF", edge: "rgba(255,255,255,0.45)", fill: 0.38, tint: 0.28,
     },
     dark: {
-      score: ["#EF4444", "#F97316", "#5A6066", "#34D399", "#10B981"],
+      score: ["#EF4444", "#F59E0B", "#64748B", "#34D399", "#10B981"],
       built: ["#3C4044", "#555B60", "#767D84", "#9FA6AD", "#D0D5DA"],
       forest: ["#2E4D2B", "#3F7D39", "#6CC061"], loss: ["#9C5A2A", "#DA6A2B", "#FF8F55"], dist: ["#8A3A6E", "#D0479F", "#F58BD0"],
       walls: ["#A5562A", "#E2601F", "#FF8F55"], brighter: "#7D7150", darker: "#6F86AD",

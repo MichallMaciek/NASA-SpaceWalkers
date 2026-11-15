@@ -217,8 +217,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     requestAnimationFrame(() => {
       queued = false;
       LAND_KEYS.forEach((k) => {
-        const on = state.lyr[k].on && ready(k) && !hexDrawn(k); // in the hexagon mode these layers are drawn by part 13a
-        if (on) { renderLand(k); const lyr = overlay(k).layer; if (!map.hasLayer(lyr)) lyr.addTo(map); lyr.setOpacity(state.lyr[k].op); lyr.sharpen(); }
+        const on = state.lyr[k].on && ready(k);
+        if (on) { renderLand(k); const lyr = overlay(k).layer; if (!map.hasLayer(lyr)) lyr.addTo(map); lyr.setOpacity(state.lyr[k].op); }
         else if (overlays[k] && map.hasLayer(overlays[k].layer)) map.removeLayer(overlays[k].layer);
       });
       Object.keys(PIXEL).forEach((k) => {
@@ -228,8 +228,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         if (state.lyr[k].on && gridsOK()) { if (!map.hasLayer(pl)) pl.addTo(map); else if (k === "nightyear") pl.repaint(); pl.setOpacity(state.lyr[k].op); }
         else if (map.hasLayer(pl)) map.removeLayer(pl);
       });
-      hexSync(); // hexagon mode: the rating and quantity layers, flood areas included (part 13a)
-      if (state.lyr.flood.on && !hexDrawn("flood")) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
+      if (state.lyr.flood.on) { floodLayer.setStyle({ fillOpacity: state.lyr.flood.op }); if (!map.hasLayer(floodLayer)) floodLayer.addTo(map); } else if (map.hasLayer(floodLayer)) map.removeLayer(floodLayer);
       if (state.lyr.price.on) { renderChoro(); if (!map.hasLayer(choroLayer)) choroLayer.addTo(map); } else if (map.hasLayer(choroLayer)) map.removeLayer(choroLayer);
       if (state.lyr.nisar.on && NISAR_DATES.length) {
         const url = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/NISAR_L2_Geocoded_Polarimetric_Covariance/default/${NISAR_DATES[state.lyr.nisar.i]}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`;
