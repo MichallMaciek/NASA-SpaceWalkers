@@ -1,0 +1,18 @@
+/* Views bar as one button that opens the list of views under it (web/app/17-lenses.js, renderLenses). Loaded last. */
+.lenses { position: relative; height: auto; min-height: 52px; padding: 6px; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.lenses .lens-toggle { height: 40px; gap: 8px; padding: 0 14px; font-weight: 600; color: var(--ink); background: none; }
+.lenses .lens-toggle[aria-expanded="true"] { background: var(--glass-press, var(--soft)); }
+.lens-caret { font-size: 11px; line-height: 1; transition: transform .15s ease; }
+.lens-toggle[aria-expanded="true"] .lens-caret { transform: rotate(180deg); }
+/* the list: a nearly solid sheet like the search suggestions (a backdrop filter inside another one sees only its parent) */
+.lens-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 2; min-width: 260px; display: flex; flex-direction: column; gap: 2px; padding: 6px; }
+.lens-menu.card { background: var(--glass-solid, var(--card)); -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 18px; }
+.lens-menu[hidden] { display: none; }
+.lenses .lens-menu button { width: 100%; justify-content: flex-start; text-align: left; height: 40px; }
+.lens-sep { height: 1px; margin: 3px 12px; background: var(--hair, var(--line)); }
+@media (max-width: 1599px) { .lenses { height: auto; min-height: 44px; overflow: visible; } }
+@media (max-width: 760px) {
+  .lenses { flex: 0 0 auto; min-height: 42px; padding: 4px; }
+  .lens-menu { min-width: 0; width: calc(100vw - 2 * var(--gap) - 62px); max-width: 340px; } /* clear of the round buttons on the right */
+}
+@media (prefers-reduced-motion: reduce) { .lens-caret { transition: none; } }
