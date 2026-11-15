@@ -7,8 +7,11 @@ Every scenario runs in Polish and English, at 1440x900 and 390x844. A scenario f
 console error. The test only drives the DOM (the app is one IIFE without exports); to place the pointer on the
 map it exposes the Leaflet map as window.__map, as promo/capture.py does. Nominatim is stubbed.
 
-It detects which interface it is looking at (v3: plain check-up with its header and map views; v2: technical
-checklist) instead of assuming one, so it runs on main and on older branches.
+It detects which interface it is looking at (v4, 15 Nov: plot score, radar banner, cons and pros, every check-up row in
+one folded section; v3: plain check-up with its header and map views; v2: technical checklist) instead of assuming one,
+so it runs on main and on older branches. In v4 it also guards the radar features: the radar rows of the card, the radar
+status sentence of the banner (and that the claims removed on 15 Nov stay out), the radar years of the history view, the
+NISAR passes of 2026, every map view reachable at 1440 px, and a page that still works without the radar data sets.
 
 Usage (from the repository root):
   # serve the app yourself ...
@@ -52,6 +55,11 @@ GEOCODE = [{"lat": "52.40812", "lon": "16.93350", "name": "Stary Rynek", "type":
 
 CENTRE = (52.40812, 16.93350)   # Stary Rynek, Poznań
 SUBURB = (52.35844, 16.67640)   # Dopiewo
+NEWBUILD = (52.44548, 16.94749)  # Naramowice: radar sees about 21 ha of new building within 1 km since 2020
+# claims removed from the card on 15 Nov 2026 (not computed from NISAR / not supported): they must not come back
+REMOVED_CLAIMS = ["trafność 95", "startuje prognoza", "oczekujących na inwestycję", "wygaszania pod budowę", "potwierdza prognozę",
+                  "czekająca na inwestycję", "95% accuracy", "forecast starts", "awaiting investment", "abandonment for construction",
+                  "confirms the forecast", "awaiting development"]
 VIEWPORTS = [(1440, 900), (390, 844)]
 LANGS = ["pl", "en"]
 BAD_TEXT = r"/.{0,40}(\bundefined\b|\bNaN\b|\[object [A-Za-z]+\]|\bnull\b|\bInfinity\b).{0,40}/g"
@@ -185,9 +193,17 @@ async def card_info(pg):
     return await pg.evaluate("""() => { const c = document.querySelector('#sidecard');
       const q = (s) => c.querySelector(s), qa = (s) => [...c.querySelectorAll(s)];
       const groups = qa('h3.pl-h').map((h) => ({ h: h.textContent.trim(), sar: h.classList.contains('is-sar'),
-        rows: h.nextElementSibling ? h.nextElementSibling.querySelectorAll('li').length : 0 }));
+        rows: h.nextElementSibling ? h.nextElementSibling.querySelectorAll('li').length : 0,
+        titles: h.nextElementSibling ? [...h.nextElementSibling.querySelectorAll('li .pl-t > span:first-child')].map((s) =>
+          (s.firstChild && s.firstChild.nodeType === 3 ? s.firstChild.textContent : s.textContent).trim()) : [] }));
+      const v4 = !!q('.spot-score-card'), st = q('.nisar-state'), lab = st && st.querySelector('b');
       return { title: (q('h2') || {}).textContent || '', sub: (q('.sub') || {}).textContent || '',
-        plain: !!q('.verdict'), header: (q('.vd-n') || {}).textContent || '', flags: qa('li.pl-warn, li.pl-risk').length,
+        v4, score: (q('.score-badge') || {}).textContent || '', tier: ((q('.score-sub') || {}).textContent || '').trim(),
+        consHead: (q('.cons-head') || {}).textContent || '', prosHead: (q('.pros-head') || {}).textContent || '',
+        nCons: qa('.con-item').length, nPros: qa('.pro-item').length, pill: ((q('.nisar-pill') || {}).textContent || '').trim(),
+        stateLabel: lab ? lab.textContent.trim() : '', state: st ? st.textContent.replace(lab ? lab.textContent : '', '').trim() : '',
+        quote: (q('.nisar-quote') || {}).textContent || '', all: ((q('.pc-all > summary') || {}).textContent || '').trim(), allOpen: !!(q('.pc-all') || {}).open,
+        plain: !!q('.verdict'), header: v4 ? ((q('.score-title') || {}).textContent || '').trim() : (q('.vd-n') || {}).textContent || '', flags: qa('li.pl-warn, li.pl-risk').length,
         groups, check: !!q('.check'), ckRows: qa('.check .ck').length, tech: !!q('details.tech'),
         techOpen: !!(q('details.tech') || {}).open, rbRows: qa('.radar-block .rb-row').length,
         radarHow: !!q('[data-radar-how]'), outside: !q('.verdict') && !q('.check') && !q('.rows'),
@@ -251,6 +267,69 @@ async def set_lens(pg, k):
     return False
 
 
+async def radar_sentence(pg, text):
+    """which of the app's radar status sentences (U.radar*) the banner shows, or None"""
+    return await pg.evaluate(r"""(st) => { const U = window.I18N[document.documentElement.lang].ui;
+      const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      for (const k of ['radarNewHa', 'radarWalls', 'radarBuiltOld', 'radarOpenNisar', 'radarNisarOnly', 'radarOpen', 'radarNone']) {
+        const v = U[k]; if (!v) continue;
+        const re = new RegExp('^' + (typeof v === 'function' ? esc(v('\u0001')).replace('\u0001', '.+?') : esc(v)) + '$');
+        if (re.test(st)) return k; }
+      return null; }""", text)
+
+
+def removed_claims(text):
+    return [c for c in REMOVED_CLAIMS if c.lower() in text.lower()]
+
+
+async def v4_card_checks(pg, ci, need_rows):
+    """the redesigned card (15 Nov): score, cons and pros, radar banner, every check-up row in one folded section"""
+    notes = []
+    tiers = await i18n(pg, "[U.tierGreat, U.tierGood, U.tierWarn, U.tierRisk]")
+    check(re.fullmatch(r"\d{1,3}", ci["score"].strip() or "x") and 0 <= int(ci["score"]) <= 100, f"score {ci['score']!r} is not a number 0-100")
+    check(ci["tier"] in tiers, f"tier label {ci['tier']!r} is not one of {tiers}")
+    for head, n, what in ((ci["consHead"], ci["nCons"], "cons"), (ci["prosHead"], ci["nPros"], "pros")):
+        m = re.search(r"\((\d+)\)", head)
+        check(m and int(m.group(1)) == n, f"{what} header {head.strip()!r} does not match the {n} items listed")
+    # banner: the label and one of the radar sentences, none of the removed claims
+    exp_label = await i18n(pg, "U.nisarGround")
+    check(ci["stateLabel"] == exp_label, f"banner label {ci['stateLabel']!r} != {exp_label!r}")
+    kind = await radar_sentence(pg, ci["state"])
+    check(kind, f"banner status is not one of the radar sentences: {ci['state']!r}")
+    bad = removed_claims(ci["text"] + " " + ci["quote"])
+    check(not bad, f"removed claims are back on the card: {bad}")
+    # folded section: (N) rows in all, M from radar; the radar group first, with the radar rows
+    m = re.search(r"\((\d+)\)\D+(\d+)", ci["all"])
+    check(m, f"no folded section with every check-up row (summary {ci['all']!r})")
+    n_all, n_sar = int(m.group(1)), int(m.group(2))
+    rows = sum(g["rows"] for g in ci["groups"])
+    sar_g = [g for g in ci["groups"] if g["sar"]]
+    check(rows == n_all, f"folded section says {n_all} rows but lists {rows}")
+    check(sar_g and sar_g[0]["rows"] == n_sar, f"folded section says {n_sar} radar rows but the radar group has {sar_g[0]['rows'] if sar_g else 0}")
+    exp_grp = await i18n(pg, "U.plain.grpSar")
+    check(ci["groups"][0]["h"] == exp_grp, f"first group {ci['groups'][0]['h']!r} != {exp_grp!r}")
+    if need_rows:
+        want = await i18n(pg, "[U.plain.buildT, U.plain.groundT, U.plain.nisarT, ((((window.SARNIK || {}).modules || {}).radar_lata || {}).i18n || {})[lang] ? window.SARNIK.modules.radar_lata.i18n[lang].title : 'module radar_lata missing']")
+        missing = [w for w in want if w not in sar_g[0]["titles"]]
+        check(not missing, f"radar rows missing from the group {exp_grp!r}: {missing}; it has {sar_g[0]['titles']}")
+    # the section opens with a click and shows its rows
+    await pg.click("#sidecard .pc-all > summary")
+    await pg.wait_for_timeout(250)
+    vis = await pg.evaluate("(() => { const d = document.querySelector('#sidecard .pc-all'); const h = d && d.querySelector('h3.pl-h'); return !!d && d.open && !!h && h.getClientRects().length > 0; })()")
+    check(vis, "the folded section did not open on a click")
+    notes.append(f"v4 card: score {ci['score']} {ci['tier']!r}, cons {ci['nCons']}, pros {ci['nPros']}, banner [{ci['pill']}] {kind}: {ci['state'][:90]!r}, "
+                 f"folded {n_all} rows / radar {n_sar}: {sar_g[0]['titles']}")
+    return kind, notes
+
+
+async def views_reachable(pg):
+    """every map-view button lies inside the viewport and is the element under its own centre"""
+    return await pg.evaluate("""() => [...document.querySelectorAll('#lenses [data-lens]')].map((b) => { const r = b.getBoundingClientRect();
+      const inside = r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+      const e = inside ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) : null;
+      return { k: b.dataset.lens, ok: inside && !!e && b.contains(e), at: [Math.round(r.left), Math.round(r.right)], by: e && !b.contains(e) ? (e.id || String(e.className)) : '' }; })""")
+
+
 # ---------------------------------------------------------------- scenarios
 # each returns a detail string or raises Fail; the runner adds page errors
 
@@ -266,13 +345,28 @@ async def s1_start(run, b, lang, vp):
         check("SARnik" in title, f"title {title!r} has no SARnik")
         check(visible, f"the name SARnik is not visible anywhere on the page (only in the tab title {title!r}, html lang={lang})")
         check(not bad, f"bad text: {bad}")
+        extra = ""
+        if await pg.locator("#lenses [data-lens=score]").count():  # v4: the plot score is the default view
+            pressed = await pg.evaluate("[...document.querySelectorAll('#lenses [data-lens]')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.lens)")
+            lt = (await pg.evaluate("(document.querySelector('#legend .lt') || {}).textContent || ''")).strip()
+            exp_lt = await i18n(pg, "U.lgScore")
+            check(pressed == ["score"], f"default view {pressed}, expected ['score']")
+            check(lt == exp_lt, f"default legend {lt!r} != {exp_lt!r}")
+            start = await pg.evaluate("document.querySelector('#sidecard').innerText")
+            check(not removed_claims(start), f"removed claims on the start card: {removed_claims(start)}")
+            extra = f"; default view score, legend {lt!r}; start card free of removed claims"
+        if vp[0] >= 1440:
+            vr = await views_reachable(pg)
+            bad_v = [v for v in vr if not v["ok"]]
+            check(not bad_v, f"map views outside the viewport or covered at {vp[0]} px: {bad_v}")
+            extra += f"; all {len(vr)} map views inside the viewport and clickable"
         return errs, (f"title={title!r}; SARnik visible in page text={visible}; lenses={kind['lenses']}; radar button={kind['radarBtn']}; "
-                      f"card starts {side!r}"), {"sarnik_visible": visible}
+                      f"card starts {side!r}{extra}"), {"sarnik_visible": visible}
     finally:
         await ctx.close()
 
 
-async def s2_place_hash(run, b, lang, vp, where, ll):
+async def s2_place_hash(run, b, lang, vp, where, ll, need_rows=False, expect=None):
     hash_ = f"#{ll[0]:.5f},{ll[1]:.5f}"
     ctx, pg, errs = await new_page(b, run, lang, vp, hash_)
     try:
@@ -285,7 +379,15 @@ async def s2_place_hash(run, b, lang, vp, where, ll):
         check(not ci["outside"], f"card says the place is outside the study area: {ci['text'][:120]!r}")
         check(not bad, f"bad text: {bad}")
         check(h == hash_, f"hash changed to {h!r}")
-        if ci["plain"]:
+        if ci["v4"]:
+            # v4 (15 Nov): score, cons and pros, radar banner, every row in one folded section; technical block below
+            kind, nv = await v4_card_checks(pg, ci, need_rows)
+            if expect:
+                check(kind == expect, f"banner status {kind} ({ci['state']!r}), expected {expect}")
+            check(ci["tech"], "no collapsed technical block")
+            check(ci["rbRows"] >= 5, f"radar block has {ci['rbRows']} rows")
+            ver = "; ".join(nv) + f", radar block rows {ci['rbRows']}"
+        elif ci["plain"]:
             # v3 plain check-up: header with the number of things to check, radar group first
             m = re.search(r"\d+", ci["header"])
             n = int(m.group()) if m else 0
@@ -336,7 +438,8 @@ async def s2_link_from_click(run, b, lang, vp):
         await wait_app(pg2)
         await wait_card(pg2)
         bb = await card_info(pg2)
-        check(a["header"] == bb["header"] and a["sub"] == bb["sub"], f"link opens a different card: {a['header']!r}/{a['sub']!r} vs {bb['header']!r}/{bb['sub']!r}")
+        check(a["header"] and a["header"] == bb["header"] and a["sub"] == bb["sub"] and a["state"] == bb["state"],
+              f"link opens a different card: {a['header']!r}/{a['sub']!r}/{a['state'][:60]!r} vs {bb['header']!r}/{bb['sub']!r}/{bb['state'][:60]!r}")
         # clear the selection: the link must go too
         await pg.click("#sidecard #clear-sel")
         await pg.wait_for_timeout(300)
@@ -352,6 +455,7 @@ async def s3_timeline(run, b, lang, vp):
     notes = []
     try:
         await wait_card(pg)
+        await set_lens(pg, "radar")  # v4: the radar axis lives in the NISAR view only (the default view is the plot score)
         st = await tl_state(pg)
         if st["radar"]:
             # radar axis: every integer position of the slider, as a pointer click would set it
@@ -391,8 +495,27 @@ async def s3_timeline(run, b, lang, vp):
             notes.append(f"radar axis Today button present={bool(now_btn)}")
             await set_lens(pg, "history")
         # projection axis (history view or v1 layout)
+        await set_lens(pg, "history")
         st = await tl_state(pg)
         check(not st["radar"], "could not leave the radar axis")
+        # radar years of the history view: after 2020 the legend has the radar row and the caption says radar
+        exp_fr, exp_fm, rad_pre = await i18n(pg, "[U.fromRadar, U.fromMeasurements, U.lg.radarNew('\u0001', '\u0002').split('\u0001')[0].replace(/[,\\s]+$/, '')]")
+        if exp_fr:
+            await set_range(pg, "#year", 2024)
+            try:
+                await pg.wait_for_function("(p) => document.querySelector('#legend').textContent.includes(p)", arg=rad_pre, timeout=10000)
+            except Exception:
+                pass
+            s24 = await tl_state(pg)
+            exp_24 = await i18n(pg, "U.lg.radarNew(2021, 2024)")
+            check(exp_24 in s24["legend"], f"2024 in the history view: legend misses the radar row {exp_24!r}: {s24['legend']!r}")
+            check(s24["kind"] == exp_fr, f"2024 in the history view: caption {s24['kind']!r}, expected {exp_fr!r}")
+            await set_range(pg, "#year", 2020)
+            await settle(pg, 400)
+            s20 = await tl_state(pg)
+            check(rad_pre not in s20["legend"], f"2020 in the history view: the radar row is still in the legend: {s20['legend']!r}")
+            check(s20["kind"] == exp_fm, f"2020 in the history view: caption {s20['kind']!r}, expected {exp_fm!r}")
+            notes.append(f"history view: 2024 legend has {exp_24!r} and caption {s24['kind']!r}; 2020 without them ({s20['kind']!r})")
         await set_range(pg, "#year", 1990)
         await settle(pg, 400)
         s90 = await tl_state(pg)
@@ -445,8 +568,10 @@ async def s3_radar_keyboard(run, b, lang, vp):
     """the radar axis with the keyboard: ArrowLeft from 2026 should reach the newest ALOS-2 year"""
     ctx, pg, errs = await new_page(b, run, lang, vp)
     try:
+        await set_lens(pg, "radar")  # v4: the radar axis is in the NISAR view
         st = await tl_state(pg)
         if not st["radar"]:
+            check(not await pg.locator("#lenses [data-lens=radar]").count(), "the NISAR view has no radar time line")
             return errs, "no radar axis in this version (skipped)", {}
         await pg.focus("#year")
         seq = []
@@ -548,6 +673,8 @@ async def s4_layers(run, b, lang, vp):
         await close_drawer(pg)
         # map views (lenses) in the top bar
         lv = []
+        # v4: the key each view must show (plain mode); a view not listed here only needs a non-empty legend
+        own = await i18n(pg, "({ score: U.lgScore, history: U.lg.built, build: (U.lgPlain || {}).sarchange, water: U.lg.flood, ground: (U.lgPlain || {}).egms, trees: U.lg.forest, radar: (U.lgPlain || {}).nisarL })")
         for k in await pg.evaluate("[...document.querySelectorAll('#lenses [data-lens]')].map((b) => b.dataset.lens)"):
             await set_lens(pg, k)
             pressed = await pg.evaluate(f"document.querySelector('#lenses [data-lens={k}]').getAttribute('aria-pressed')")
@@ -555,6 +682,9 @@ async def s4_layers(run, b, lang, vp):
             lv.append(f"{k}={lg!r}")
             if pressed != "true" or not lg:
                 problems.append(f"view {k}: pressed={pressed}, legend={lg!r}")
+            want = own.get(k) if k in ("score", "history", "build", "water", "ground", "trees", "radar") and await pg.locator("#lenses [data-lens=score]").count() else None
+            if want and want not in await pg.evaluate("document.querySelector('#legend').textContent"):
+                problems.append(f"view {k}: legend has no {want!r}")
         if lv:
             notes.append("views " + ", ".join(lv))
         check(not bad, f"bad text: {bad}")
@@ -615,7 +745,7 @@ async def s6_draw(run, b, lang, vp):
         await run.shot(pg, f"06_draw_polygon_{lang}_{vp[0]}")
         check(ci["title"].strip() == exp_title, f"card title after polygon {ci['title']!r} != {exp_title!r}")
         check("km²" in ci["sub"], f"area card has no km²: {ci['sub']!r}")
-        check(ci["plain"] or ci["check"], "area card has no check-up")
+        check(ci["plain"] or ci["check"] or (ci["v4"] and ci["all"] and sum(g["rows"] for g in ci["groups"]) >= 3), "area card has no check-up")
         check(h == "", f"area keeps a point link {h!r}")
         check(not await bad_text(pg, ["#sidecard"]), "bad text in the area card")
         notes.append(f"polygon: hint {hint!r}, card {ci['title']!r} {ci['sub']!r}, {ci['header']!r}")
@@ -665,9 +795,12 @@ async def s7_lang_theme(run, b, lang, vp):
         bb = await card_info(pg)
         lang_now = await pg.evaluate("document.documentElement.lang")
         check(lang_now == other, f"html lang {lang_now!r}")
-        if bb["plain"]:
+        if bb["plain"] or bb["v4"]:
             exp = await i18n(pg, "U.plain.grpSar")
             check(bb["groups"] and bb["groups"][0]["h"] == exp, f"card group {bb['groups'][:1]} not in {other}")
+        if bb["v4"]:
+            exp_lab = await i18n(pg, "U.nisarGround")
+            check(bb["stateLabel"] == exp_lab and await radar_sentence(pg, bb["state"]), f"banner not in {other}: {bb['stateLabel']!r} {bb['state'][:80]!r}")
         check(bb["header"] != a["header"] or not a["header"], f"card header not translated: {bb['header']!r}")
         lens = await pg.evaluate("(document.querySelector('#lenses [data-lens=radar]') || {}).textContent || ''")
         if lens:
@@ -817,18 +950,107 @@ async def s8_hover(run, b, lang, vp):
         await ctx.close()
 
 
+async def s3_passes(run, b, lang, vp):
+    """the NISAR view: the 2026 step opens into the single passes of the summer (10 steps, dates, an HH-only pass) and back"""
+    ctx, pg, errs = await new_page(b, run, lang, vp)
+    try:
+        if not await set_lens(pg, "radar"):
+            return errs, "no NISAR view in this version (skipped)", {}
+        try:
+            await pg.wait_for_function("document.querySelector('#tl-pass') && !document.querySelector('#tl-pass').hidden", timeout=15000)
+        except Exception:
+            pass
+        btn = pg.locator("#tl-pass")
+        exp_open, exp_close, hh_tail = await i18n(pg, "[U.passOpen, U.passClose, U.passKind('\\u0001', true).split('\\u0001')[1]]")
+        check(await btn.count() and await btn.is_visible(), f"no visible {exp_open!r} link on the NISAR time line")
+        check(await btn.get_attribute("aria-label") == exp_open, f"pass link is labelled {await btn.get_attribute('aria-label')!r}, expected {exp_open!r}")
+        st0 = await tl_state(pg)
+        await btn.click()
+        await settle(pg, 800)
+        st = await tl_state(pg)
+        check((st["min"], st["max"]) == (0, 9), f"pass slider runs {st['min']}..{st['max']}, expected 10 steps (0..9)")
+        check(not re.fullmatch(r"\d{4}", st["year"]), f"the big label shows {st['year']!r}, not a pass date")
+        check(await btn.get_attribute("aria-label") == exp_close, f"open pass link is labelled {await btn.get_attribute('aria-label')!r}, expected {exp_close!r}")
+        seen, hh = [], []
+        for k in range(10):
+            await set_range(pg, "#year", k)
+            await settle(pg, 250)
+            s_ = await tl_state(pg)
+            aria = await pg.evaluate("document.querySelector('#year').getAttribute('aria-valuetext')")
+            seen.append(s_["year"])
+            check("NISAR" in aria, f"pass {k}: aria-valuetext {aria!r} does not name NISAR")
+            if hh_tail.strip(", ") in aria:
+                hh.append(s_["year"])
+                exp_lg = await i18n(pg, "U.lg.passHH")
+                check(exp_lg in s_["legend"], f"HH-only pass {s_['year']!r}: legend misses {exp_lg!r}")
+        check(len(set(seen)) == 10, f"the 10 passes do not have 10 different date labels: {seen}")
+        check(len(hh) == 1, f"expected exactly one HH-only pass, found {hh}")
+        if vp[0] == 1440:
+            await run.shot(pg, f"03_passes_{lang}_{vp[0]}")
+        await btn.click()
+        await settle(pg, 600)
+        back = await tl_state(pg)
+        check((back["min"], back["max"], back["year"]) == (st0["min"], st0["max"], str(NOW_YEAR)), f"closing the passes gave {back['min']}..{back['max']} at {back['year']}, expected {st0['min']}..{st0['max']} at {NOW_YEAR}")
+        return errs, f"passes {seen}; HH only: {hh}; closing restores {back['min']}..{back['max']} at {back['year']}", {}
+    finally:
+        await ctx.close()
+
+
+async def s9_no_radar_data(run, b, lang, vp):
+    """without the radar data sets (radar_lata, anim) the page still works: card, banner, time line, no page error"""
+    w, h = vp
+    ctx = await b.new_context(viewport={"width": w, "height": h}, device_scale_factor=1, locale="pl-PL" if lang == "pl" else "en-GB")
+    await ctx.add_init_script(HOOK)
+    await ctx.add_init_script(f"try {{ localStorage.clear(); localStorage.setItem('ptd-lang', '{lang}'); }} catch (e) {{}}")
+    await ctx.route("**/nominatim.openstreetmap.org/**", fake_geocoder)
+    blocked = ["/data/sarnik/radar_lata/", "/data/sarnik/anim/"]
+    for part in blocked:
+        await ctx.route(f"**{part}**", lambda r: r.fulfill(status=404, body="blocked by the test"))
+    pg = await ctx.new_page()
+    errs, warns = [], []
+    pg.on("console", lambda m: errs.append(f"console.{m.type}: {m.text[:300]}") if m.type == "error" and "status of 404" not in m.text else
+          (warns.append(m.text[:200]) if m.type == "warning" else None))
+    pg.on("pageerror", lambda e: errs.append(f"pageerror: {str(e)[:300]}"))
+    pg.on("response", lambda r: errs.append(f"HTTP {r.status} {r.url[:160]}") if r.status >= 400 and r.url.startswith(run.url) and not any(p in r.url for p in blocked) else None)
+    try:
+        await pg.goto(run.url + f"#{CENTRE[0]:.5f},{CENTRE[1]:.5f}", wait_until="load")
+        await wait_app(pg)
+        await wait_card(pg)
+        await settle(pg, 600)
+        ci = await card_info(pg)
+        check(not ci["outside"] and (ci["v4"] or ci["plain"] or ci["check"]), "no card without the radar data sets")
+        if ci["v4"]:
+            check(re.fullmatch(r"\d{1,3}", ci["score"].strip() or "x"), f"no score without the radar data sets: {ci['score']!r}")
+            kind = await radar_sentence(pg, ci["state"])
+            check(kind and kind != "radarNewHa", f"banner without radar_lata: {kind} {ci['state']!r}")
+            # Stary Rynek is the densest built-up place of the city: whatever data are missing, it must not be called open land
+            check(kind not in ("radarOpenNisar", "radarOpen"), f"without radar_lata the banner calls Stary Rynek open land: {ci['state']!r}")
+        await set_lens(pg, "radar")
+        pass_link = await pg.evaluate("!!document.querySelector('#tl-pass') && !document.querySelector('#tl-pass').hidden")
+        st = await tl_state(pg)
+        check(not pass_link, "the pass link is shown although anim/ is missing")
+        per_set = {p: sum(1 for t in warns if p.strip("/").split("/")[-1] in t) for p in blocked}
+        check(all(n <= 2 for n in per_set.values()), f"too many warnings per missing set: {per_set} {warns[:4]}")
+        return errs, f"card renders (banner {ci['state'][:70]!r}); NISAR view time line {st['min']}..{st['max']} without the pass link; warnings per set {per_set}", {}
+    finally:
+        await ctx.close()
+
+
 SCENARIOS = [
     ("1 start page", s1_start),
-    ("2a place by link: centre (Stary Rynek)", lambda r, b, l, v: s2_place_hash(r, b, l, v, "centre", CENTRE)),
+    ("2a place by link: centre (Stary Rynek)", lambda r, b, l, v: s2_place_hash(r, b, l, v, "centre", CENTRE, need_rows=True)),
     ("2b place by link: suburb (Dopiewo)", lambda r, b, l, v: s2_place_hash(r, b, l, v, "suburb", SUBURB)),
+    ("2d place with new building after 2020 (Naramowice): radar rows and banner", lambda r, b, l, v: s2_place_hash(r, b, l, v, "newbuild", NEWBUILD, need_rows=True, expect="radarNewHa")),
     ("2c link written on click reopens the place", s2_link_from_click),
     ("3a time line: radar axis, projection, Today, play", s3_timeline),
     ("3b time line: radar axis with the keyboard", s3_radar_keyboard),
+    ("3c time line: NISAR passes of summer 2026", s3_passes),
     ("4 layers in the drawer, sliders, map views, legend", s4_layers),
     ("5 How radar sees the ground", s5_radar_sheet),
     ("6 draw an area (polygon, freehand, Escape)", s6_draw),
     ("7 language and theme with a card open, persistence", s7_lang_theme),
     ("8 hover tooltip: Polish words, hides off the map", s8_hover),
+    ("9 page without the radar data sets (radar_lata, anim)", s9_no_radar_data),
 ]
 
 
