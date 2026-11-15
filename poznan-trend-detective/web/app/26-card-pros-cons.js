@@ -102,12 +102,21 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         });
       }
     }
-    // Seasonal soil drying (NISAR measured summer moisture dropping from 0.28 to 0.17)
-    if (s && s.nisarOpen && wf.floodShare === 0) {
-      pros.push({
-        t: lang === "pl" ? "Letnie wysychanie gleby (spadek wilgoci z 0,28 do 0,17)" : "Summer soil drying (moisture drops 0.28 → 0.17)",
-        d: lang === "pl" ? "Pomiary radarowe NISAR 2026 potwierdzają: w sezonie letnim gleba wysycha o ok. 40%. Woda opadowa nie tworzy trwałych zastoisk." : "NISAR 2026 radar confirms: soil moisture drops by ~40% in summer. No persistent waterlogging."
-      });
+    // Summer soil drying from NISAR soil moisture (SME2, 200 m, provisional) on this place's own cells, 25 June and
+    // 24 August 2026. An observation of one summer, with no verdict about water: land inside the flood areas dried just as
+    // much (-25% against -24%), and paved land has no value at all, so the row appears only where the place was measured.
+    const sm0 = L8.nisar_sm_0625, sm1 = L8.nisar_sm_0824;
+    if (sm0 && sm1 && wf.floodShare === 0) {
+      const a = [], b = [];
+      sel.cells.forEach((i) => { if (sm0[i] && sm1[i]) { a.push(sm0[i] / 500); b.push(sm1[i] / 500); } });
+      a.sort((x, y) => x - y); b.sort((x, y) => x - y);
+      const m0 = a[a.length >> 1], m1 = b[b.length >> 1];
+      if (a.length >= 10 && m1 <= m0 * 0.9) {
+        pros.push({
+          t: lang === "pl" ? `Gleba latem wyschła (NISAR: ${num(m0, 2)} → ${num(m1, 2)} m³/m³)` : `Soil dried over the summer (NISAR: ${num(m0, 2)} → ${num(m1, 2)} m³/m³)`,
+          d: lang === "pl" ? "Wilgotność gleby wokół tego miejsca z pomiarów NISAR 25.06 i 24.08.2026 (siatka 200 m, produkt wstępny). To obserwacja z jednego lata, a nie ocena ryzyka podtopień." : "Soil moisture around this place measured by NISAR on 25 June and 24 August 2026 (200 m grid, provisional product). An observation of one summer, not a flood-risk verdict."
+        });
+      }
     }
     if (!s || (s.egMed >= -1.5 && s.egMin >= -3)) {
       pros.push({
