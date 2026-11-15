@@ -66,7 +66,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // judgement. On the dark map the strongest class is the brightest one.
   const HEX_PAL = {
     light: {
-      score: ["#B8400F", "#E8894A", "#C9C4B8", "#5CB89A", "#12806B"],
+      score: ["#DC2626", "#F97316", "#C9C4B8", "#52B788", "#16A34A"],
       built: ["#DDD8CF", "#BEB6AA", "#9A9083", "#71685D", "#4A433A"],
       forest: ["#CDE5C4", "#85BE78", "#3D8A3A"], loss: ["#F2B36B", "#E0702B", "#A8360C"], dist: ["#E9A6D2", "#D0479F", "#9C1069"],
       walls: ["#F3A257", "#E2551C", "#A3300C"], brighter: "#E3D3A0", darker: "#7C93B5",
@@ -76,7 +76,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       flood: "#1F6FBF", edge: "rgba(255,255,255,0.45)", fill: 0.38, tint: 0.28,
     },
     dark: {
-      score: ["#F26B35", "#B87650", "#5A6066", "#3F9C80", "#4FD8AE"],
+      score: ["#EF4444", "#F97316", "#5A6066", "#34D399", "#10B981"],
       built: ["#3C4044", "#555B60", "#767D84", "#9FA6AD", "#D0D5DA"],
       forest: ["#2E4D2B", "#3F7D39", "#6CC061"], loss: ["#9C5A2A", "#DA6A2B", "#FF8F55"], dist: ["#8A3A6E", "#D0479F", "#F58BD0"],
       walls: ["#A5562A", "#E2601F", "#FF8F55"], brighter: "#7D7150", darker: "#6F86AD",
@@ -304,7 +304,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       info: (e, id) => (e.v[id] >= 0.005 ? [hexT().hovFlood(hexPct(e.v[id]))] : []),
     },
   };
-  const FOREST_T = [0.2, 0.5, 0.8], FOREST_LOSS_T = [0.05, 0.12, 0.25], SCORE_T = [-Infinity, 78, 81, 84, 86]; // hexagon means of the score sit between about 77 and 87 (base 82): steps inside that range
+  const FOREST_T = [0.2, 0.5, 0.8], FOREST_LOSS_T = [0.05, 0.12, 0.25], SCORE_T = [-Infinity, 50, 64, 76, 84]; // score steps: <50 risk (red), 50-64 warn, 64-76 neutral, 76-84 good, >=84 great
   const WALL_T = [0.02, 0.05, 0.15], WET_T = [0.2, 0.4], WETS1_T = [0.2, 0.4, 0.7], WATER_T = [0.1, 0.3, 0.6], SINK_T = [0.1, 0.25, 0.5], FLOOD_T = 0.75;
   // A layer that sorts each cell with data into a kind (0 = nothing to show, 1, 2, 3) and colours a hexagon by the shares
   // of the kinds among its cells with data. A hexagon with data in less than half of it is not drawn; for `cover` layers,
@@ -337,25 +337,32 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null, wat = sar ? L8.sar_water : null;
     for (let i = 0; i < n; i++) {
       if (!st[i]) continue;
-      if (wat && wat[i] && waterOf(wat[i]) >= 0.20) continue; // lakes and rivers
-      let s = 82; // a solid, safe plot in the agglomeration
+      const wFrac = wat && wat[i] ? waterOf(wat[i]) : 0;
+      if (wFrac >= 0.08) continue; // lakes and rivers: transparent, not a plot
+      let s = 70; // baseline for solid standard land in the agglomeration (neutral 70)
       const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, built = b25 ? b25[i] : 0, elev = d && d[i] ? d[i] / 2 + demOff : 70;
-      if (treeFrac >= 0.10 && treeFrac <= 0.65) s += 5; // trees around: an amenity
-      else if (treeFrac > 0.65) s += 2; // deep forest
-      else if (built > 100 && treeFrac < 0.05) s -= 4; // sealed urban core
-      if (fl[i]) { // groundwater-flood area: only low, unbuilt flood meadow is a hazard
-        if (elev < 55 && built < 20) s -= 18;
-        else if (built >= 20 || elev >= 56) s += 2;
-        else s -= 4;
+      if (treeFrac >= 0.20 && treeFrac <= 0.65) s += Math.round(treeFrac * 22);
+      else if (treeFrac > 0.65) s += 5;
+      else if (built > 110 && treeFrac < 0.04) s -= 16;
+      if (fl[i]) {
+        if (elev < 55 && built < 20) s -= 38; // unbuilt low-lying floodplain meadow -> RED (32)
+        else if (built >= 20 || elev >= 56) s += 2; // elevated urban fabric -> safe/neutral 72
+        else s -= 16;
       }
       if (eg && eg[i]) {
         const v = egmsOf(eg[i]);
-        if (v <= -2) s -= Math.min(32, Math.abs(v) * 7);
-        else if (v >= -0.5 && v <= 1) s += 3;
+        if (v <= -2.5) s -= Math.min(42, Math.round(Math.abs(v) * 12));
+        else if (v <= -1.2) s -= 18;
+        else if (v >= -0.5 && v <= 0.8) s += 3;
       }
-      if (sc && sc[i] && changeOf(sc[i]) >= 3) s -= 12; // building work seen by radar
-      if (p30 && p30[i] > 35 && built < 25) s -= Math.round((p30[i] / 255) * 12); // development pressure on open fields
-      out[i] = clamp(s, 10, 95);
+      if (sc && sc[i]) {
+        const ch = changeOf(sc[i]);
+        if (ch >= 3.5) s -= 16;
+        else if (ch >= 2.0) s -= 8;
+      }
+      if (lf && lf[i] > 80) s -= 18;
+      if (p30 && p30[i] > 40 && built < 20) s -= Math.round((p30[i] / 255) * 14);
+      out[i] = clamp(s, 15, 95);
     }
     return out;
   }
