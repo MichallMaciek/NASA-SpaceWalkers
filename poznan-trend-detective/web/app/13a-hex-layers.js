@@ -372,6 +372,22 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     cellScoresKey = key;
     return (cellScores_ = out);
   }
+  // What the place itself lies in, for the card's texts: the same layers and thresholds as the score.
+  // A point is its own cell. A parcel or a drawn area is judged by its worse fifth (the value a fifth of its cells reach).
+  // floodNear is the share of the whole selection inside the flood areas. null = layers not loaded.
+  function placeHazards(sel) {
+    if (!sel || !sel.cells || !sel.cells.length || !L8.study || !L8.dem || !flood) return null;
+    const fl = floodMask(), rel = groundRelief(), eg = sar ? L8.sar_egms : null;
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null, cells = own ? [own.i] : sel.cells;
+    let nf = 0, near = 0;
+    const rs = [], vs = [];
+    cells.forEach((i) => { if (fl[i]) nf++; if (rel && rel[i] === rel[i]) rs.push(rel[i]); if (eg && eg[i]) vs.push(egmsOf(eg[i])); });
+    sel.cells.forEach((i) => { if (fl[i]) near++; });
+    rs.sort((a, b) => a - b); vs.sort((a, b) => a - b);
+    const fifth = (a) => (a.length ? a[Math.floor((a.length - 1) * 0.2)] : NaN);
+    return { flood: own ? nf > 0 : nf / cells.length >= 0.2, floodNear: near / sel.cells.length,
+      relief: fifth(rs), reliefKnown: rs.length > 0, sink: fifth(vs), measured: vs.length > 0 };
+  }
   // The card's number for a selection, from the map's own scores, so the card and the map cannot disagree.
   // A point: half its own cell, half the mean of its circle (the place first, the neighbourhood second).
   // A parcel or a drawn area: the mean of its cells.
