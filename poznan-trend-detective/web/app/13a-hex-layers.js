@@ -15,8 +15,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   const HEX_KEYS = ["built", "forest", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score", "flood"]; // bottom to top
   const HEX_S3 = Math.sqrt(3);
   // flat-to-flat width in metres on the ground, one step per zoom level (about 1.4x), so a hexagon stays 13-125 px wide on
-  // screen: from about 1000 cells of 120 m (73 m on the ground here) for the whole region to 5 at street level, never fewer
-  const HEX_STEPS = [[9, 2400], [10, 1600], [11, 1100], [12, 750], [13, 500], [14, 350], [15, 250]];
+  // screen: from about 1650 cells of 120 m (73 m on the ground here) for the whole region to 5 at street level, never fewer
+  const HEX_STEPS = [[9, 3200], [10, 2200], [11, 1400], [12, 850], [13, 500], [14, 350], [15, 250]];
   const hexSizeFor = (z) => { for (const [zz, m] of HEX_STEPS) if (z <= zz) return m; return 180; };
   const hexZoom = () => (map ? Math.round(map.getZoom()) : 11); // the zoom GridLayer draws its tiles at (11: the opening view)
   const HEX_MIN = 2; // cells: one cell alone (speckle, a stray point) never colours a hexagon
