@@ -11,15 +11,57 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   const posTrees = (y) => ((y - TL_TREES_MIN) / (TL_TREES_MAX - TL_TREES_MIN)) * 100;
 
   function renderTimeline() {
-    const hasTimeline = state.lens === "history" || state.lens === "trees";
+    // The time line shows where time is the content: built-up history and forecast, tree loss, and the radar view
+    // (radar years 2015-2021 from ALOS-2 and 2026 from NISAR, plus the single NISAR passes of summer 2026).
+    const hasTimeline = state.lens === "history" || state.lens === "trees" || radarTL();
     document.body.classList.toggle("no-tl", !hasTimeline);
     if (!hasTimeline) {
       if (playing) stopPlay();
       return;
     }
     const u = U(), inp = $("#year");
-    let pb = $("#tl-pass");
-    if (pb) pb.hidden = true;
+    $("#timeline").classList.toggle("radar", radarTL());
+    let pb = $("#tl-pass"); // opens the single NISAR passes of the 2026 step (radar view only, when anim/meta.json loaded)
+    if (!pb && anim) { pb = document.createElement("button"); pb.type = "button"; pb.id = "tl-pass"; pb.className = "linkish"; $(".tl-year").appendChild(pb); pb.addEventListener("click", togglePasses); }
+    if (pb) { pb.hidden = !(anim && radarTL() && state.lens === "radar" && state.ryear === 2026); const ph = passOn() ? [u.passClose, u.passCloseShort] : [u.passOpen, u.passOpenShort]; pb.textContent = innerWidth < 760 ? ph[1] : ph[0]; pb.setAttribute("aria-label", ph[0]); pb.setAttribute("aria-pressed", String(passOn())); }
+    if (passOn()) { // the radar view, passes open: one step per NISAR pass of summer 2026
+      const fs = anim.frames, n = fs.length, f = fs[pass], rp = (k) => (k / (n - 1)) * 100;
+      inp.min = 0; inp.max = n - 1; inp.step = 1;
+      if (document.activeElement !== inp || playing) inp.value = pass;
+      $("#tl-fill").style.width = `${rp(pass)}%`;
+      $("#tl-future").style.left = "100%"; $("#tl-future").innerHTML = "";
+      $("#tl-now").style.left = "100%";
+      $("#tl-real").textContent = u.passesLabel; $("#tl-real").style.left = "50%";
+      $("#tl-pred").textContent = "";
+      $("#tl-year").textContent = passDate(f.date);
+      const kind = u.passKind(passDate(f.date, true), !f.hv);
+      $("#tl-kind").textContent = innerWidth < 760 ? u.passKindShort(!f.hv) : kind; // phones: the date is already the big label
+      inp.setAttribute("aria-valuetext", kind);
+      $("#timeline").classList.remove("future");
+      const ticks = fs.map((_, k) => k).filter((k) => (innerWidth < 760 ? k === 0 : k % 3 === 0) || k === n - 1);
+      $("#tl-ticks").innerHTML = ticks.map((k) => `<span class="${k === 0 ? "first" : k === n - 1 ? "last" : ""}${k === pass ? " now" : ""}" style="left:${rp(k)}%">${passDate(fs[k].date)}</span>`).join("");
+      return;
+    }
+    if (radarTL()) { // the radar view: the years radar has a picture for (ALOS-2 2015-2021, a gap, NISAR 2026)
+      const ys = RY(), a = ys[0], b = ys[ys.length - 1], arch = ys[ys.length - 2], rp = (y) => ((y - a) / (b - a)) * 100;
+      inp.min = a; inp.max = b; inp.step = 1;
+      if (document.activeElement !== inp || playing) inp.value = state.ryear;
+      $("#tl-fill").style.width = `${rp(Math.min(state.ryear, arch))}%`;
+      $("#tl-future").style.left = `${rp(arch)}%`; $("#tl-future").innerHTML = "";
+      $("#tl-now").style.left = "100%";
+      $("#tl-real").textContent = u.radarYears;
+      $("#tl-real").style.left = `${rp(arch) / 2}%`;
+      $("#tl-pred").textContent = u.noRadarData;
+      $("#tl-pred").style.left = `${(rp(arch) + 100) / 2}%`;
+      $("#tl-year").textContent = state.ryear;
+      $("#tl-kind").textContent = state.ryear < 2026 ? u.tlKind.archive : u.tlKind[state.lens];
+      inp.setAttribute("aria-valuetext", `${state.ryear}, ${$("#tl-kind").textContent}`);
+      $("#timeline").classList.remove("future");
+      const ticks = innerWidth < 760 ? [a, arch] : ys.slice(0, -1).filter((y, i, arr) => i % 2 === 0 || i === arr.length - 1);
+      $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}${y === state.ryear ? " now" : ""}" style="left:${rp(y)}%">${y}</span>`).join("") +
+        `<span class="last${state.ryear === b ? " now" : ""}" style="left:100%">${b}</span>`;
+      return;
+    }
 
     if (state.lens === "trees") {
       $("#timeline").classList.remove("radar", "future");
@@ -103,6 +145,24 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   function togglePlay() {
     if (playing) { stopPlay(); return; }
+    if (radarTL()) { // radar view: one radar year after another (or one NISAR pass after another, when the passes are open)
+      const P = passOn(), ys = P ? anim.frames.map((_, k) => k) : RY();
+      let i = ys.indexOf(P ? pass : state.ryear);
+      if (i >= ys.length - 1) i = -1;
+      playing = true;
+      const my = ++playTok; // a chain left over from an earlier Play stops as soon as a newer one exists
+      $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
+      const tick = async () => {
+        if (!playing || my !== playTok) return;
+        i += 1;
+        await (P ? setPass(ys[i]) : setRYear(ys[i]));
+        if (!playing || my !== playTok) return;
+        if (i >= ys.length - 1) { stopPlay(); return; }
+        playTimer = setTimeout(tick, 900);
+      };
+      tick();
+      return;
+    }
     if (state.lens === "trees") {
       if (state.yearF >= TL_TREES_MAX - 0.01) setYear(TL_TREES_MIN);
       playing = true; playLast = performance.now();

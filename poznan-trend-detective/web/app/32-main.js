@@ -72,7 +72,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       const span = e.target.closest("span");
       if (span && !nowEl) {
         const y = parseInt(span.textContent, 10);
-        if (y && !isNaN(y)) { stopPlay(); setYear(y, { now: true }); }
+        // in the radar view a tick is a radar year (or a pass date, which is not a year): never the built-up year
+        if (y && !isNaN(y)) { stopPlay(); if (radarTL()) { if (!passOn()) setRYear(y, true); } else setYear(y, { now: true }); }
       }
     });
     $("#tl-ticks").addEventListener("keydown", (e) => {
