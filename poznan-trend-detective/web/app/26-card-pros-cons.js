@@ -46,8 +46,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (s && s.walls > 0.02) {
       cons.push({
         lvl: "warn",
-        t: lang === "pl" ? "Ślad nowych murów w radarze (SAR 2026)" : "New walls detected by radar (SAR 2026)",
-        d: lang === "pl" ? `Radar Sentinel-1 widzi nowe konstrukcje obok (${num(s.walls * 100, 0)}% terenu). Aktywny plac budowy tuż obok.` : `Sentinel-1 radar detects new structures next door (${num(s.walls * 100, 0)}% of land). Active building site.`
+        // a lead, not a verdict: on plots with a granted new-building decision the signal is about 3 times as common as
+        // elsewhere in Poznań (2.8, interval 1.4-5.0), and more than half of the flagged cells lie on land no map sees built
+        t: lang === "pl" ? "Ślad nowych murów w radarze (SAR 2026)" : "Signature of new walls in radar (SAR 2026)",
+        d: lang === "pl" ? `Radar Sentinel-1 widzi obok sygnał jak od nowych ścian (${num(s.walls * 100, 0)}% terenu, jesień 2025 → jesień 2026). To sygnał do sprawdzenia, nie potwierdzona budowa: zapytaj w urzędzie, co tu powstaje.` : `Sentinel-1 radar sees a signal like new walls next door (${num(s.walls * 100, 0)}% of the land, autumn 2025 → autumn 2026). A lead to check, not a confirmed building: ask the planning office what is going up.`
       });
     }
 

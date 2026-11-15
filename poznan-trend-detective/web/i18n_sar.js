@@ -468,7 +468,7 @@
   Object.assign(en, {
     techSummary: "Technical details: radar, charts, statistics",
     lens: { score: "Plot score", history: "Forecast 2035 (AI)", build: "Active builds 2026 (SAR)", water: "Flood risk", ground: "Ground sinking", trees: "Tree loss", radar: "NISAR satellite" },
-    lensTip: { score: "Overall land score: pros (greenery, drainage, stability, quiet) and cons (floods, sinking, construction)", history: "Long-term AI forecast of city expansion to 2035 with nature & floodplain preservation", build: "Where Sentinel-1 radar detects physical walls under construction in 2026", water: "PIG-PIB flood zones and the NISAR echo change from June to August 2026 (rain, harvest, tillage)", ground: "Millimeter-level ground sinking from satellite radar (EGMS)", trees: "Where forest has been cleared since 2001", radar: "Direct microwave radar imagery from NASA-ISRO NISAR (L-band, 2026)" },
+    lensTip: { score: "Overall land score: pros (greenery, drainage, stability, quiet) and cons (floods, sinking, construction)", history: "Long-term AI forecast of city expansion to 2035 with nature & floodplain preservation", build: "Where Sentinel-1 radar sees the signature of new walls since autumn 2025 (leads to check)", water: "PIG-PIB flood zones and the NISAR echo change from June to August 2026 (rain, harvest, tillage)", ground: "Millimeter-level ground sinking from satellite radar (EGMS)", trees: "Where forest has been cleared since 2001", radar: "Direct microwave radar imagery from NASA-ISRO NISAR (L-band, 2026)" },
     showOnMap: "What to show on the map", expertT: "Expert mode", expertSub: "dB, polarisations, statistical tests and every slider", allLayers: "All layers and settings",
     lensBar: "What to show on the map", baseT: "Map background", sourcesT: "Data sources",
     aboutLink: '<p class="about-more"><a href="about.html">The science, the evidence and the limits: the full “About the project” page</a></p>',
@@ -562,7 +562,7 @@
     nisarsm: (d) => `Wilgotność gleby NISAR, ${d}`,
     smNote: "Produkt wstępny, jeszcze nieskalibrowany. Mediana terenu: 0,275 m³/m³ 25.06 i 0,215 24.08, czyli w czerwcu wilgotniej. Woda i zabudowa bez wartości.",
     dist: "Zaburzenia lasu z radaru, I–II 2026", distHi: "wysoka pewność", distLo: "niska pewność",
-    distNote: "Wycinka, wiatrołomy, ale też śnieg i mróz: sygnał do sprawdzenia.",
+    distNote: "Wycinka, wiatrołomy, ale też śnieg i mróz: sygnał do sprawdzenia. Na wschodnim skraju mapy flag jest wielokrotnie więcej (ok. 30% lasu wobec 1–2% na zachodzie), co wskazuje na śnieg albo granicę sceny, a nie na wycinkę.",
   });
   Object.assign(en.lg, {
     nisarcoh: "Is the surface changing (NISAR)", cohLow: "changing", cohHigh: "stable",
@@ -570,7 +570,7 @@
     nisarsm: (d) => `NISAR soil moisture, ${d}`,
     smNote: "Provisional product, not calibrated yet. Area median: 0.275 m³/m³ on 25 Jun and 0.215 on 24 Aug, so June was wetter. No values on water or buildings.",
     dist: "Forest disturbance from radar, Jan–Feb 2026", distHi: "high confidence", distLo: "low confidence",
-    distNote: "Felling or storm damage, but also snow and frost: a sign to check.",
+    distNote: "Felling or storm damage, but also snow and frost: a sign to check. At the eastern edge of the map flags are many times more common (about 30% of forest against 1–2% in the west), which points to snow or a scene boundary, not felling.",
   });
   pl.passDate = "Przelot"; en.passDate = "Pass";
 })();
