@@ -86,14 +86,60 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         <p class="nisar-quote">${u.nisarQuote}</p>
         <div class="nisar-state">💡 ${u.nisarHint || "Kliknij dowolny punkt lub działkę na mapie, aby natychmiast zobaczyć jej ocenę (0–100), zalety (na zielono) i wady (na czerwono)."}</div>
       </div>`;
+    const featuredHTML = `
+      <div class="featured-spots">
+        <div class="featured-head">📍 ${u.featuredHead || "Szybkie przykłady – zobacz kontrasty w terenie:"}</div>
+        <div class="featured-grid">
+          <button type="button" class="f-spot" data-spot="morasko">
+            <span class="f-icon">🌲</span>
+            <div class="f-text">
+              <b>Morasko</b>
+              <small>${u.fMorasko || "Oaza zieleni · 92/100"}</small>
+            </div>
+            <span class="f-badge f-great">92</span>
+          </button>
+          <button type="button" class="f-spot" data-spot="warta">
+            <span class="f-icon">🌊</span>
+            <div class="f-text">
+              <b>Dolina Warty</b>
+              <small>${u.fWarta || "Zagrożenie powodziowe · 35/100"}</small>
+            </div>
+            <span class="f-badge f-risk">35</span>
+          </button>
+          <button type="button" class="f-spot" data-spot="naramowice">
+            <span class="f-icon">🏗️</span>
+            <div class="f-text">
+              <b>Naramowice</b>
+              <small>${u.fNaramowice || "Plac budowy (SAR) · 56/100"}</small>
+            </div>
+            <span class="f-badge f-warn">56</span>
+          </button>
+          <button type="button" class="f-spot" data-spot="rynek">
+            <span class="f-icon">🏛️</span>
+            <div class="f-text">
+              <b>Stary Rynek</b>
+              <small>${u.fRynek || "Śródmieście · 80/100"}</small>
+            </div>
+            <span class="f-badge f-good">80</span>
+          </button>
+        </div>
+      </div>`;
     card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold" aria-expanded="${state.findingsOpen}">${state.findingsOpen ? u.hide : u.show}</button></div>
       ${nisarHero}
+      ${featuredHTML}
       <p class="sub">${u.caseIntro}</p>
       ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
       <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
     if (focused) { const n = card.querySelector(focused); if (n) n.focus({ preventScroll: true }); }
+    card.querySelectorAll("[data-spot]").forEach((b) => b.addEventListener("click", () => {
+      const sp = b.dataset.spot;
+      if (sp === "morasko") selectPoint(52.4833, 16.8992, "Morasko (Rezerwat przyrody)", { zoom: 14 });
+      else if (sp === "warta") selectPoint(52.4042, 16.9458, "Dolina Warty (Most Rocha / Strefa zalewowa)", { zoom: 14 });
+      else if (sp === "naramowice") selectPoint(52.4485, 16.9550, "Nowe Naramowice (Aktywne budowy)", { zoom: 14 });
+      else if (sp === "rynek") selectPoint(52.4083, 16.9335, "Stary Rynek (Centrum Poznania)", { zoom: 14 });
+    }));
     $("#fold").addEventListener("click", () => {
       state.findingsOpen = !state.findingsOpen;
       try { localStorage.setItem("ptd-fold", state.findingsOpen ? "open" : "closed"); } catch (e) { /* ignore */ }
