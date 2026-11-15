@@ -445,7 +445,7 @@ Dwa przebiegi `sarnik_radar_lata.py` dały identyczną warstwę (0 różnych kom
 126 sprawdzeń) dodaje wiersz „Zabudowa wokół wg radaru, rok po roku” w grupie „Z radaru SAR”.
 Przykład dla Naramowic w Poznaniu:
 
-> Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 21 ha nowej zabudowy
+> Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 21 ha nowej i gęstszej zabudowy
 > (najwięcej w 2023 r.), więcej niż w 95% miejsc wokół Poznania. Od 2015 r. łącznie ok. 29 ha.
 
 - Wiersz mówi tylko o zmianie w hektarach. Udział zabudowy podaje wiersz „Zabudowa” w karcie; druga,
