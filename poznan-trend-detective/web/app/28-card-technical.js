@@ -38,7 +38,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     }
     // 5. terrain: hollows where water can gather (Copernicus DEM); the official flood map is linked
     // a point is judged by its own cell; an area by the share of its cells lying in hollows
-    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null;
+    const own = sel.kind !== "area" ? landCell(sel.lat, sel.lng) : null;
     const rel = own ? localRelief([own.i]) : localRelief(sel.cells);
     if (!own) rel.mean = rel.lowShare > 0.3 ? -2 : 0; // for areas the share decides; mean over an area is ~0 by construction
     // official PIG-PIB groundwater-flood areas: the point itself, or the share of the area's cells inside them

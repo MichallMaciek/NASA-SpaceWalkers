@@ -10,6 +10,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const rk = riskOf(sel.cells);
     const ff = mean(sel.cells.map((i) => (L8.forest2000_frac ? L8.forest2000_frac[i] : 0))) / 2.55; // 0..100%
     const lost = forestLost(sel.cells, 2024);
+    // the hectare limits below were set for the 1 km circle: a circle of r km scales them by r², a plot by the area of the
+    // cells it covers (a drawn area keeps them)
+    const kHa = sel.kind === "point" ? (sel.r || 1) ** 2 : sel.kind === "parcel" ? Math.min(1, (sel.cells.length * cellHa()) / (Math.PI * 100)) : 1;
 
     // 1. CONS / ALARMS (Najbardziej niepokojące fakty na pierwszy rzut oka)
     if (wf.floodShare > 0) {
@@ -50,7 +53,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
 
-    if (lost >= 1.5) {
+    if (lost >= 1.5 * kHa) {
       cons.push({
         lvl: "warn",
         t: lang === "pl" ? `Ubytek drzew w okolicy (−${num(lost, 1)} ha)` : `Tree loss in area (−${num(lost, 1)} ha)`,
@@ -107,7 +110,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
     const fy = radarFirst(), newHa = fy ? sel.cells.filter((i) => fy[i] > LAST_OBS() - 2000).length * cellHa() : 0, haS = num(newHa, newHa < 10 ? 1 : 0);
-    if (rlQ75 != null && newHa > rlQ75) cons.push({ lvl: "info", t: u.radarNewT(haS), d: u.radarNewD }); // a neutral point to check, not a flaw
+    if (rlQ75 != null && newHa > rlQ75 * kHa) cons.push({ lvl: "info", t: u.radarNewT(haS), d: u.radarNewD }); // a neutral point to check, not a flaw
     else if (!s || (s.walls <= 0.01 && s.up <= 0.04)) {
       pros.push({
         t: lang === "pl" ? "Spokój w radarze (brak uciążliwych budów)" : "Quiet radar signature (no intrusive building)",
@@ -141,7 +144,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (s && s.egMed <= -3) score -= 25;
     if (s && s.walls > 0.02) score -= 14;
     if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0) score -= 18;
-    if (lost >= 2) score -= 10;
+    if (lost >= 2 * kHa) score -= 10;
     score = clamp(Math.round(score), 10, 98);
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";

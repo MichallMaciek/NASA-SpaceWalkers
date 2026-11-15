@@ -52,7 +52,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const r = results[k]; if (!r) return;
     const n = shortName(r), label = n.main + (n.sub ? `, ${n.sub}` : "");
     $("#q").value = label; closeSuggest();
-    selectPoint(+r.lat, +r.lon, label, { zoom: 14 });
+    selectParcelAt(+r.lat, +r.lon, { zoom: 18, label }); // the plot under the address (21a-parcels.js); none: the 1 km circle
   }
   function initSearch() {
     const q = $("#q");

@@ -3,6 +3,7 @@
 // they share one scope, so a top-level name declared in one part is visible in every other part. Rules: web/app/README.md
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
+  const PHOTO_NAMES_ZOOM = 12; // on aerial photos: our municipality names below this zoom, the reference layer from it
   let baseDead = false; // neither the vector base map nor its raster stand-in answered: only the plain background is left
   async function initMap(baseP) {
     // The wheel and the trackpad zoom smoothly (smoothWheel below), not through Leaflet's wheel handler, which waits
@@ -25,7 +26,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       bases.map.on("tileload", () => { got = true; names(false); });
       bases.map.on("tileerror", () => { if (!got) names(true); });
     }
-    bases.photoLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19, pane: "labels", attribution: "Esri" });
+    // place names over aerial photos: light text with a dark halo (Esri's reference layer for imagery), from zoom 12;
+    // below that our 18 municipality names do the job (syncNames), so a name never shows twice
+    bases.photoLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { minZoom: PHOTO_NAMES_ZOOM, maxNativeZoom: 16, maxZoom: 19, pane: "labels", attribution: "Esri" });
     bases.orto = L.tileLayer.wms("https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution", { layers: "Raster", format: "image/jpeg", version: "1.3.0", maxZoom: 19, attribution: "Ortofotomapa &copy; GUGiK" });
     const geopozWms = (layer) => L.tileLayer.wms("https://wms2.geopoz.poznan.pl/geoserver/wms", { layers: layer, styles: "", format: "image/png", transparent: false, version: "1.1.1", maxZoom: 19, attribution: "Ortofotomapa &copy; GEOPOZ" });
     bases.poz2025 = geopozWms("ortogpkg:orto2025");
@@ -63,14 +66,14 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         el.addEventListener("mouseenter", hideTip);
       });
     });
-    map.on("click", (e) => { if (!draw.mode && performance.now() > draw.suppressUntil) selectPoint(e.latlng.lat, e.latlng.lng, null); });
-    map.on("zoomend", () => $("#map").classList.toggle("far", map.getZoom() < 10));
+    map.on("click", (e) => mapPick(e)); // from zoom 16 a click picks the plot under it, below that the map zooms in (21a-parcels.js)
+    map.on("zoomend", () => { $("#map").classList.toggle("far", map.getZoom() < 10); syncNames(); });
   }
 
   // the vector base already names towns; our municipality labels are needed on aerial photos and when no base map loaded
   function syncNames() {
     if (!labelLayer || !map) return;
-    const show = (state.base !== "map" || baseDead) && (!$("#borders") || $("#borders").checked);
+    const show = ((state.base !== "map" && map.getZoom() < PHOTO_NAMES_ZOOM) || baseDead) && (!$("#borders") || $("#borders").checked);
     if (show) labelLayer.addTo(map); else map.removeLayer(labelLayer);
   }
   function setBase(key) {

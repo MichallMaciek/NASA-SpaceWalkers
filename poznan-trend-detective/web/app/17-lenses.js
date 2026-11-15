@@ -38,10 +38,11 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     await Promise.all(layers.map(ensure));
   }
   async function setLens(k) {
-    if (!LENSES().some((l) => l.k === k)) return;
+    if (k !== null && !LENSES().some((l) => l.k === k)) return;
     stopPlay();
     state.lens = k; pass = -1;
-    if (k === "trees") setYear(2024);
+    if (k === null) Object.keys(state.lyr).forEach((key) => { state.lyr[key].on = false; }); // back to the clean map
+    else if (k === "trees") setYear(2024);
     else if (k !== "history" && state.year > NOW_YEAR) setYear(NOW_YEAR);
     await applyLens();
     renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
@@ -78,7 +79,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   async function pickLens(k) {
     const had = state.finding;
     state.finding = null;
-    await setLens(k);
+    await setLens(state.lens === k ? null : k); // a second click on the active view switches it off
     if (had && !state.sel) renderFindings();
   }
   function renderLenses() {

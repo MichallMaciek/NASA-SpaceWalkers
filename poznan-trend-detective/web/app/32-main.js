@@ -132,6 +132,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const firstP = sar ? applyLens() : Promise.resolve();
     await initMap(baseP);
     initDraw();
+    initParcels();
     initSearch();
     wire();
     document.body.classList.toggle("expert", state.expert);
@@ -144,18 +145,25 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // The place-card layers (about 10 MB) and the MODIS grids are not preloaded: finishSelection loads and awaits them on
     // the first selection, so a visit that only looks at the map downloads about 2 MB instead of 14 MB.
     $("#q").addEventListener("focus", warmUp, { once: true });
-    ["#tool-free", "#tool-poly"].forEach((sel) => $(sel).addEventListener("click", warmUp, { once: true }));
+    ["#tool-free", "#tool-poly", "#tool-circle"].forEach((sel) => $(sel).addEventListener("click", warmUp, { once: true }));
     // open a shared place link: #52.40812,16.93350, now and whenever the address changes in this tab. Chat apps encode
     // the comma or glue a full stop to the end, so the pattern is forgiving; a point outside the map is ignored.
     const openHash = () => {
       let h = location.hash;
       try { h = decodeURIComponent(h); } catch (e) { /* keep it as typed */ }
-      const m = h.match(/^#\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)[.,;)\s]*$/);
+      // a plot: #dz=<land-register id>, opened through ULDK GetParcelById
+      const dz = h.match(/^#\s*dz=([^\s]+?)[.,;)\s]*$/);
+      if (dz) {
+        if (!(state.sel && state.sel.kind === "parcel" && state.sel.parcel.id === dz[1])) openParcelId(dz[1]);
+        return;
+      }
+      // a circle: #lat,lng (1 km) or #lat,lng,r with r in km (0.25, 0.5, 2, 3)
+      const m = h.match(/^#\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)(?:\s*[,;\s]\s*(\d+(?:\.\d+)?)(?=[.,;)\s]*$))?[.,;)\s]*$/);
       if (!m) return;
-      const lat = +m[1], lng = +m[2], [[south, west], [north, east]] = land.bounds;
+      const lat = +m[1], lng = +m[2], r = CIRCLE_KM.includes(+m[3]) ? +m[3] : 1, [[south, west], [north, east]] = land.bounds;
       if (lat < south || lat > north || lng < west || lng > east) return;
-      const same = state.sel && state.sel.kind === "point" && state.sel.lat.toFixed(5) === lat.toFixed(5) && state.sel.lng.toFixed(5) === lng.toFixed(5);
-      if (!same) selectPoint(lat, lng, null, { zoom: 14 }); // the place already on screen is not picked a second time
+      const same = state.sel && state.sel.kind === "point" && state.sel.r === r && state.sel.lat.toFixed(5) === lat.toFixed(5) && state.sel.lng.toFixed(5) === lng.toFixed(5);
+      if (!same) selectPoint(lat, lng, null, { zoom: r <= 0.5 ? 16 : 14, r }); // the place already on screen is not picked a second time
     };
     window.addEventListener("hashchange", openHash);
     openHash();

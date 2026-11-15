@@ -63,6 +63,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       Promise.race([work, timeout]).then((res) => { clearTimeout(timer); sel.ext[key] = res; if (state.sel === sel) skCtx.rerender(); });
     },
     rerender() { if (state.sel && state.sel.ready) renderCard(); },
+    // plots from ULDK (GUGiK) through the core's one parser and cache (21a-parcels.js): a plot or null when there is none
+    uldk: { byXY: (lat, lng, signal) => parcelLookup(lat, lng, signal), byId: (id, signal) => parcelLookupId(id, signal) },
     // outline of a plot (a ring of [lat, lng]) for this selection, under the pin; the next pick clears it
     outline(sel, ring) {
       if (state.sel !== sel || !selLayer || !Array.isArray(ring) || ring.length < 3) return;
