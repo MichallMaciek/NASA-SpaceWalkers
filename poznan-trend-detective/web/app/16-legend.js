@@ -35,7 +35,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       const z = sar.zips, lz = u.lg;
       if (L_.nisarcoh.on && z.coh) blocks.push(`<div class="lt">${lz.nisarcoh}</div>${ramp_(RAMPS.coh, lz.cohLow, lz.cohHigh)}<div class="lrow">${lz.cohNote(z.coh.pairs.length)}</div>`);
       if (L_.nisarsm.on && z.sme) blocks.push(`<div class="lt">${lz.nisarsm(L_.nisarsm.d === "0625" ? "25.06" : "24.08")}</div>${ramp_(RAMPS.wet, "0,10", "0,40 m³/m³")}<div class="lrow">${lz.smNote}</div>`);
-      if (L_.dist.on && z.dist) blocks.push(`<div class="lt">${lz.dist}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[1]}"></span>${lz.distHi}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[0]}"></span>${lz.distLo}</div><div class="lrow">${lz.distNote}</div>`);
+      if (L_.dist.on && z.dist) hexBlock("dist", lz.dist, `<div class="lrow lnote">${lz.distNote}</div>`);
     }
     if (L_.flood.on) hexBlock("flood", u.lg.flood, `<div class="lrow lnote">${u.lg.floodNote}</div>`);
     if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));

@@ -12,7 +12,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // Geometry: pointy-top hexagons in the coordinates of the 120 m grid (EPSG:3857 metres / 120), rows offset by half a
   // hexagon. A hexagon is drawn when at least half of it lies in the study area; one whose cells have data in less than
   // half of it is not drawn (never as good or bad; the tooltip says "no data"). One cell alone never colours a hexagon (at least 2).
-  const HEX_KEYS = ["built", "forest", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score", "flood"]; // bottom to top
+  const HEX_KEYS = ["built", "forest", "dist", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score", "flood"]; // bottom to top
   const HEX_S3 = Math.sqrt(3);
   // flat-to-flat width in metres on the ground, one step per zoom level (about 1.4x), so a hexagon stays 13-125 px wide on
   // screen: from about 1650 cells of 120 m (73 m on the ground here) for the whole region to 5 at street level, never fewer
@@ -68,7 +68,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     light: {
       score: ["#B8400F", "#E8894A", "#C9C4B8", "#5CB89A", "#12806B"],
       built: ["#DDD8CF", "#BEB6AA", "#9A9083", "#71685D", "#4A433A"],
-      forest: ["#CDE5C4", "#85BE78", "#3D8A3A"], loss: ["#F2B36B", "#E0702B", "#A8360C"],
+      forest: ["#CDE5C4", "#85BE78", "#3D8A3A"], loss: ["#F2B36B", "#E0702B", "#A8360C"], dist: ["#E9A6D2", "#D0479F", "#9C1069"],
       walls: ["#F3A257", "#E2551C", "#A3300C"], brighter: "#E3D3A0", darker: "#7C93B5",
       wet: ["#9CC6EC", "#2F7FCC"], dry: ["#EDC45A", "#B7801A"], wetS1: ["#9CC6EC", "#3F8FD6", "#155FA8"],
       water: ["#9ED0F5", "#3C93DE", "#0B4A8C"],
@@ -78,7 +78,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     dark: {
       score: ["#F26B35", "#B87650", "#5A6066", "#3F9C80", "#4FD8AE"],
       built: ["#3C4044", "#555B60", "#767D84", "#9FA6AD", "#D0D5DA"],
-      forest: ["#2E4D2B", "#3F7D39", "#6CC061"], loss: ["#9C5A2A", "#DA6A2B", "#FF8F55"],
+      forest: ["#2E4D2B", "#3F7D39", "#6CC061"], loss: ["#9C5A2A", "#DA6A2B", "#FF8F55"], dist: ["#8A3A6E", "#D0479F", "#F58BD0"],
       walls: ["#A5562A", "#E2601F", "#FF8F55"], brighter: "#7D7150", darker: "#6F86AD",
       wet: ["#3A6E9E", "#7FC0FF"], dry: ["#8F7426", "#E5BE4E"], wetS1: ["#2F5F8F", "#3F8FD6", "#7FC0FF"],
       water: ["#24527F", "#2F7FD0", "#7CC4FF"],
@@ -181,6 +181,33 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         return P.forest.map((c, j) => ({ c, g: h.forestCap, lab: a[j] })).concat(P.loss.map((c, j) => ({ c, g: h.lossCap(Math.min(state.year, 2024)), lab: b[j] })));
       },
       info: (e, id) => [hexT().hovForest(hexPct(e.left[id]), hexPct(e.lost[id]), Math.min(state.year, 2024))],
+    },
+    // OPERA forest disturbance (Sentinel-1, Jan-Feb 2026; 200 = high, 100 = low confidence, forest land of 2000 only):
+    // the flagged share of the hexagon's forest, high confidence first. Magenta, apart from the orange Landsat felling.
+    dist: {
+      key: () => "",
+      calc(G) {
+        const a = L8.dist_forest, ff = L8.forest2000_frac, idx = G.idx, K = G.K;
+        const fo = new Float32Array(K), hi = new Float32Array(K), lo = new Float32Array(K), cls = new Int8Array(K).fill(-1);
+        for (let i = 0; i < idx.length; i++) {
+          const id = idx[i];
+          if (id < 0 || !(a[i] || ff[i] >= 64)) continue; // forest: a quarter of the cell or more in 2000, or flagged
+          fo[id]++;
+          if (a[i] >= 150) hi[id]++; else if (a[i]) lo[id]++;
+        }
+        for (let k = 0; k < K; k++) {
+          if (!G.ok[k] || fo[k] < HEX_MIN) continue;
+          const h = hi[k] / fo[k], l = (hi[k] + lo[k]) / fo[k];
+          cls[k] = hi[k] >= HEX_MIN && h >= 0.1 ? 1 + (h >= 0.25 ? 1 : 0) : hi[k] + lo[k] >= HEX_MIN && l >= 0.1 ? 0 : -1;
+          hi[k] = h; lo[k] = l;
+        }
+        return { cls, hi, lo, fo };
+      },
+      classes() {
+        const P = hexPal(), h = hexT();
+        return [{ c: P.dist[0], lab: h.distLo }, { c: P.dist[1], g: h.distCap, lab: "10–25%" }, { c: P.dist[2], g: h.distCap, lab: "≥ 25%" }];
+      },
+      info: (e, id) => (e.fo[id] >= HEX_MIN ? [hexT().hovDist(hexPct(e.hi[id]), hexPct(e.lo[id]))] : []),
     },
     score: {
       key: () => `${!!sar}`,

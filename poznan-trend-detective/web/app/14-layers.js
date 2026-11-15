@@ -72,10 +72,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const t = clamp((a[i] / 500 - 0.1) / 0.3, 0, 1), j = ((t * 255) | 0) * 3;
         put(i, [L[j], L[j + 1], L[j + 2]], 120 + t * 110);
       }
-    } else if (k === "dist") {
-      // OPERA vegetation disturbance from Sentinel-1, Jan-Feb 2026, on land that was forest in 2000
-      const a = L8.dist_forest, hi = hexRgb(RAMPS.dist[1]), lo = hexRgb(RAMPS.dist[0]);
-      for (let i = 0; i < n; i++) if (st[i] && a[i]) put(i, a[i] >= 150 ? hi : lo, a[i] >= 150 ? 235 : 190);
     }
     o.ctx.putImageData(o.img, 0, 0);
   }

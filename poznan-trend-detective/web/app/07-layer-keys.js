@@ -3,7 +3,7 @@
 // they share one scope, so a top-level name declared in one part is visible in every other part. Rules: web/app/README.md
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
-  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "activity", "nisarsm", "nisarcoh", "dist"]; // raster pictures, draw order bottom to top; the rest are hexagons (HEX_KEYS, part 13a)
+  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "activity", "nisarsm", "nisarcoh"]; // raster pictures, draw order bottom to top; the rest are hexagons (HEX_KEYS, part 13a)
   const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet", "nisarcoh", "nisarsm", "dist"];
   const ZIP_OF = { nisarcoh: "coh", nisarsm: "sme", dist: "dist" }; // layer -> its entry in sar.json "zips" (absent = not built)
   const zipOk = (k) => !!(sar && sar.zips && sar.zips[ZIP_OF[k]]);
