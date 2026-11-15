@@ -1,6 +1,6 @@
 # Style aplikacji: części w `web/css/`
 
-Dawny `web/styles.css` jest pocięty na 17 części w tej samej kolejności, więc kaskada (która reguła wygrywa) jest
+Dawny `web/styles.css` jest pocięty na 17 części (plus części dodane później) w tej samej kolejności, więc kaskada (która reguła wygrywa) jest
 taka sama jak wcześniej. `index.html` ładuje je po kolei.
 
 | Plik | Co w nim jest |
@@ -22,7 +22,8 @@ taka sama jak wcześniej. `index.html` ładuje je po kolei.
 | `15-nisar-banner.css` | baner NISAR 2026 w karcie |
 | `16-score.css` | karta oceny miejsca |
 | `17-pros-cons.css` | wady i zalety |
-| `18-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień |
+| `18-helvetica-szklo.css` | design 15.11 (Figma, quick look 6): Helvetica Neue, szkło na pływających kontenerach, pasek wyszukiwania, karta jako lista wierszy; sam wygląd, bez zmian w logice |
+| `19-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień |
 
 Zasady:
 - **Poprawka istniejącego elementu:** w części, w której jest jego reguła.

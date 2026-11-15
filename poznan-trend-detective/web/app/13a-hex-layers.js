@@ -108,20 +108,22 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   function hexForecast(G) { // per hexagon, cells the model expects to turn built in 2025-2030 and 2030-2035 (minimum chance applied)
     const fy = radarFirst();
-    return hexCached(G, `proj|${state.minChance}|${!!fy}`, () => {
+    return hexCached(G, `proj|${state.minChance}|${!!fy}|${!!L8.sar_water}`, () => {
       const n = land.width * land.height, thr = THR(), tmin = state.minChance / 100, first = new Uint16Array(n), b25 = L8.built_2025;
       land.projected.forEach((y) => {
         const b = L8[`built_${y}`], prev = y === land.projected[0] ? L8[`built_${LAST_OBS()}`] : L8[`built_${y - 5}`], p = L8[`prob_${y}`];
         for (let i = 0; i < n; i++) if (!first[i] && b[i] >= thr && prev[i] < thr && (p[i] / 255) ** 2 >= tmin) first[i] = y;
       });
-      // established buildings (2025) and cells radar already sees built are never shown as forecast
-      const keep = (i) => !(b25[i] >= thr || (fy && fy[i] >= 15));
+      // established buildings (2025) and cells radar already sees built are never shown as forecast, nor dense forest and
+      // parkland, lakes and rivers, or groundwater-flood areas (no concrete projected into parks or floodplains)
+      const ff = L8.forest2000_frac, wa = L8.sar_water, fl = floodMask();
+      const keep = (i) => !(b25[i] >= thr || (fy && fy[i] >= 15) || (ff && ff[i] > 90) || (wa && waterOf(wa[i]) > 0.25) || fl[i]);
       return { c30: hexSum(G, (i) => (first[i] === 2030 && keep(i) ? 1 : 0)), c35: hexSum(G, (i) => (first[i] === 2035 && keep(i) ? 1 : 0)) };
     });
   }
   const HEX = {
     built: {
-      key: () => `${builtYear()}|${state.minChance}|${horizonEnd()}|${!!radarFirst()}`,
+      key: () => `${builtYear()}|${state.minChance}|${horizonEnd()}|${!!radarFirst()}|${!!L8.sar_water}`,
       calc(G) {
         // smooth time as before: blend the two surrounding 5-year epochs (the base stops at 2020 when radar adds the years after)
         const yf = builtYear(), fy = radarFirst(), { e0, e1, t } = epochPair(Math.min(yf, fy ? LAST_OBS() : 2025));
@@ -150,7 +152,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const P = hexPal(), h = hexT(), r = hexRngs(BUILT_T);
         return P.built.map((c, j) => ({ c, g: h.builtCap, lab: r[j] }))
           .concat([{ c: css("--c-radar"), lab: h.builtNew(U().lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast)), hexPct(NEW_T)), when: () => radarFirst() && state.year > LAST_OBS() },
-            { c: css("--pred"), lab: h.builtNew(U().lg.projected, hexPct(NEW_T)), when: () => isFuture() }]);
+            { c: css("--pred"), lab: h.builtNew(U().lg.projected, hexPct(NEW_T)), when: () => state.lens === "history" && isFuture() }]);
       },
       info(e, id) {
         const h = hexT(), out = [h.hovBuilt(hexPct(e.v[id]))];
@@ -296,16 +298,16 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       },
     });
   }
-  // the plot score of every cell, the same formula as before (only the drawing averages it per hexagon)
+  // the plot score of every cell, the same formula as the place card (only the drawing averages it per hexagon)
   function cellScores() {
-    const n = land.width * land.height, st = L8.study, out = new Float32Array(n);
-    const p30 = L8.prob_2030, ff = L8.forest2000_frac, b25 = L8.built_2025, eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null;
+    const n = land.width * land.height, st = L8.study, out = new Float32Array(n), fl = floodMask();
+    const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025, eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null;
     for (let i = 0; i < n; i++) {
       if (!st[i]) continue;
-      let s = 65;
-      if (ff && ff[i]) s += (ff[i] / 255) * 25;
-      if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 22;
-      if (b25 && b25[i] > 120) s -= 8;
+      let s = 68;
+      if (ff && ff[i]) s += (Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255) * 25; // forest that still stands: the 2000 share minus what was lost since
+      if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
+      if (b25 && b25[i] > 120) s -= 6;
       if (eg && eg[i]) {
         const v = egmsOf(eg[i]);
         if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
@@ -315,6 +317,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const ch = changeOf(sc[i]);
         if (ch >= 3) s -= 15;
       }
+      if (fl[i]) s -= 28; // groundwater-flood area (the cell burnt in from the PIG-PIB polygons, see floodMask)
       out[i] = clamp(s, 5, 95);
     }
     return out;

@@ -14,6 +14,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       egms: { on: false, op: 0.95, min: 2 },
       alos: { on: false, op: 0.85, y: 2021 },
       nisarwet: { on: false, op: 0.9, min: 2 },
+      // NISAR and OPERA products from the hand-downloaded zips (pipeline/build_from_zips_pelny.py); described in sar.json "zips"
+      nisarcoh: { on: false, op: 0.85 },
+      nisarsm: { on: false, op: 0.85, d: "0824" },
+      dist: { on: false, op: 0.95 },
       built: { on: false, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },

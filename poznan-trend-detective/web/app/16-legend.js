@@ -31,6 +31,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (L_.forest.on) hexBlock("forest", u.lg.forest); // the view's subject before the built-up background
     if (L_.built.on) hexBlock("built", u.lg.built);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
+    if (sar && sar.zips) {
+      const z = sar.zips, lz = u.lg;
+      if (L_.nisarcoh.on && z.coh) blocks.push(`<div class="lt">${lz.nisarcoh}</div>${ramp_(RAMPS.coh, lz.cohLow, lz.cohHigh)}<div class="lrow">${lz.cohNote(z.coh.pairs.length)}</div>`);
+      if (L_.nisarsm.on && z.sme) blocks.push(`<div class="lt">${lz.nisarsm(L_.nisarsm.d === "0625" ? "25.06" : "24.08")}</div>${ramp_(RAMPS.wet, "0,10", "0,40 m³/m³")}<div class="lrow">${lz.smNote}</div>`);
+      if (L_.dist.on && z.dist) blocks.push(`<div class="lt">${lz.dist}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[1]}"></span>${lz.distHi}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[0]}"></span>${lz.distLo}</div><div class="lrow">${lz.distNote}</div>`);
+    }
     if (L_.flood.on) hexBlock("flood", u.lg.flood, `<div class="lrow lnote">${u.lg.floodNote}</div>`);
     if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));
     if (L_.activity.on) blocks.push(`<div class="lt">${u.lg.activity}</div><div class="lrow"><span class="sw" style="background:${css("--c-terrain")}"></span>${u.lg.brighter}</div><div class="lrow"><span class="sw" style="background:#7A6FB0"></span>${u.lg.darker}</div>`);
@@ -39,7 +45,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (L_.nisar.on) blocks.push(`<div class="lt">${u.lg.nisar(NISAR_DATES[L_.nisar.i] || "")}</div><div class="lrow">${u.lg.nisarNote}</div>`);
     ["night", "day", "ndvi"].forEach((k) => { if (L_[k].on) { const P = PIXEL[k]; blocks.push(`<div class="lt">${u.L[k]}</div>${ramp_([...P.neg].reverse().concat([css("--ns")], P.pos), sgn(-P.max, P.max < 1 ? 2 : 1), sgn(P.max, P.max < 1 ? 2 : 1))}<div class="lrow"><span class="sw" style="background:${css("--ns")}"></span>${T().notSig}</div>`); } });
     if (L_.nightyear.on) blocks.push(`<div class="lt">${u.lg.nightyear(heatYear())}</div>${ramp_(RAMPS.heat, "10 °C", "20 °C")}`);
-    if (L_.score && L_.score.on) hexBlock("score", u.lgScore);
+    if (L_.score && L_.score.on) hexBlock("score", u.lgScore, u.lgScoreNote ? `<div class="lrow lnote">${u.lgScoreNote}</div>` : "");
     // the hexagon size once, under the last hexagon block (it changes with the zoom)
     if (lastHex >= 0) blocks[lastHex] += `<div class="lrow lnote">${esc(u.hex.size(hexSizeFor(hexZoom())))}</div>`;
     const boot = BOOT[lang] || BOOT.pl;

@@ -54,3 +54,82 @@
   font-style: italic;
   padding: 4px 6px;
 }
+
+/* Featured demo spots */
+.featured-spots {
+  margin: 12px 0 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.featured-head {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.featured-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.f-spot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  font: inherit;
+  color: var(--ink);
+}
+.f-spot:hover {
+  background: var(--card);
+  border-color: var(--ink-2);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+.f-icon {
+  font-size: 16px;
+  flex: none;
+}
+.f-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+.f-text b {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.f-text small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.f-badge {
+  font-size: 11px;
+  font-weight: 750;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #fff;
+  flex: none;
+}
+.f-badge.f-great { background: #2F8A4F; }
+.f-badge.f-good { background: #7DBB8A; color: #154522; }
+.f-badge.f-warn { background: #F2A31B; }
+.f-badge.f-risk { background: #E0332F; }

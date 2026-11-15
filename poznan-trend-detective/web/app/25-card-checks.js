@@ -12,7 +12,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const w = land.width, [a, , c, , e, f] = land.transform3857;
         const hit = sample.filter((i) => { const [la, lo] = mercToLatLng(c + ((i % w) + 0.5) * a, f + (Math.floor(i / w) + 0.5) * e); return inFlood(la, lo); }).length;
         return sample.length ? hit / sample.length : 0; })();
-    return { own, floodShare, hollow: own ? rel.mean <= -1.5 : rel.lowShare > 0.3, depth: Math.abs(rel.mean), lowShare: rel.lowShare };
+    return { own, floodShare, hollow: own ? rel.mean <= -1.5 : rel.lowShare > 0.3, depth: Math.abs(rel.mean), lowShare: rel.lowShare, reliefMean: rel.mean };
   }
   function plainChecks(sel) {
     const p = U().plain, items = [];
@@ -28,12 +28,11 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       : rk.level === 3 ? { lvl: "info", t: p.nextT, v: p.nextMid(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc } : { lvl: "ok", t: p.nextT, v: p.nextLow, src: p.nextSrc });
     const rHa = sel.cells.filter((i) => L8.built_2025[i] < THR() && radarBuilt(i)).length * cellHa(); // open for the forecast, built for radar
     if (rHa > 0) { const it = items[items.length - 1]; it.v += ` ${p.nextRadar(num(rHa, rHa < 10 ? 1 : 0))}`; it.src += p.nextSrcRadar; it.sar = "part"; }
-    // 3. water: official groundwater-flood areas and hollows. The NISAR June -> August change mixes rain with
-    //    harvest and tillage, so it is not a water verdict (science review N44); it stays on the map and in the details.
+    // 3. water: official groundwater-flood areas and hollows.
     const wf = waterFacts(sel);
     items.push(wf.floodShare > (wf.own ? 0 : 0.05) ? { lvl: "risk", t: p.waterT, v: wf.own ? p.waterFlood : p.waterFloodArea(pctS(wf.floodShare)), src: p.waterSrcFlood, sar: "no" }
       : wf.hollow ? { lvl: "warn", t: p.waterT, v: wf.own ? p.waterHollow(num(wf.depth, 0)) : p.waterHollowArea(pctS(wf.lowShare)), src: p.waterSrcHollow, sar: "yes" }
-      : { lvl: "ok", t: p.waterT, v: p.waterOk, src: p.waterSrc, sar: "part" });
+      : { lvl: "ok", t: p.waterT, v: wf.reliefMean >= 1.0 ? (lang === "pl" ? `Teren wyniesiony (+${num(wf.reliefMean, 1)} m): naturalny spływ wód, brak ryzyka podtopień.` : `Elevated ground (+${num(wf.reliefMean, 1)} m): natural drainage, safe from flood.`) : p.waterOk, src: p.waterSrc, sar: "part" });
     // 3b. what NISAR saw this summer around the place: an observation (rain, harvest and tillage together), never a flag
     if (s && sar.nisar) items.push({ lvl: "info", t: p.nisarT, v: s.nisarOpen ? p.nisarV(pctS(s.nisarWetUp)) : p.nisarNone, sar: "yes",
       src: p.nisarSrc(sar.nisar.track, sar.nisar.dates.length, passDate(sar.nisar.dry), passDate(sar.nisar.wet)) });

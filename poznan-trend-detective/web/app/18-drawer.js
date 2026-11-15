@@ -4,7 +4,7 @@
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ================= drawer (map settings) ================= */
-  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", wuia: "--c-built", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
+  const DOT = { s1rgb: "--c-radar", sarchange: "--c-built", sarwet: "--c-radar", sarwater: "--area", egms: "--c-heat", alos: "--c-green", nisarwet: "--c-nisar", nisarcoh: "--c-nisar", nisarsm: "--c-nisar", dist: "--c-forest", wuia: "--c-built", flood: "--area", built: "--c-built", forest: "--c-forest", price: "--c-price", activity: "--c-terrain", dem: "--c-terrain", radar: "--ink-2", nisar: "--c-nisar", night: "--c-heat", day: "--c-heat", ndvi: "--c-green", nightyear: "--c-heat" };
   function rangeHTML(id, min, max, step, lo, hi, cls = "") {
     const a = ((lo - min) / (max - min)) * 100, b = hi == null ? a : ((hi - min) / (max - min)) * 100;
     return `<div class="rng ${cls}" data-rng="${id}"><div class="rail"></div><div class="fill" style="left:${hi == null ? 0 : a}%;width:${hi == null ? a : b - a}%"></div>
@@ -35,6 +35,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         ${layerRow("sarwet")}
         ${layerRow("sarwater", field(u.minWater, `${L_.sarwater.min}%`, rangeHTML("swa", 10, 90, 5, L_.sarwater.min)))}
         ${sar.nisar ? layerRow("nisarwet", field(u.minDb, `${num(L_.nisarwet.min, 1)} dB`, rangeHTML("nwm", 1, 6, 0.5, L_.nisarwet.min))) : ""}
+        ${zipOk("nisarsm") ? layerRow("nisarsm", `<div class="field"><div class="field-head"><span class="fl">${u.passDate}</span></div><div class="seg" role="group">${[["0625", "25.06"], ["0824", "24.08"]].map(([d, t]) => `<button type="button" data-smd="${d}" aria-pressed="${L_.nisarsm.d === d}">${t}</button>`).join("")}</div></div>`) : ""}
+        ${zipOk("nisarcoh") ? layerRow("nisarcoh") : ""}
         ${layerRow("nisar", nis)}
       </div></details>
       <details class="sec" data-sec="ground"><summary>${u.secGround}</summary><div class="sec-body">
@@ -47,7 +49,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       </div></details>`;
     const full = `
       <details class="sec" data-sec="history" open><summary>${sar ? u.secHistory : u.secLayers}</summary><div class="sec-body">
-        ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${layerRow("price")}
+        ${layerRow("built")}${layerRow("wuia")}${layerRow("flood")}${layerRow("forest")}${sar && zipOk("dist") ? layerRow("dist") : ""}${layerRow("price")}
       </div></details>
       ${radarSecs}
       <details class="sec" data-sec="pred" open><summary>${u.secPred}</summary><div class="sec-body">
@@ -63,7 +65,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // v3: plain choices first (one map question at a time, background, expert switch); every layer and slider below
     const simpleTop = `
       <section class="simple-sec"><h3 class="sh">${u.showOnMap}</h3>
-        <div class="lens-list">${LENSES().map((l) => `<button type="button" class="lens-item" data-lens="${l.k}" aria-pressed="${state.lens === l.k}"><b>${u.lens[l.k]}${sarMark(LENS_SAR[l.k])}</b><span>${u.lensTip[l.k]}</span></button>`).join("")}</div></section>
+        <div class="lens-list">${LENSES().map((l) => `<button type="button" class="lens-item" data-lens="${l.k}" aria-pressed="${state.lens === l.k}"><b>${u.lens[l.k]}${sarMark(lensSar(l.k))}</b><span>${u.lensTip[l.k]}</span></button>`).join("")}</div></section>
       <section class="simple-sec"><h3 class="sh">${u.baseT}</h3>
         <div class="basegrid">${["map", "orto", "poz2025", "poz1940"].map((k) => `<button type="button" data-base="${k}" aria-pressed="${state.base === k}">${T().B[k] || u.baseMap}</button>`).join("")}</div></section>
       <div class="checkrow expert-row"><label for="expert-sw"><b>${u.expertT}</b><small>${u.expertSub}</small></label><span class="switch"><input type="checkbox" id="expert-sw" ${state.expert ? "checked" : ""}><span></span></span></div>`;
@@ -138,6 +140,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       body.querySelectorAll("[data-hz]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       setYear(state.yearF, { now: true }); // clamps the year to the new horizon and keeps slider, label and bar in step
       if (state.sel && state.sel.ready) renderCard();
+    }));
+    body.querySelectorAll("[data-smd]").forEach((b) => b.addEventListener("click", async () => {
+      state.lyr.nisarsm.d = b.dataset.smd;
+      body.querySelectorAll("[data-smd]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (state.lyr.nisarsm.on) await ensure("nisarsm");
+      redraw();
     }));
     body.querySelectorAll("[data-base]").forEach((b) => b.addEventListener("click", () => {
       setBase(b.dataset.base);

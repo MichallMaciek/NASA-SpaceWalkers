@@ -22,31 +22,42 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       cons.push({
         lvl: "warn",
         t: lang === "pl" ? `Zagłębienie terenu (−${num(wf.depth, 1)} m)` : `Terrain depression (−${num(wf.depth, 1)} m)`,
-        d: lang === "pl" ? "Teren leży niżej niż okolica – woda opadowa po ulewach spływa i może tworzyć zastoiska." : "Ground sits lower than surroundings – stormwater drains here after downpours."
+        d: lang === "pl" ? "Teren leży niżej niż okolica – woda opadowa po ulewach spływa i może tworzyć lokalne zastoiska." : "Ground sits lower than surroundings – stormwater drains here after downpours."
       });
     }
 
-    if (s && (s.egMed <= -3 || s.egMin <= -5)) {
+    if (s && s.egMed <= -3) {
       cons.push({
         lvl: "risk",
         t: lang === "pl" ? `Osiadanie gruntu (${sgn(s.egMin || s.egMed, 0)} mm/rok)` : `Ground sinking (${sgn(s.egMin || s.egMed, 0)} mm/yr)`,
         d: lang === "pl" ? "Satelitarny radar interferometryczny (InSAR) wykrywa opadanie podłoża. Ryzyko pękania murów." : "Interferometric radar (InSAR) detects ground subsidence. Risk of wall cracks."
+      });
+    } else if (s && s.egMin <= -5) {
+      // the typical cell here is stable and one or more cells in the circle sink: in 95% of such places the sinking cell is
+      // not the plot or its neighbour, so this is a spot to check on the map, not a verdict on the plot (same split as the
+      // technical row: risk for the median, warn for the minimum)
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? `Osiadające miejsca w okolicy (do ${sgn(s.egMin, 0)} mm/rok)` : `Sinking spots nearby (down to ${sgn(s.egMin, 0)} mm/yr)`,
+        d: lang === "pl" ? `Grunt jest tu w większości stabilny, ale radar (InSAR) mierzy w tej okolicy miejsca, które osiadają. Sprawdź w widoku „${u.lens.ground}”, czy to Twoja działka.` : `The ground here is mostly stable, but radar (InSAR) measures spots in this area that are sinking. Check in the “${u.lens.ground}” view whether it is your plot.`
       });
     }
 
     if (s && s.walls > 0.02) {
       cons.push({
         lvl: "warn",
-        t: lang === "pl" ? "Ślad nowych murów w radarze (SAR 2026)" : "New walls detected by radar (SAR 2026)",
-        d: lang === "pl" ? `Radar Sentinel-1 widzi nowe konstrukcje obok (${num(s.walls * 100, 0)}% terenu). Aktywny plac budowy tuż obok.` : `Sentinel-1 radar detects new structures next door (${num(s.walls * 100, 0)}% of land). Active building site.`
+        // a lead, not a verdict: on plots with a granted new-building decision the signal is about 3 times as common as
+        // elsewhere in Poznań (2.8, interval 1.4-5.0), and more than half of the flagged cells lie on land no map sees built
+        t: lang === "pl" ? "Ślad nowych murów w radarze (SAR 2026)" : "Signature of new walls in radar (SAR 2026)",
+        d: lang === "pl" ? `Radar Sentinel-1 widzi obok sygnał jak od nowych ścian (${num(s.walls * 100, 0)}% terenu, jesień 2025 → jesień 2026). To sygnał do sprawdzenia, nie potwierdzona budowa: zapytaj w urzędzie, co tu powstaje.` : `Sentinel-1 radar sees a signal like new walls next door (${num(s.walls * 100, 0)}% of the land, autumn 2025 → autumn 2026). A lead to check, not a confirmed building: ask the planning office what is going up.`
       });
     }
 
-    if (rk && rk.level >= 4) {
+    if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0) {
       cons.push({
         lvl: "warn",
-        t: lang === "pl" ? `Wysokie ryzyko gęstej zabudowy sąsiedztwa (${num(rk.chance * 100, 0)}%)` : `High risk of nearby development (${num(rk.chance * 100, 0)}%)`,
-        d: lang === "pl" ? "Model AI przewiduje, że wolny teren obok ma ponadprzeciętną szansę zabudowy w 5 lat. Możliwa utrata widoku." : "AI model forecasts very high chance of nearby open land being built up within 5 years."
+        t: lang === "pl" ? `Wysoka presja deweloperska (${num(rk.chance * 100, 0)}%)` : `High development pressure (${num(rk.chance * 100, 0)}%)`,
+        d: lang === "pl" ? "Model AI przewiduje bardzo wysokie prawdopodobieństwo ekspansji zabudowy w 5 lat. Ryzyko utraty otwartego krajobrazu." : "AI model forecasts very high chance of nearby open land being built up within 5 years."
       });
     }
 
@@ -73,7 +84,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       cons.push({ lvl: it.lvl, t: esc(it.t), d: it.v }); // v is HTML already (module rows escape their own text), as in the row list
     });
 
-    // 2. PROS (Zalety na zielono)
+    // 2. PROS (Zalety na zielono - co jest bezpieczne i stabilne)
     if (ff >= 15) {
       pros.push({
         t: lang === "pl" ? `Bliskość zieleni i lasu (ok. ${num(ff, 0)}% otoczenia)` : `Close to forest & greenery (~${num(ff, 0)}%)`,
@@ -81,15 +92,38 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
     if (wf.floodShare === 0 && !wf.hollow) {
-      pros.push({
-        t: lang === "pl" ? "Bezpiecznie od podtopień" : "Safe from flooding",
-        d: lang === "pl" ? "Brak stref podtopień PIG-PIB i brak niecek terenowych. Woda opadowa swobodnie odpływa." : "No PIG-PIB flood zones or hollows. Stormwater drains naturally."
-      });
+      if (wf.reliefMean >= 1.0) {
+        pros.push({
+          t: lang === "pl" ? `Wyniesiony teren (+${num(wf.reliefMean, 1)} m) i naturalny drenaż` : `Elevated terrain (+${num(wf.reliefMean, 1)} m) & natural drainage`,
+          d: lang === "pl" ? "Działka leży wyżej niż otoczenie. Woda opadowa grawitacyjnie odpływa, zerowe ryzyko gromadzenia wody." : "Plot sits higher than surroundings. Rainwater drains naturally, zero ponding risk."
+        });
+      } else {
+        pros.push({
+          t: lang === "pl" ? "Bezpiecznie od podtopień" : "Safe from flooding",
+          d: lang === "pl" ? "Brak stref podtopień PIG-PIB i brak niecek terenowych. Woda opadowa swobodnie odpływa." : "No PIG-PIB flood zones or hollows. Stormwater drains naturally."
+        });
+      }
+    }
+    // Summer soil drying from NISAR soil moisture (SME2, 200 m, provisional) on this place's own cells, 25 June and
+    // 24 August 2026. An observation of one summer, with no verdict about water: land inside the flood areas dried just as
+    // much (-25% against -24%), and paved land has no value at all, so the row appears only where the place was measured.
+    const sm0 = L8.nisar_sm_0625, sm1 = L8.nisar_sm_0824;
+    if (sm0 && sm1 && wf.floodShare === 0) {
+      const a = [], b = [];
+      sel.cells.forEach((i) => { if (sm0[i] && sm1[i]) { a.push(sm0[i] / 500); b.push(sm1[i] / 500); } });
+      a.sort((x, y) => x - y); b.sort((x, y) => x - y);
+      const m0 = a[a.length >> 1], m1 = b[b.length >> 1];
+      if (a.length >= 10 && m1 <= m0 * 0.9) {
+        pros.push({
+          t: lang === "pl" ? `Gleba latem wyschła (NISAR: ${num(m0, 2)} → ${num(m1, 2)} m³/m³)` : `Soil dried over the summer (NISAR: ${num(m0, 2)} → ${num(m1, 2)} m³/m³)`,
+          d: lang === "pl" ? "Wilgotność gleby wokół tego miejsca z pomiarów NISAR 25.06 i 24.08.2026 (siatka 200 m, produkt wstępny). To obserwacja z jednego lata, a nie ocena ryzyka podtopień." : "Soil moisture around this place measured by NISAR on 25 June and 24 August 2026 (200 m grid, provisional product). An observation of one summer, not a flood-risk verdict."
+        });
+      }
     }
     if (!s || (s.egMed >= -1.5 && s.egMin >= -3)) {
       pros.push({
         t: lang === "pl" ? "Stabilne podłoże (brak osiadania)" : "Stable ground (no sinking)",
-        d: lang === "pl" ? "Radar satelitarny nie rejestruje niebezpiecznych ruchów pionowych gruntu." : "Satellite radar records no hazardous ground motion."
+        d: lang === "pl" ? "Radar satelitarny InSAR nie rejestruje niebezpiecznych ruchów pionowych gruntu." : "InSAR satellite radar records no hazardous ground motion."
       });
     }
     const fy = radarFirst(), newHa = fy ? sel.cells.filter((i) => fy[i] > LAST_OBS() - 2000).length * cellHa() : 0, haS = num(newHa, newHa < 10 ? 1 : 0);
@@ -100,24 +134,33 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         d: lang === "pl" ? "Brak gwałtownych pojaśnień i nowych hal przemysłowych w ostatnim roku." : "No abrupt brightening or industrial sheds constructed in the past year."
       });
     }
-    if (rk && rk.level <= 2 && rk.level > 0) {
+    if (!rk) {
       pros.push({
-        t: lang === "pl" ? "Umiarkowana presja deweloperska" : "Low development pressure",
-        d: lang === "pl" ? "Niska szansa na chaotyczną lub nagłą gęstą zabudowę sąsiedztwa w 5 lat." : "Low probability of abrupt dense development nearby within 5 years."
+        t: lang === "pl" ? "W pełni ukształtowana tkanka miejska" : "Established urban fabric",
+        d: lang === "pl" ? "Okolica jest w 100% zurbanizowana. Brak wolnych gruntów pod nagłą, niekontrolowaną ekspansję." : "Area is 100% built-up. No open land for sudden uncontrolled expansion."
+      });
+    } else if (rk.chance < 0.08) {
+      pros.push({
+        t: lang === "pl" ? "Spokojna okolica (niska presja zabudowy)" : "Peaceful area (low development pressure)",
+        d: lang === "pl" ? `Niskie ryzyko nowej zabudowy (${num(rk.chance * 100, 1)}% w 5 lat). Krajobraz i zieleń pozostają stabilne.` : `Low development risk (${num(rk.chance * 100, 1)}% in 5 yrs). Stable landscape.`
       });
     }
 
     // Overall Score (0-100)
     let score = 70;
-    if (ff >= 20) score += 15;
-    else if (ff >= 10) score += 8;
+    if (ff >= 25) score += 20;
+    else if (ff >= 12) score += 10;
     if (wf.floodShare === 0 && !wf.hollow) score += 10;
+    if (wf.reliefMean >= 1.0 && wf.floodShare === 0) score += 5;
     if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 5;
+    if (!rk) score += 4;
+    else if (rk.chance < 0.08) score += 7;
+
     if (wf.floodShare > 0) score -= 35;
     if (wf.hollow) score -= 15;
     if (s && s.egMed <= -3) score -= 25;
-    if (s && s.walls > 0.02) score -= 12;
-    if (rk && rk.level >= 4) score -= 14;
+    if (s && s.walls > 0.02) score -= 14;
+    if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0) score -= 18;
     if (lost >= 2) score -= 10;
     score = clamp(Math.round(score), 10, 98);
 

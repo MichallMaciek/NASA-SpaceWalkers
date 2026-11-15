@@ -55,6 +55,27 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         const c = radarRgb(sk, dbOf(co[i]), dbOf(cx[i])), q = i * 4;
         px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
       }
+    } else if (k === "nisarcoh") {
+      // NISAR coherence, median of the 12-day pairs: low = the surface changed between passes (fields, earthworks, water,
+      // vegetation), high = it stayed the same (buildings, roads, bare hard ground)
+      const a = L8.nisar_coh, L = lutFor(RAMPS.coh);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const t = clamp((a[i] / 250 - 0.2) / 0.6, 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 200);
+      }
+    } else if (k === "nisarsm") {
+      // NISAR L3 soil moisture (provisional, not calibrated yet), m3/m3
+      const a = L8[NEEDS.nisarsm()[0]], L = lutFor(RAMPS.wet);
+      for (let i = 0; i < n; i++) {
+        if (!st[i] || !a[i]) continue;
+        const t = clamp((a[i] / 500 - 0.1) / 0.3, 0, 1), j = ((t * 255) | 0) * 3;
+        put(i, [L[j], L[j + 1], L[j + 2]], 120 + t * 110);
+      }
+    } else if (k === "dist") {
+      // OPERA vegetation disturbance from Sentinel-1, Jan-Feb 2026, on land that was forest in 2000
+      const a = L8.dist_forest, hi = hexRgb(RAMPS.dist[1]), lo = hexRgb(RAMPS.dist[0]);
+      for (let i = 0; i < n; i++) if (st[i] && a[i]) put(i, a[i] >= 150 ? hi : lo, a[i] >= 150 ? 235 : 190);
     }
     o.ctx.putImageData(o.img, 0, 0);
   }

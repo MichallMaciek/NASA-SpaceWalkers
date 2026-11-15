@@ -1,4 +1,4 @@
-/* SARnik styles, part 18: hexagon layers on the map (app/13a-hex-layers.js). Loaded in order by index.html; rules: web/css/README.md */
+/* SARnik styles, part 19: hexagon layers on the map (app/13a-hex-layers.js). Loaded in order by index.html; rules: web/css/README.md */
 /* legend swatches in the shape the map draws: a pointy-top hexagon */
 .legend .sw.hex { width: 11px; height: 12px; border-radius: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
 /* flood areas: an outline inside the hexagon, not a fill */

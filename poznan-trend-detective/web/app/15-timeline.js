@@ -5,15 +5,26 @@
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ================= timeline ================= */
   const TL_MIN = 1975;
+  const TL_TREES_MIN = 2001;
+  const TL_TREES_MAX = 2024;
   const pos = (y) => ((y - TL_MIN) / (horizonEnd() - TL_MIN)) * 100;
+  const posTrees = (y) => ((y - TL_TREES_MIN) / (TL_TREES_MAX - TL_TREES_MIN)) * 100;
+
   function renderTimeline() {
-    document.body.classList.remove("no-tl"); // the timeline stays in every view (team decision, 14.11)
-    const u = U(), inp = $("#year"), end = horizonEnd();
+    // The time line shows where time is the content: built-up history and forecast, tree loss, and the radar view
+    // (radar years 2015-2021 from ALOS-2 and 2026 from NISAR, plus the single NISAR passes of summer 2026).
+    const hasTimeline = state.lens === "history" || state.lens === "trees" || radarTL();
+    document.body.classList.toggle("no-tl", !hasTimeline);
+    if (!hasTimeline) {
+      if (playing) stopPlay();
+      return;
+    }
+    const u = U(), inp = $("#year");
     $("#timeline").classList.toggle("radar", radarTL());
     let pb = $("#tl-pass"); // opens the single NISAR passes of the 2026 step (radar view only, when anim/meta.json loaded)
     if (!pb && anim) { pb = document.createElement("button"); pb.type = "button"; pb.id = "tl-pass"; pb.className = "linkish"; $(".tl-year").appendChild(pb); pb.addEventListener("click", togglePasses); }
     if (pb) { pb.hidden = !(anim && radarTL() && state.lens === "radar" && state.ryear === 2026); const ph = passOn() ? [u.passClose, u.passCloseShort] : [u.passOpen, u.passOpenShort]; pb.textContent = innerWidth < 760 ? ph[1] : ph[0]; pb.setAttribute("aria-label", ph[0]); pb.setAttribute("aria-pressed", String(passOn())); }
-    if (passOn()) {
+    if (passOn()) { // the radar view, passes open: one step per NISAR pass of summer 2026
       const fs = anim.frames, n = fs.length, f = fs[pass], rp = (k) => (k / (n - 1)) * 100;
       inp.min = 0; inp.max = n - 1; inp.step = 1;
       if (document.activeElement !== inp || playing) inp.value = pass;
@@ -31,7 +42,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       $("#tl-ticks").innerHTML = ticks.map((k) => `<span class="${k === 0 ? "first" : k === n - 1 ? "last" : ""}${k === pass ? " now" : ""}" style="left:${rp(k)}%">${passDate(fs[k].date)}</span>`).join("");
       return;
     }
-    if (radarTL()) {
+    if (radarTL()) { // the radar view: the years radar has a picture for (ALOS-2 2015-2021, a gap, NISAR 2026)
       const ys = RY(), a = ys[0], b = ys[ys.length - 1], arch = ys[ys.length - 2], rp = (y) => ((y - a) / (b - a)) * 100;
       inp.min = a; inp.max = b; inp.step = 1;
       if (document.activeElement !== inp || playing) inp.value = state.ryear;
@@ -51,9 +62,43 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         `<span class="last${state.ryear === b ? " now" : ""}" style="left:100%">${b}</span>`;
       return;
     }
+
+    if (state.lens === "trees") {
+      $("#timeline").classList.remove("radar", "future");
+      inp.step = 0.1;
+      inp.min = TL_TREES_MIN;
+      inp.max = TL_TREES_MAX;
+      if (state.year > TL_TREES_MAX) state.year = TL_TREES_MAX;
+      if (state.year < TL_TREES_MIN) state.year = TL_TREES_MIN;
+      if (document.activeElement !== inp || playing) inp.value = state.yearF;
+      const curP = posTrees(state.yearF);
+      $("#tl-fill").style.width = `${curP}%`;
+      $("#tl-future").style.left = "100%";
+      $("#tl-future").innerHTML = "";
+      $("#tl-now").style.left = "100%";
+      $("#tl-real").textContent = lang === "pl" ? "Obserwacje satelitarne (Hansen GFC)" : "Satellite observations (Hansen GFC)";
+      $("#tl-real").style.left = "50%";
+      $("#tl-pred").textContent = "";
+      $("#tl-year").textContent = state.year;
+      $("#tl-kind").textContent = lang === "pl"
+        ? "Ubytek drzew i lasów (Hansen GFC) · historia od 2001 do 2024 r."
+        : "Tree canopy loss (Hansen GFC) · observed from 2001 to 2024";
+      inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
+      const ticks = innerWidth < 760 ? [2001, 2010, 2020, 2024] : [2001, 2005, 2010, 2015, 2020, 2024];
+      $("#tl-ticks").innerHTML = ticks.map((y, i) =>
+        `<span class="${i === 0 ? "first" : i === ticks.length - 1 ? "last" : ""}" style="left:${posTrees(y)}%">${y}</span>`
+      ).join("");
+      return;
+    }
+
+    // state.lens === "history": 1975 to horizonEnd() (2035)
+    const end = horizonEnd();
+    $("#timeline").classList.remove("radar");
     inp.step = 0.1;
-    inp.max = end; inp.min = TL_MIN;
+    inp.min = TL_MIN;
+    inp.max = end;
     if (state.year > end) state.year = end;
+    if (state.year < TL_MIN) state.year = TL_MIN;
     if (document.activeElement !== inp || playing) inp.value = state.yearF;
     const nowP = pos(Math.min(NOW_YEAR, end)), curP = pos(state.yearF);
     $("#tl-fill").style.width = `${Math.min(curP, nowP)}%`;
@@ -69,7 +114,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
     $("#timeline").classList.toggle("future", isFuture());
     const ticks = innerWidth < 760 ? [1975, 2000] : [1975, 1985, 1995, 2005, 2015];
-    // keep "Today" and the end year apart on narrow tracks: shorten the label, then drop the end year
     const gap = ((100 - nowP) / 100) * ($("#tl-ticks").offsetWidth || innerWidth);
     const nowTxt = gap < 120 ? u.today : `${u.today} · ${NOW_YEAR}`;
     $("#tl-ticks").innerHTML = ticks.map((y, i) => `<span class="${i === 0 ? "first" : ""}" style="left:${pos(y)}%">${y}</span>`).join("") +
@@ -77,7 +121,11 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   let cardT = null, playing = false, playRaf = 0, playLast = 0, playTimer = 0, playTok = 0;
   function setYear(y, opts = {}) {
-    state.yearF = clamp(y, TL_MIN, horizonEnd());
+    if (state.lens === "trees") {
+      state.yearF = clamp(y, TL_TREES_MIN, TL_TREES_MAX);
+    } else {
+      state.yearF = clamp(y, TL_MIN, horizonEnd());
+    }
     const prev = state.year;
     state.year = Math.round(state.yearF);
     renderTimeline();
@@ -97,7 +145,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   function togglePlay() {
     if (playing) { stopPlay(); return; }
-    if (radarTL()) { // radar views: one radar year after another (or one NISAR pass after another, when the passes are open)
+    if (radarTL()) { // radar view: one radar year after another (or one NISAR pass after another, when the passes are open)
       const P = passOn(), ys = P ? anim.frames.map((_, k) => k) : RY();
       let i = ys.indexOf(P ? pass : state.ryear);
       if (i >= ys.length - 1) i = -1;
@@ -115,6 +163,21 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       tick();
       return;
     }
+    if (state.lens === "trees") {
+      if (state.yearF >= TL_TREES_MAX - 0.01) setYear(TL_TREES_MIN);
+      playing = true; playLast = performance.now();
+      $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
+      const step = (now) => {
+        if (!playing) return;
+        const dt = Math.min(0.1, (now - playLast) / 1000); playLast = now;
+        const next = state.yearF + dt * 3.5;
+        if (next >= TL_TREES_MAX) { setYear(TL_TREES_MAX); stopPlay(); return; }
+        setYear(next);
+        playRaf = requestAnimationFrame(step);
+      };
+      playRaf = requestAnimationFrame(step);
+      return;
+    }
     if (state.yearF >= horizonEnd() - 0.01) setYear(TL_MIN);
     playing = true; playLast = performance.now();
     $("#play").classList.add("on"); $("#play").setAttribute("aria-label", U().pause);
@@ -128,4 +191,3 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     };
     playRaf = requestAnimationFrame(step);
   }
-

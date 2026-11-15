@@ -25,11 +25,15 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     egms: () => ["sar_egms", "study"],
     alos: () => [...lbandNames(state.lyr.alos.y), "study"],
     nisarwet: () => ["nisar_wetdry", "study"],
-    score: () => ["study", "prob_2030", "forest2000_frac", "built_2025", "dem", ...(sar ? ["sar_egms", "sar_change"] : [])],
+    score: () => ["study", "prob_2030", "forest2000_frac", "loss_frac", "built_2025", "dem", ...(sar ? ["sar_egms", "sar_change"] : [])],
+    nisarcoh: () => ["nisar_coh", "study"],
+    nisarsm: () => [state.lyr.nisarsm.d === "0625" ? "nisar_sm_0625" : "nisar_sm_0824", "study"],
+    dist: () => ["dist_forest", "study"],
   };
-  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
+  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) || (ZIP_OF[k] && !zipOk(k)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
-    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
+    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : []),
+    ...(sar.zips && sar.zips.sme ? ["nisar_sm_0625", "nisar_sm_0824"] : [])] : []); // soil moisture for the card's own-place row
   // decoders (sar.json "decode")
   const dbOf = (v) => (v ? v / 6 - 30 : NaN);
   const changeOf = (v) => (v ? v / 12.75 - 10 : NaN);
