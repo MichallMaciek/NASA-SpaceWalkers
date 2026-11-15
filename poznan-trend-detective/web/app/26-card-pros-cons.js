@@ -221,6 +221,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (lost >= 2 * kHa) score -= 16;
 
     score = clamp(Math.round(score), 15, 95);
+    // The number shown is the map's own risk-first score (selectionScore, part 13a), so the card and the map agree.
+    // The weights above stay as the fallback for when the map layers are not loaded or the point is open water.
+    const riskScore = selectionScore(sel);
+    if (riskScore != null) score = riskScore;
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
     if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }

@@ -340,8 +340,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // measurements stays neutral (64). Why hollows stand for wet ground: on the app's data they are the one sign that
   // coincides with the official flood areas (2.7 times as common inside them at 1.5 m, 3.7 at 2.5 m, 4.7 at 4 m);
   // NISAR soil moisture and Sentinel-1 water do not (0.4-0.7 times), so they are not used here.
+  let cellScores_ = null, cellScoresKey = "";
   function cellScores() {
-    const n = land.width * land.height, st = L8.study, out = new Float32Array(n).fill(NaN), fl = floodMask(), rel = groundRelief();
+    const rel = groundRelief();
+    // computed once per set of loaded inputs: the map, the hexagons and the card all read the same array
+    const key = [!!sar, L8.sar_water, L8.sar_egms, L8.sar_change, L8.prob_2030, L8.forest2000_frac, L8.loss_frac, L8.built_2025, rel].map((x) => (x ? 1 : 0)).join("");
+    if (cellScores_ && cellScoresKey === key) return cellScores_;
+    const n = land.width * land.height, st = L8.study, out = new Float32Array(n).fill(NaN), fl = floodMask();
     const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
     const eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null, wat = sar ? L8.sar_water : null;
     for (let i = 0; i < n; i++) {
@@ -364,7 +369,29 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       else if (r <= -1.5 || v <= -1.2) cap = 50;
       out[i] = clamp(Math.min(s, cap), 15, 95);
     }
-    return out;
+    cellScoresKey = key;
+    return (cellScores_ = out);
+  }
+  // The card's number for a selection, from the map's own scores, so the card and the map cannot disagree.
+  // A point: half its own cell, half the mean of its circle (the place first, the neighbourhood second).
+  // A parcel or a drawn area: the mean of its cells.
+  // Either way the number stays under the ceiling of the hazard the place itself lies in (red 22, orange 36, amber 50):
+  // a point is judged by its own cell, a parcel or an area by a fifth of its cells.
+  // null = no verdict (layers not loaded, or the point is open water).
+  function selectionScore(sel) {
+    if (!sel || !sel.cells || !sel.cells.length || !L8.study || !L8.dem || !flood) return null;
+    const S = cellScores();
+    let sum = 0, n = 0, red = 0, orange = 0, amber = 0;
+    sel.cells.forEach((i) => { const v = S[i]; if (v !== v) return; n++; sum += v; if (v <= 22) red++; else if (v <= 36) orange++; else if (v <= 50) amber++; });
+    if (!n) return null;
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null, o = own ? S[own.i] : NaN;
+    if (own && o !== o) return null;
+    const fifth = (k) => k / n >= 0.2;
+    let cap = 95;
+    if (own ? o <= 22 : fifth(red)) cap = 22;
+    else if (own ? o <= 36 : fifth(red + orange)) cap = 36;
+    else if (own ? o <= 50 : fifth(red + orange + amber)) cap = 50;
+    return Math.round(clamp(Math.min(own ? (o + sum / n) / 2 : sum / n, cap), 15, 95));
   }
   // Metres above (+) or below (-) the mean ground in a 15 x 15 cell window (about 1 km across); NaN = no verdict.
   // The height model follows tree tops and roofs, so only ground cells count on both sides (no forest in 2000, at most
