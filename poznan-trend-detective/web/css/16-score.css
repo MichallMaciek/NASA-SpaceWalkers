@@ -23,10 +23,11 @@
   flex: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
-.score-badge.tier-great { background: #2F8A4F; }
-.score-badge.tier-good { background: #7DBB8A; color: #154522; }
-.score-badge.tier-warn { background: #F2A31B; }
-.score-badge.tier-risk { background: #E0332F; }
+.score-badge.tier-great { background: #16A34A; }
+.score-badge.tier-good { background: #52B788; color: #fff; }
+.score-badge.tier-neutral { background: #64748B; color: #fff; }
+.score-badge.tier-warn { background: #F59E0B; }
+.score-badge.tier-risk { background: #DC2626; }
 .score-info { flex: 1; min-width: 0; }
 .score-title { font-size: 14.5px; font-weight: 700; color: var(--ink); }
 .score-sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }

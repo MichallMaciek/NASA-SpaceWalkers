@@ -181,12 +181,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     }
 
     // Overall Score (0-100)
-    let score = 82; // baseline for solid habitable land in the agglomeration
+    let score = 70; // baseline for solid, standard land in the agglomeration (neutral 70)
 
     // Greenery balance: optimal 10% to 65% canopy in the neighborhood
-    if (ff >= 10 && ff <= 65) score += 5;
-    else if (ff > 65) score += 2; // dense woodland: nature, not residential plot
-    else if (bu > 60 && ff < 5) score -= 4; // heavily sealed urban core
+    if (ff >= 10 && ff <= 65) score += Math.round((ff / 65) * 14);
+    else if (ff > 65) score += 5; // dense woodland: safe nature
+    else if (bu > 60 && ff < 5) score -= 16; // heavily sealed urban core / heat island
 
     // River corridor & drainage
     if (isWater) {
@@ -195,37 +195,38 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       if (bu >= 20 || wf.reliefMean >= 0.5) {
         score += 2; // managed, elevated riverside urban fabric
       } else {
-        score -= 18; // unpaved low-lying floodplain meadow
+        score -= 38; // unpaved low-lying floodplain meadow (active water hazard -> RED!)
       }
     } else {
       if (!wf.hollow) score += 3;
       if (wf.reliefMean >= 1.0) score += 2;
     }
 
-    if (!isWater && wf.hollow) score -= 12;
+    if (!isWater && wf.hollow) score -= 14;
 
     // Ground stability (InSAR / EGMS) - real satellite value!
     if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 3;
-    else if (s && s.egMed <= -3) score -= 30;
-    else if (s && s.egMin <= -5) score -= 12;
+    else if (s && s.egMed <= -2.5) score -= 40; // dangerous subsidence -> RED!
+    else if (s && s.egMin <= -4) score -= 20; // localized settlement -> WARN!
 
     // Sprawl pressure vs established fabric
     if (bu >= 35) score += 3; // established urban fabric
-    else if (rk && rk.chance < 0.08) score += 4; // peaceful stable suburb
+    else if (rk && rk.chance < 0.08) score += 3; // peaceful stable suburb
     else if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0 && bu < 35) score -= 12;
 
     // Active SAR construction (walls in 2026)
-    if (s && s.walls > 0.02) score -= 10;
+    if (s && s.walls > 0.02) score -= 16;
 
     // Tree loss
-    if (lost >= 2 * kHa) score -= 8;
+    if (lost >= 2 * kHa) score -= 16;
 
-    score = clamp(Math.round(score), 10, 95);
+    score = clamp(Math.round(score), 15, 95);
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
     if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }
-    else if (score < 65) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana"; }
-    else if (score < 80) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (w normie)"; }
+    else if (score < 62) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana (uwagi)"; }
+    else if (score < 76) { tierClass = "tier-neutral"; tierLabel = u.tierNeutral || "Standardowa (w normie)"; }
+    else if (score < 84) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (zielona)"; }
 
     // What radar sees here (2026), from measured radar only: the radar first-year layer (Sentinel-1 yearly, NISAR confirms
     // 2025-2026), Sentinel-1 walls (autumn 2025 -> 2026), NISAR's June -> August change on open land. isNisar: the sentence is NISAR's.
