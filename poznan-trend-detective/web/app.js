@@ -476,7 +476,7 @@
       const h = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lng2 - lng1) * r) / 2) ** 2;
       return 2 * R * Math.asin(Math.sqrt(h));
     },
-    loadGray: (name) => loadGray(name),
+    loadGray: (name, dir) => loadGray(dir ? `${dir}/${name}` : name), // contract 1.1: data/<dir>/<name>.png, cached as L8[dir + "/" + name]
     loadJSON(path) {
       if (!skJSON.has(path)) {
         const p = fetch(`data/${path}?v=${DATA_V}`).then((r) => { if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`); return r.json(); });
@@ -562,6 +562,36 @@
   const RADAR_LENSES = ["radar", "build", "water", "ground"];
   const RY = () => (sar ? sar.alos.years.concat([2026]) : []);
   const radarTL = () => !!sar && RADAR_LENSES.includes(state.lens);
+  // NISAR passes of summer 2026 (data/sarnik/anim, pipeline/sar_animacja.py): in the radar view the 2026 step opens into the
+  // single passes, drawn as the same L-band composite. Without anim/meta.json the time line stays as it was.
+  const ANIM = "sarnik/anim/";
+  let anim = null, pass = -1; // pass: index of the pass on the map, -1 = the 2026 median (the default)
+  const passOn = () => pass >= 0 && !!anim && radarTL() && state.lens === "radar" && state.ryear === 2026;
+  const animSheet = () => ANIM + anim.layout.file.replace(/\.png$/, "");
+  const passDate = (d, long) => new Date(`${d}T12:00:00Z`).toLocaleDateString(lang === "pl" ? "pl-PL" : "en-GB", long ? { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" } : { day: "numeric", month: "short", timeZone: "UTC" });
+  function passAt(i) { // HH and HV bytes of the pass on the map for a 120 m cell, from the half-resolution sheet (HV 0 when the pass has none)
+    const f = anim.frames[pass], { bw, block } = anim.layout, sh = L8[animSheet()], w = land.width;
+    const r = (((i / w) | 0) / block) | 0, c = ((i % w) / block) | 0, at = (xy) => sh[(xy[1] + r) * 2 * bw + xy[0] + c];
+    return [at(f.hh), f.hv ? at(f.hv) : 0];
+  }
+  function loadAnim() {
+    if (!sar || !sar.nisar) return;
+    skCtx.loadJSON(`${ANIM}meta.json`).then((m) => {
+      const l = m && m.layout;
+      if (!l || typeof l.file !== "string" || !(l.bw > 0 && l.bh > 0 && l.block > 0) || !Array.isArray(m.frames) || m.frames.length < 2) throw new Error("no frames or layout");
+      anim = m; renderTimeline();
+    }).catch((e) => console.warn(`SARnik: ${ANIM}meta.json not used:`, (e && e.message) || e));
+  }
+  async function togglePasses() {
+    stopPlay();
+    if (pass >= 0) pass = -1;
+    else {
+      setBusy(1);
+      try { await loadGray(animSheet()); pass = 0; } catch (e) { anim = null; console.warn(`SARnik: ${ANIM} sheet not used:`, (e && e.message) || e); } finally { setBusy(-1); }
+    }
+    renderTimeline(); renderLegend(); redraw();
+  }
+  function setPass(k) { pass = clamp(Math.round(k), 0, anim.frames.length - 1); renderTimeline(); renderLegend(); redraw(); }
   // keep the area clear of the floating cards: side card on the left (desktop) or at the bottom (phone)
   const fitPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 130] } : { paddingTopLeft: [420, 80], paddingBottomRight: [80, 150] });
   const selPad = () => (innerWidth < 760 ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, Math.round(innerHeight * 0.42 + 120)] } : fitPad());
@@ -972,7 +1002,7 @@
   }
 
   function renderLand(k) {
-    const hi = hiresArrays(k);
+    const hi = k === "alos" && passOn() ? null : hiresArrays(k);
     if (hi) return renderLandHi(k, hi);
     const o = overlay(k);
     if (!o.img) o.img = o.ctx.createImageData(land.width, land.height);
@@ -1060,6 +1090,15 @@
         const db = a[i] / 6 - 30;
         if (db < s.lo || db > s.hi) continue;
         put(i, rampRgb(RAMPS.radar, (db - s.lo) / Math.max(1, s.hi - s.lo)), 215);
+      }
+    } else if (k === "alos" && passOn()) { // one NISAR pass: the composite of the 2026 median, or grey HH when the pass has no HV
+      const [c0, c1] = RGB_STRETCH.nisar;
+      for (let i = 0; i < n; i++) {
+        if (!st[i]) continue;
+        const [a, b] = passAt(i), q = i * 4;
+        if (!a || (anim.frames[pass].hv && !b)) continue;
+        const c = b ? radarRgb("nisar", dbOf(a), dbOf(b)) : Array(3).fill(clamp(((dbOf(a) - c0) / (c1 - c0)) * 255, 0, 255) | 0);
+        px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 235;
       }
     } else if (k === "s1rgb" || k === "alos") {
       // classic radar colour composite: R = co-pol (VV/HH), G = cross-pol (VH/HV), B = co/cross ratio
@@ -1192,6 +1231,27 @@
     document.body.classList.remove("no-tl"); // the timeline stays in every view (team decision, 14.11)
     const u = U(), inp = $("#year"), end = horizonEnd();
     $("#timeline").classList.toggle("radar", radarTL());
+    let pb = $("#tl-pass"); // opens the single NISAR passes of the 2026 step (radar view only, when anim/meta.json loaded)
+    if (!pb && anim) { pb = document.createElement("button"); pb.type = "button"; pb.id = "tl-pass"; pb.className = "linkish"; $(".tl-year").appendChild(pb); pb.addEventListener("click", togglePasses); }
+    if (pb) { pb.hidden = !(anim && radarTL() && state.lens === "radar" && state.ryear === 2026); const ph = passOn() ? [u.passClose, u.passCloseShort] : [u.passOpen, u.passOpenShort]; pb.textContent = innerWidth < 760 ? ph[1] : ph[0]; pb.setAttribute("aria-label", ph[0]); pb.setAttribute("aria-pressed", String(passOn())); }
+    if (passOn()) {
+      const fs = anim.frames, n = fs.length, f = fs[pass], rp = (k) => (k / (n - 1)) * 100;
+      inp.min = 0; inp.max = n - 1; inp.step = 1;
+      if (document.activeElement !== inp || playing) inp.value = pass;
+      $("#tl-fill").style.width = `${rp(pass)}%`;
+      $("#tl-future").style.left = "100%"; $("#tl-future").innerHTML = "";
+      $("#tl-now").style.left = "100%";
+      $("#tl-real").textContent = u.passesLabel; $("#tl-real").style.left = "50%";
+      $("#tl-pred").textContent = "";
+      $("#tl-year").textContent = passDate(f.date);
+      const kind = u.passKind(passDate(f.date, true), !f.hv);
+      $("#tl-kind").textContent = innerWidth < 760 ? u.passKindShort(!f.hv) : kind; // phones: the date is already the big label
+      inp.setAttribute("aria-valuetext", kind);
+      $("#timeline").classList.remove("future");
+      const ticks = fs.map((_, k) => k).filter((k) => (innerWidth < 760 ? k === 0 : k % 3 === 0) || k === n - 1);
+      $("#tl-ticks").innerHTML = ticks.map((k) => `<span class="${k === 0 ? "first" : k === n - 1 ? "last" : ""}${k === pass ? " now" : ""}" style="left:${rp(k)}%">${passDate(fs[k].date)}</span>`).join("");
+      return;
+    }
     if (radarTL()) {
       const ys = RY(), a = ys[0], b = ys[ys.length - 1], arch = ys[ys.length - 2], rp = (y) => ((y - a) / (b - a)) * 100;
       inp.min = a; inp.max = b; inp.step = 1;
@@ -1258,9 +1318,9 @@
   }
   function togglePlay() {
     if (playing) { stopPlay(); return; }
-    if (radarTL()) { // radar views: one radar year after another
-      const ys = RY();
-      let i = ys.indexOf(state.ryear);
+    if (radarTL()) { // radar views: one radar year after another (or one NISAR pass after another, when the passes are open)
+      const P = passOn(), ys = P ? anim.frames.map((_, k) => k) : RY();
+      let i = ys.indexOf(P ? pass : state.ryear);
       if (i >= ys.length - 1) i = -1;
       playing = true;
       const my = ++playTok; // a chain left over from an earlier Play stops as soon as a newer one exists
@@ -1268,7 +1328,7 @@
       const tick = async () => {
         if (!playing || my !== playTok) return;
         i += 1;
-        await setRYear(ys[i]);
+        await (P ? setPass(ys[i]) : setRYear(ys[i]));
         if (!playing || my !== playTok) return;
         if (i >= ys.length - 1) { stopPlay(); return; }
         playTimer = setTimeout(tick, 900);
@@ -1306,8 +1366,10 @@
       if (L_.egms.on) blocks.push(`<div class="lt">${lg.egms}</div>${sw(RAMPS.sink[2], lg.sinks)}${sw(RAMPS.cool[2], lg.rises)}`);
       if (L_.s1rgb.on || L_.alos.on) {
         const kk = L_.alos.on && !L_.s1rgb.on ? (L_.alos.y === 2026 ? "nisar" : "alos") : "s1rgb";
-        blocks.push(`<div class="lt">${kk === "nisar" ? lg.nisarL : kk === "alos" ? lg.alos(L_.alos.y) : lg.s1rgb}</div>` +
-          RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
+        const pf = L_.alos.on && passOn() ? anim.frames[pass] : null; // a single NISAR pass: its date, and grey for an HH-only pass
+        blocks.push(`<div class="lt">${pf ? u.lg.nisarPass(passDate(pf.date, true)) : kk === "nisar" ? lg.nisarL : kk === "alos" ? lg.alos(L_.alos.y) : lg.s1rgb}</div>` +
+          (pf && !pf.hv ? sw("linear-gradient(90deg,#000,#fff)", u.lg.passHH) : RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join("")) +
+          (pf ? `<div class="lrow">${u.lg.passNote}</div>` : ""));
       }
     }
     if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
@@ -1364,7 +1426,7 @@
   async function setLens(k) {
     if (!LENSES().some((l) => l.k === k)) return;
     stopPlay();
-    state.lens = k;
+    state.lens = k; pass = -1;
     await applyLens();
     if (k === "trees") setYear(2024); // forest loss up to the latest year
     renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
@@ -1604,7 +1666,7 @@
       const Ly = state.lyr;
       if ((Ly.s1rgb.on && ready("s1rgb")) || (Ly.alos.on && ready("alos"))) {
         const [hn, vn] = lbandNames(Ly.alos.y);
-        const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
+        const [a, b, tag] = Ly.s1rgb.on ? [L8.sar_vv_med[c.i], L8.sar_vh_med[c.i], "VV/VH"] : passOn() ? [...passAt(c.i), "HH/HV"] : [L8[hn][c.i], L8[vn][c.i], "HH/HV"];
         if (a && b) {
           const vv = dbOf(a);
           // the class bounds are C-band VV values; for L-band HH/HV show the dB value only (forest is as bright as buildings there)
@@ -2665,10 +2727,10 @@
     let yearDrag = false;
     $("#year").addEventListener("pointerdown", () => { yearDrag = true; });
     ["pointerup", "pointercancel", "blur"].forEach((ev) => window.addEventListener(ev, () => { yearDrag = false; }));
-    $("#year").addEventListener("input", (e) => { stopPlay(); if (radarTL()) setRYear(+e.target.value, yearDrag); else setYear(+e.target.value); });
+    $("#year").addEventListener("input", (e) => { stopPlay(); if (passOn()) setPass(+e.target.value); else if (radarTL()) setRYear(+e.target.value, yearDrag); else setYear(+e.target.value); });
     $("#year").addEventListener("change", (e) => {
       if (radarTL()) {
-        e.target.value = state.ryear; // the input event already moved to the year with data
+        e.target.value = passOn() ? pass : state.ryear; // the input event already moved to the year with data
       } else {
         let y = +e.target.value;
         if (Math.abs(y - NOW_YEAR) <= 0.5) y = NOW_YEAR;
@@ -2760,6 +2822,7 @@
     document.body.classList.toggle("expert", state.expert);
     applyLang(); // texts and controls are on screen from here; the radar picture follows as soon as its rasters land
     await firstP;
+    loadAnim(); // the NISAR passes of 2026: only their small meta.json now, the frames when the viewer opens them
     await Promise.all(Object.keys(NEEDS).filter((k) => state.lyr[k] && state.lyr[k].on).map(ensure));
     redraw();
     try { performance.mark("sarnik-first-view"); } catch (e) { /* ignore */ }
