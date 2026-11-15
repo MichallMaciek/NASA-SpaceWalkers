@@ -37,7 +37,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // the canvases of the data layers are made on first use, see overlay()
     Object.keys(PIXEL).forEach((k) => { pixelLayers[k] = new PixelLayer(k, { opacity: state.lyr[k].op, zIndex: 395, updateWhenZooming: false }); });
 
-    borderLayer = L.geoJSON(areas, { interactive: false, style: (f) => ({ color: css("--ink-2"), weight: f.properties.role === "city" ? 1.8 : 0.8, opacity: 0.55, fill: false, dashArray: f.properties.role === "city" ? null : "3 4" }) }).addTo(map);
+    borderLayer = L.geoJSON(areas, { interactive: false, style: (f) => ({ color: css("--ink-2"), weight: f.properties.role === "city" ? 4 : 0.8, opacity: f.properties.role === "city" ? 0.9 : 0.55, fill: false, dashArray: f.properties.role === "city" ? null : "3 4" }) }).addTo(map);
     labelLayer = L.layerGroup(areas.features.map((f) => {
       const c = L.geoJSON(f).getBounds().getCenter();
       const nudge = { "Poznań": [0.012, 0], "Luboń": [-0.004, 0.012], "Puszczykowo": [0, 0.02] }[f.properties.name] || [0, 0];

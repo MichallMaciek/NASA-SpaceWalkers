@@ -69,7 +69,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       bases.map = v.base; bases.mapLabels = v.labels;
     }
     setBase(state.base);
-    borderLayer.setStyle((f) => ({ color: css("--ink-2"), weight: f.properties.role === "city" ? 1.8 : 0.8, opacity: 0.55, fill: false, dashArray: f.properties.role === "city" ? null : "3 4" }));
+    borderLayer.setStyle((f) => ({ color: css("--ink-2"), weight: f.properties.role === "city" ? 4 : 0.8, opacity: f.properties.role === "city" ? 0.9 : 0.55, fill: false, dashArray: f.properties.role === "city" ? null : "3 4" }));
     Object.values(pixelLayers).forEach((pl) => map.hasLayer(pl) && pl.repaint());
     redraw(); renderTimeline(); renderDrawer();
     if (state.sel && state.sel.ready) renderCard(); else if (!state.sel) renderFindings();
