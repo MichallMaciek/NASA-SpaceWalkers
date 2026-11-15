@@ -157,7 +157,14 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 
 /* ---------- start card: quick examples fit the card and sit on the glass ---------- */
 .featured-spots { background: transparent; border-color: var(--hair); border-radius: 16px; }
-.featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.featured-grid { grid-template-columns: 1fr; gap: 6px; } /* four full rows: icon, the whole name, caption, score badge */
+.f-text b { white-space: normal; font-size: 14px; line-height: 1.25; }
+.f-text small { white-space: normal; font-size: 12px; line-height: 1.3; overflow: visible; text-overflow: clip; }
+.f-badge { font-size: 12px; min-width: 32px; }
+.f-badge.f-great { background: #24703F; color: #fff; }  /* white text >= 4.5:1 on every badge */
+.f-badge.f-good { background: #24703F; color: #fff; }
+.f-badge.f-warn { background: #9A5B00; color: #fff; }
+.f-badge.f-risk { background: #B3221E; color: #fff; }
 .f-spot { min-width: 0; background: var(--glass-press); border-color: transparent; border-radius: 12px; }
 .f-spot:hover { background: var(--glass); border-color: var(--hair); box-shadow: none; transform: none; }
 /* the folded start card is only its title and "Show": the radar banner and the quick examples open with it */
