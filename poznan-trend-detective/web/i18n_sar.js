@@ -20,6 +20,8 @@
 
   const PL = {
     appName: "SARnik",
+    docTitle: "SARnik: radarowy przegląd terenu", radarBtn: "Jak działa radar",
+    nisarLine: "Korzysta z nowego radaru NISAR (NASA i ISRO, pasmo L), który od czerwca 2026 r. co 12 dni przelatuje nad Poznaniem, oraz z Sentinel-1.",
     radarHow: "Jak widzi radar",
     radarHtml: (m) => `
       <p class="rh-lead">Radar sam wysyła falę mikrofalową i mierzy, ile jej wraca. Działa w nocy i przez chmury. Jasność piksela zależy od kształtu i szorstkości powierzchni, od tego, ile jest w niej wody, i od kąta, pod jakim patrzy radar.</p>
@@ -47,6 +49,8 @@
 
   const EN = {
     appName: "SARnik",
+    docTitle: "SARnik: a radar check-up of land", radarBtn: "How radar works",
+    nisarLine: "It uses the new NISAR radar (NASA and ISRO, L-band), which has passed over Poznań every 12 days since June 2026, together with Sentinel-1.",
     radarHow: "How radar sees the ground",
     radarHtml: (m) => `
       <p class="rh-lead">Radar sends its own microwave pulse and measures how much comes back. It works at night and through clouds. A pixel's brightness depends on the shape and roughness of the surface, on how much water it holds, and on the angle the radar looks from.</p>
@@ -113,14 +117,14 @@
     sarwet: "Jak mocno radar reaguje na wilgoć", weak: "słabo", strong: "silnie",
     sarwater: "Przeloty, w których piksel wyglądał jak woda", egms: "Ruch gruntu 2016–2020", sinks: "osiada", rises: "podnosi się",
     s1rgb: "Radar Sentinel-1, sezon 2026", alos: (y) => `Radar ALOS-2, pasmo L, ${y}`,
-    rgbBuilt: "zabudowa", rgbStrong: "hale i ściany zwrócone do radaru", rgbVeg: "las i zadrzewienia", rgbBare: "pola i łąki", rgbWater: "woda i gładki asfalt",
+    rgbBuilt: "zabudowa", rgbStrong: "hale i ściany zwrócone do radaru", rgbVeg: "las i zadrzewienia", rgbBuiltVeg: "zabudowa albo las (silne HV)", rgbBare: "pola i łąki", rgbWater: "woda i gładki asfalt",
   });
   Object.assign(en.lg, {
     sarchange: "VV change, autumn 2025 → 2026", wallsNow: "brighter with double bounce: a signal like new walls", brighterNow: "brighter without double bounce: fields, earthworks, also buildings at an angle to the orbit", darkerNow: "darker than last autumn: on fields usually a different crop, tillage or drier soil",
     sarwet: "How strongly radar follows moisture", weak: "weak", strong: "strong",
     sarwater: "Passes in which the pixel looked like water", egms: "Ground motion 2016–2020", sinks: "sinking", rises: "rising",
     s1rgb: "Sentinel-1 radar, 2026 season", alos: (y) => `ALOS-2 radar, L-band, ${y}`,
-    rgbBuilt: "built-up land", rgbStrong: "halls and walls facing the radar", rgbVeg: "forest and trees", rgbBare: "fields and meadows", rgbWater: "water and smooth asphalt",
+    rgbBuilt: "built-up land", rgbStrong: "halls and walls facing the radar", rgbVeg: "forest and trees", rgbBuiltVeg: "built-up land or forest (strong HV)", rgbBare: "fields and meadows", rgbWater: "water and smooth asphalt",
   });
   pl.rb = {
     title: "Radar · 2026", how: "Jak widzi radar?",
@@ -148,7 +152,7 @@
   };
   Object.assign(pl.chk, {
     radar26: "Radar 2026: co się zmienia",
-    radar26Busy: (p) => `Na ${p}% terenu radar widzi nowe ściany: sygnał wyższy o 3 dB lub więcej niż rok temu, z podwójnym odbiciem. Sprawdź w urzędzie, co tu powstaje.`,
+    radar26Busy: (p) => `Na ${p}% terenu radar widzi sygnał jak od nowych ścian: wyższy o 3 dB lub więcej niż rok temu, z podwójnym odbiciem. Sprawdź w urzędzie, co tu powstaje.`,
     radar26Soft: (p) => `Na ${p}% terenu sygnał wzrósł o 3 dB lub więcej, ale bez podwójnego odbicia: raczej prace polowe lub ziemne.`,
     radar26Quiet: "Bez wyraźnych zmian względem jesieni 2025.",
     wetT: "Wilgoć w radarze",
@@ -161,7 +165,7 @@
   });
   Object.assign(en.chk, {
     radar26: "Radar 2026: what is changing",
-    radar26Busy: (p) => `On ${p}% of the land radar sees new walls: the signal is 3 dB or more above last year's, with a double bounce. Ask the planning office what is going up here.`,
+    radar26Busy: (p) => `On ${p}% of the land radar sees a signal like new walls: 3 dB or more above last year's, with a double bounce. Ask the planning office what is going up here.`,
     radar26Soft: (p) => `On ${p}% of the land the signal rose by 3 dB or more, but without a double bounce: more likely field work or earthworks.`,
     radar26Quiet: "No clear change against autumn 2025.",
     wetT: "Moisture seen by radar",
@@ -330,6 +334,10 @@
     nextSrc: "Nasza prognoza (Landsat; uczona na latach 2005–2015, sprawdzona na 2015–2020)",
     nextRadar: (ha) => `Radar widzi już zabudowę po 2020 r. na ${ha} ha terenu, który prognoza liczyła jako wolny.`,
     nextSrcRadar: "; wolny teren sprawdzony radarem (Sentinel-1, NISAR, 2026)",
+    nisarT: "Co NISAR widział tego lata",
+    nisarV: (p) => `Radar NISAR: między czerwcem a sierpniem 2026 r. echo wyraźnie wzrosło na ${p}% pól i łąk wokół tego miejsca. To deszcz razem ze żniwami i uprawą; nie mówi nic o samej działce.`,
+    nisarNone: "Radar NISAR nie ma tu pomiaru: wokół tego miejsca nie ma otwartego terenu z jego danymi.",
+    nisarSrc: (t, n, a, b) => `Radar NISAR (NASA-ISRO), pasmo L, tor ${t}, przeloty lata 2026: ${n}; porównane ${a} i ${b}`,
     waterT: "Woda",
     waterFlood: "Miejsce leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.",
     waterFloodArea: (p) => `${p}% terenu leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.`,
@@ -376,6 +384,10 @@
     nextSrc: "Our projection (Landsat; trained on 2005–2015, tested on 2015–2020)",
     nextRadar: (ha) => `Radar already sees building since 2020 on ${ha} ha of the land the forecast counted as open.`,
     nextSrcRadar: "; open land checked by radar (Sentinel-1, NISAR, 2026)",
+    nisarT: "What NISAR saw this summer",
+    nisarV: (p) => `NISAR radar: between June and August 2026 the echo rose clearly on ${p}% of the fields and meadows around this place. That is rain together with harvest and tillage; it says nothing about the plot itself.`,
+    nisarNone: "NISAR has no measurement here: there is no open land with its data around this place.",
+    nisarSrc: (t, n, a, b) => `NISAR radar (NASA-ISRO), L-band, track ${t}, summer 2026 passes: ${n}; compared ${a} and ${b}`,
     waterT: "Water",
     waterFlood: "This spot lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.",
     waterFloodArea: (p) => `${p}% of the land lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.`,
