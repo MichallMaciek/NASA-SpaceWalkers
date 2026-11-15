@@ -235,9 +235,10 @@ window.I18N.pl.ui = {
   searchLabel: "Szukaj adresu", searchPh: "Szukaj adresu, np. Bukowska 285, Poznań",
   tools: "Narzędzia rysowania", drawFree: "Obrysuj obszar odręcznie", drawPoly: "Narysuj wielokąt", clearArea: "Usuń zaznaczenie",
   settings: "Ustawienia mapy", zoomIn: "Przybliż", zoomOut: "Oddal", close: "Zamknij", play: "Odtwórz", pause: "Pauza", year: "Rok",
-  measured: "Dane z pomiarów", predicted: "Predykcja", modelForecast: "prognoza modelu", fromMeasurements: "dane z pomiarów", today: "Dziś",
+  measured: "Dane z pomiarów", predicted: "Predykcja", modelForecast: "prognoza modelu", fromMeasurements: "dane z pomiarów", fromRadar: "dane z pomiarów radaru", today: "Dziś",
   lg: {
     built: "Intensywność zabudowy", low: "niska", high: "wysoka", projected: "Prognozowana zabudowa",
+    radarNew: (a, b) => `nowa zabudowa wg radaru (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
     forest: "Wycinka lasów (rok)", forestLeft: "Las z 2000 r., który stoi",
     price: (y) => `Cena za m² (GUS), ${y}`, activity: "Aktywność terenu, radar 2017–2024",
     brighter: "Jaśniej: nowe dachy, stal, beton", darker: "Ciemniej: wycinka, woda, rozbiórka",
@@ -286,9 +287,10 @@ window.I18N.en.ui = {
   searchLabel: "Search an address", searchPh: "Search an address, e.g. Bukowska 285, Poznań",
   tools: "Drawing tools", drawFree: "Draw an area freehand", drawPoly: "Draw a polygon", clearArea: "Clear selection",
   settings: "Map settings", zoomIn: "Zoom in", zoomOut: "Zoom out", close: "Close", play: "Play", pause: "Pause", year: "Year",
-  measured: "Measured data", predicted: "Prediction", modelForecast: "model forecast", fromMeasurements: "measured", today: "Today",
+  measured: "Measured data", predicted: "Prediction", modelForecast: "model forecast", fromMeasurements: "measured", fromRadar: "measured by radar", today: "Today",
   lg: {
     built: "Built-up intensity", low: "low", high: "high", projected: "Projected building",
+    radarNew: (a, b) => `new building seen by radar (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
     forest: "Forest loss (year)", forestLeft: "Forest of 2000 still standing",
     price: (y) => `Price per m² (GUS), ${y}`, activity: "Ground activity, radar 2017–2024",
     brighter: "Brighter: new roofs, steel, concrete", darker: "Darker: clearing, water, demolition",

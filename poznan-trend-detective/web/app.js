@@ -278,7 +278,7 @@
   function loadGray(name, low) {
     if (L8[name]) return Promise.resolve(L8[name]);
     if (grayLoading[name]) return grayLoading[name];
-    const url = `data/land/${name}.png?v=${DATA_V}`;
+    const url = `data/${name.includes("/") ? "" : "land/"}${name}.png?v=${DATA_V}`; // a name with a folder: data/<name>.png
     const viaBytes = () => fetch(url, low === true ? { priority: "low" } : undefined)
       .then((r) => { if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`); return r.arrayBuffer(); })
       .then((buf) => decodeGrayPNG(buf).catch((e) => { e.png = true; throw e; }));
@@ -305,6 +305,22 @@
     grayLoading[name] = pr;
     pr.then(() => delete grayLoading[name], () => delete grayLoading[name]);
     return pr;
+  }
+  // The first year radar sees each cell built (data/sarnik/radar_lata; 21..26 = 2021..2026), under the L8 key the card
+  // module radar_lata also reads. The history view draws it for the years after the optical map. Loaded once; if it is
+  // missing or broken the view stays as it was, with one warning in the console.
+  const RL = "sarnik/radar_lata/first_year";
+  let rlLast = 0, rlP = null; // last radar year, once the layer is usable
+  const radarFirst = () => (rlLast && L8[RL]) || null;
+  function loadRadarYears() {
+    if (rlP) return rlP;
+    rlP = skCtx.loadJSON("sarnik/radar_lata/meta.json").then((meta) => {
+      if (!meta || !Array.isArray(meta.years) || !meta.years.length) throw new Error("meta.json without years");
+      return loadGray(RL).then((arr) => { if (arr.length !== land.width * land.height) throw new Error("size differs from the grid"); rlLast = Math.max(...meta.years); });
+    }).then(() => {
+      if (map) { renderTimeline(); renderLegend(); redraw(); }
+    }).catch((e) => { delete L8[RL]; console.warn(`SARnik: ${RL} not used:`, (e && e.message) || e); });
+    return rlP;
   }
   // any year 1975-2035 lies between two 5-year epochs (observed to 2020, projected after)
   function epochPair(y) {
@@ -968,9 +984,10 @@
     if (k === "built") {
       // Smooth time: blend the two surrounding 5-year epochs, so dragging or playing the timeline flows year by year.
       const yf = clamp(state.yearF, land.epochs[0], horizonEnd());
-      // Base layer represents the measured city up to 2025/2026.
-      // We cap the base layer interpolation at 2025 so it never pre-draws the future 2030 projection in orange!
-      const yBase = Math.min(yf, 2025);
+      // The optical map (GHSL) ends in 2020; built_2025 on are the model's projections, not measurements. With the radar
+      // layer the base stops at 2020 and radar adds what it saw built after it (below). Without it the base still blends
+      // 2020 -> projected 2025, capped there so it never pre-draws the 2030 projection.
+      const fy = radarFirst(), yBase = Math.min(yf, fy ? LAST_OBS() : 2025);
       const { e0, e1, t } = epochPair(yBase);
       const a0 = smoothed(e0), a1 = smoothed(e1), lut = lutFor(RAMPS.built);
       const thr = THR(), b25 = L8.built_2025;
@@ -980,6 +997,14 @@
         if (v < 0.04) continue;
         const k = (Math.sqrt(v) * 255) | 0, q = i * 4, a = 60 + v * 520;
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
+      }
+      if (fy && yf > LAST_OBS()) { // new building radar saw from 2021 to the timeline year; that year's cells fade in
+        const rc = hexRgb(css("--c-radar")), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
+        for (let i = 0; i < n; i++) {
+          if (!st[i] || fy[i] <= y0) continue;
+          const f = clamp(yr - (2000 + fy[i]) + 1, 0, 1);
+          if (f > 0) put(i, rc, Math.round(235 * f));
+        }
       }
       if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
         const predColor = hexRgb(css("--pred"));
@@ -991,7 +1016,7 @@
           if (!st[i]) continue;
           // Established existing buildings (b25 >= thr) are never changed or overwritten!
           // Only newly converted open land shows the distinct prediction color.
-          if (b25[i] >= thr) continue;
+          if (b25[i] >= thr || (fy && fy[i] >= 15)) continue; // nor cells radar already sees built (15 = by 2015)
 
           const diff30 = Math.max(0, P30[i] - P25[i]);
           const diff35 = Math.max(0, P35[i] - P30[i]);
@@ -1144,6 +1169,7 @@
   // them, so the legend says so and offers another try instead of describing colours that are not there (renderLegend).
   const layerFailed = new Set();
   async function ensure(k) {
+    if (k === "built") loadRadarYears(); // small, never rejects; the map is redrawn when it lands
     if (PIXEL[k]) { // heat and greenness layers are drawn from the MODIS grids
       if (gridsOK()) return;
       $("#map").style.cursor = "progress";
@@ -1200,7 +1226,7 @@
     $("#tl-pred").textContent = u.predicted;
     $("#tl-pred").style.left = `${(nowP + 100) / 2}%`;
     $("#tl-year").textContent = state.year;
-    $("#tl-kind").textContent = isFuture() ? u.modelForecast : u.fromMeasurements;
+    $("#tl-kind").textContent = isFuture() ? u.modelForecast : state.lyr.built.on && radarFirst() && state.year > LAST_OBS() ? u.fromRadar : u.fromMeasurements;
     inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
     $("#timeline").classList.toggle("future", isFuture());
     const ticks = innerWidth < 760 ? [1975, 2000] : [1975, 1985, 1995, 2005, 2015];
@@ -1217,6 +1243,7 @@
     state.year = Math.round(state.yearF);
     renderTimeline();
     redraw();
+    if (state.year !== prev) renderLegend(); // the built-up key changes after 2020 and after today
     // the side card is heavier: refresh it once the year settles (or every whole year while playing)
     if (state.sel && state.sel.ready && (state.year !== prev || opts.now)) {
       const run = () => { cardT = null; if (state.sel && state.sel.ready) renderCard(); };
@@ -1283,7 +1310,7 @@
           RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
       }
     }
-    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
+    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
     if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
@@ -1616,9 +1643,12 @@
       }
     }
     if (state.lyr.built.on && ready("built") && c) {
-      const { e0, e1, t } = epochPair(state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
+      // after the optical map (2020) and up to today, with the radar layer: the 2020 value, not a blend toward the model's 2025
+      const fy = radarFirst(), rad = fy && state.year > LAST_OBS() && state.year <= NOW_YEAR;
+      const { e0, e1, t } = epochPair(rad ? LAST_OBS() : state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
       const v = (a + (b - a) * t) / 255;
       lines.push(`${u.L.built}: ${num(v * 100, 0)}%`);
+      if (rad && fy[c.i] > LAST_OBS() - 2000 && fy[c.i] <= state.year - 2000) lines.push(u.lg.radarNew(2000 + fy[c.i], 2000 + fy[c.i]));
     }
     if (state.lyr.forest.on && ready("forest") && c) {
       const y = L8.forest_loss[c.i];
@@ -1866,7 +1896,7 @@
     sel.failed = false;
     renderCardLoading();
     // a layer failed (flaky network, missing file): renderCardLoading then says so and offers a retry
-    try { await Promise.all([loadGrids(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
+    try { await Promise.all([loadGrids(), loadRadarYears(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
     if (state.sel !== sel) return;
     // the 1 km MODIS squares under the place (heat and greenness rows of the card): all squares whose centre lies in a
     // drawn area, otherwise the one square that holds the point (or the area's centre)
@@ -1884,6 +1914,15 @@
   const cellHa = () => (land.cell_m_ground ** 2) / 1e4;
   function builtShare(cells, year) { const a = L8[`built_${year}`], t = THR(); return cells.length ? (cells.filter((i) => a[i] >= t).length / cells.length) * 100 : NaN; }
   function builtSeriesAll(cells) { return EPOCHS().map((y) => builtShare(cells, y)); }
+  // radar: the cell is first seen built in 2021..2026 (null-safe: false without the radar layer)
+  const radarBuilt = (i) => { const fy = radarFirst(); return !!fy && fy[i] > LAST_OBS() - 2000; };
+  // built-up share 2020..today with radar: built in the optical 2020 map or first seen built by radar in 2021..y; null without radar
+  function radarShares(cells) {
+    const fy = radarFirst(), a = L8[`built_${LAST_OBS()}`], t = THR(), out = [];
+    if (!fy || !cells.length) return null;
+    for (let y = LAST_OBS(); y <= NOW_YEAR; y++) out.push((cells.filter((i) => a[i] >= t || (fy[i] > LAST_OBS() - 2000 && fy[i] <= y - 2000)).length / cells.length) * 100);
+    return out;
+  }
   // forest lost 2001..upTo: cumulative loss shares exported for 2005/2010/2015/2020/2024, linear in between
   const LOSS_CUM = [2000, 2005, 2010, 2015, 2020, 2024];
   const lossCum = (y) => (y === 2000 ? null : y === 2024 ? L8.loss_frac : L8[`loss_cum_${y}`]);
@@ -1902,7 +1941,7 @@
   }
   function riskOf(cells) {
     const thr = THR(), p = L8.prob_2030, b25 = L8.built_2025;
-    const open = cells.filter((i) => b25[i] < thr);
+    const open = cells.filter((i) => b25[i] < thr && !radarBuilt(i)); // with radar: land it still sees open
     if (!open.length) return null;
     const chance = mean(open.map((i) => (p[i] / 255) ** 2));
     // Score on an absolute, logarithmic scale of the 5-year chance: 0.1 % -> 0, 30 % -> 100.
@@ -2056,7 +2095,10 @@
     // building
     const series = builtSeriesAll(sel.cells), ep = EPOCHS();
     // any year: blend the two surrounding 5-year epochs (the timeline moves year by year)
-    const share = (y) => { const { e0, e1, t } = epochPair(y), a = series[ep.indexOf(e0)], b = series[ep.indexOf(e1)]; return a + (b - a) * t; };
+    const blend = (y) => { const { e0, e1, t } = epochPair(y), a = series[ep.indexOf(e0)], b = series[ep.indexOf(e1)]; return a + (b - a) * t; };
+    // with radar: 2021..today as radar saw it, later years the model's growth counted from today's radar state
+    const rs = radarShares(sel.cells), off = rs ? rs[rs.length - 1] - blend(NOW_YEAR) : 0;
+    const share = (y) => (!rs || y <= LAST_OBS() ? blend(y) : y <= NOW_YEAR ? rs[y - LAST_OBS()] : blend(y) + off);
     const base = 1990;
     // change in percentage points: a relative change explodes from small bases (one built cell -> "+5000%")
     let builtV, builtNote;
@@ -2082,7 +2124,7 @@
     // chip in forecast mode
     const chip = fut ? `<span class="chip">${u.chip(num(land.model.top_n_hit_rate * 100, 0))}</span>` : "";
     // chart
-    const chart = miniChart(series, ep, Y);
+    const chart = miniChart(rs ? series.map((v, k) => (ep[k] > NOW_YEAR ? v + off : v)) : series, ep, Y, rs, share);
     // wage ratio footnote
     const wage = priceSeries(unitFor(sel), "64428"), pz = priceSeries(unitFor(sel), "633677");
     const wy = [2024, 2023].find((y) => wage[y] && pz[y]);
@@ -2104,13 +2146,13 @@
       <p class="sub tech-sub">${range}</p>
       ${sar && L8.sar_series ? radarBlock(sel) : ""}
       ${skCardTop(sel)}
-      ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
+      ${sar ? `<div class="hist-h">${rs ? u.histHeadRadar : u.histHead}</div>` : ""}${chip}
       <div class="rows">
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-built")}"></span>${u.rowBuilt}</span><span class="v">${builtV}<small>${builtNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-forest")}"></span>${u.rowForest}</span><span class="v">${forestV}<small>${forestNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-price")}"></span>${u.rowPrice}</span><span class="v">${priceV}<small>${priceNote}</small></span></div>
       </div>
-      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}</div>
+      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}${rs ? `<div class="mh"><span style="color:${css("--c-radar")}">${u.lg.radarNew(LAST_OBS() + 1, NOW_YEAR)}</span></div>` : ""}</div>
       ${foot ? `<p class="foot">${foot}</p>` : ""}
       ${risk}
       ${more}
@@ -2148,6 +2190,8 @@
     items.push(!rk ? { lvl: "ok", t: p.nextT, v: p.nextBuilt, src: p.nextSrc }
       : rk.level >= 4 ? { lvl: "warn", t: p.nextT, v: p.nextHigh(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc }
       : rk.level === 3 ? { lvl: "info", t: p.nextT, v: p.nextMid(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc } : { lvl: "ok", t: p.nextT, v: p.nextLow, src: p.nextSrc });
+    const rHa = sel.cells.filter((i) => L8.built_2025[i] < THR() && radarBuilt(i)).length * cellHa(); // open for the forecast, built for radar
+    if (rHa > 0) { const it = items[items.length - 1]; it.v += ` ${p.nextRadar(num(rHa, rHa < 10 ? 1 : 0))}`; it.src += p.nextSrcRadar; it.sar = "part"; }
     // 3. water: official groundwater-flood areas and hollows. The NISAR June -> August change mixes rain with
     //    harvest and tillage, so it is not a water verdict (science review N44); it stays on the map and in the details.
     const wf = waterFacts(sel);
@@ -2264,21 +2308,23 @@
     }).join("")}<p class="ck-note">${c.note}</p></div>`;
   }
 
-  function miniChart(series, years, cur) {
-    const W = 340, H = 64, ok = series.filter((v) => isFinite(v));
+  // rs: built-up share 2020..today with radar (radarShares), drawn as its own line; the forecast then starts from it; at(y): the card's share
+  function miniChart(series, years, cur, rs, at) {
+    const W = 340, H = 64, ok = series.filter((v, k) => isFinite(v) && !(rs && years[k] > LAST_OBS() && years[k] <= NOW_YEAR)).concat(rs || []);
     const lo = Math.min(...ok), hi = Math.max(...ok), pad = (hi - lo) * 0.15 || 1;
     const x = (y) => ((y - years[0]) / (years[years.length - 1] - years[0])) * W, y = (v) => H - ((v - lo + pad) / (hi - lo + 2 * pad)) * H;
     const obsN = land.epochs.length, end = horizonEnd();
     let d1 = "", d2 = "";
     years.forEach((yr, k) => { if (!isFinite(series[k]) || yr > end) return; if (k < obsN) d1 += `${d1 ? "L" : "M"}${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
-    d2 = `M${x(years[obsN - 1]).toFixed(1)},${y(series[obsN - 1]).toFixed(1)}`;
-    years.forEach((yr, k) => { if (k >= obsN && yr <= end) d2 += `L${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
+    d2 = rs ? `M${x(NOW_YEAR).toFixed(1)},${y(rs[rs.length - 1]).toFixed(1)}` : `M${x(years[obsN - 1]).toFixed(1)},${y(series[obsN - 1]).toFixed(1)}`;
+    years.forEach((yr, k) => { if (k >= obsN && yr <= end && (!rs || yr > NOW_YEAR)) d2 += `L${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
+    const d3 = rs ? rs.map((v, k) => `${k ? "L" : "M"}${x(LAST_OBS() + k).toFixed(1)},${y(v).toFixed(1)}`).join("") : "";
     const { e0, e1, t } = epochPair(cur), k0 = years.indexOf(e0), k1 = years.indexOf(e1);
-    const cv = k0 >= 0 && k1 >= 0 ? series[k0] + (series[k1] - series[k0]) * t : NaN, cy = isFinite(cv) ? y(cv) : null, pred = css("--pred");
+    const cv = at ? at(cur) : k0 >= 0 && k1 >= 0 ? series[k0] + (series[k1] - series[k0]) * t : NaN, cy = isFinite(cv) ? y(cv) : null, pred = css("--pred");
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
       <line x1="${x(land.epochs[obsN - 1])}" x2="${x(land.epochs[obsN - 1])}" y1="0" y2="${H}" stroke="${css("--line")}" stroke-width="1"/>
       <path d="${d1}" fill="none" stroke="${css("--ink")}" stroke-width="2"/>
-      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>
+      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>${d3 ? `<path d="${d3}" fill="none" stroke="${css("--c-radar")}" stroke-width="2"/>` : ""}
       ${cy != null ? `<circle cx="${x(cur)}" cy="${cy}" r="4.5" fill="${css("--card")}" stroke="${cur > NOW_YEAR ? pred : css("--ink")}" stroke-width="2"/>` : ""}
     </svg>`;
   }
