@@ -25,6 +25,7 @@ taka sama jak wcześniej. `index.html` ładuje je po kolei.
 | `18-parcels.css` | mapa działek (granice z ULDK, wybrana działka) |
 | `19-helvetica-szklo.css` | design 15.11 (Figma, quick look 6): Helvetica Neue, szkło na pływających kontenerach, pasek wyszukiwania, karta jako lista wierszy; sam wygląd, bez zmian w logice |
 | `20-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień, przełącznik heatmapa / heksy |
+| `21-pasek-widokow.css` | pasek widoków jako jeden przycisk („Widok: … ▾”) z rozwijaną listą widoków |
 
 Zasady:
 - **Poprawka istniejącego elementu:** w części, w której jest jego reguła.
