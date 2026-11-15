@@ -32,7 +32,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   };
   const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) || (ZIP_OF[k] && !zipOk(k)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
-    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
+    `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : []),
+    ...(sar.zips && sar.zips.sme ? ["nisar_sm_0625", "nisar_sm_0824"] : [])] : []); // soil moisture for the card's own-place row
   // decoders (sar.json "decode")
   const dbOf = (v) => (v ? v / 6 - 30 : NaN);
   const changeOf = (v) => (v ? v / 12.75 - 10 : NaN);
