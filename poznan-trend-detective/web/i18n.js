@@ -365,6 +365,8 @@ window.I18N.pl.ui.chk.waterAreaLow = (p) => `${p}% zaznaczenia leży w obniżeni
 window.I18N.pl.ui.chk.waterAreaOk = (p) => `Tylko ${p}% zaznaczenia leży w obniżeniach terenu.`;
 window.I18N.en.ui.chk.waterAreaLow = (p) => `${p}% of the selection lies in hollows (1.5 m or more below the surroundings), where water can gather.`;
 window.I18N.en.ui.chk.waterAreaOk = (p) => `Only ${p}% of the selection lies in hollows.`;
+window.I18N.pl.ui.chk.waterTrees = "Tu rosną drzewa albo gęsto stoją budynki, a model wysokości mierzy ich wierzchołki. Nie oceniamy więc, czy teren leży w obniżeniu.";
+window.I18N.en.ui.chk.waterTrees = "Trees or dense buildings stand here and the height model measures their tops, so we do not judge whether the ground lies in a hollow.";
 Object.assign(window.I18N.pl.ui.L, { flood: "Podtopienia (PIG-PIB)" });
 Object.assign(window.I18N.pl.ui.Lsub, { flood: "zagrożenie powodzią od wód gruntowych" });
 Object.assign(window.I18N.pl.ui.lg, { flood: "Obszar zagrożony podtopieniami (PIG-PIB)", floodNote: "Woda gruntowa może podnosić się do piwnic, dane PIG-PIB" });
