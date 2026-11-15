@@ -1,0 +1,160 @@
+/* SARnik styles, part 18 of 18: design of 15.11 (quick look 6 "Lustro" from the Figma file "SARnik · redesign").
+   Design only, no change to markup or logic: Helvetica Neue everywhere, milky liquid glass on every floating container,
+   the search bar of the look (wordmark, hairline, field, magnifier on the right), round glass buttons on the right, and
+   the place card as one quiet list (no score container, no coloured pros/cons boxes). Loaded last by index.html, so it
+   wins over parts 1-17; rules: web/css/README.md */
+:root {
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --radius: 22px;
+  --glass: rgba(255, 255, 255, .58);
+  --glass-solid: rgba(255, 255, 255, .95); /* lists that open over other glass (search suggestions) */
+  --glass-line: rgba(255, 255, 255, .78);
+  --glass-shadow: 0 10px 30px rgba(20, 20, 20, .10), inset 0 1px 0 rgba(255, 255, 255, .55);
+  --glass-press: rgba(20, 20, 20, .06);
+  --hair: rgba(20, 20, 20, .09);
+  --alarm: #A3101C; /* the one accent of the card: a "warning" row */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --glass: rgba(24, 24, 27, .56); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+    --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
+    --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
+  }
+}
+:root[data-theme="dark"] {
+  --glass: rgba(24, 24, 27, .56); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
+  --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
+}
+
+/* ---------- type: Helvetica Neue (system font on Apple devices; Arial elsewhere) ---------- */
+body { font-family: var(--font); font-variation-settings: normal; letter-spacing: -0.003em; }
+.sidecard h2, .tl-big, .sheet h2, .drawer h2 { letter-spacing: -0.02em; font-weight: 700; }
+
+/* ---------- glass: every floating container ---------- */
+.card {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow);
+}
+/* a backdrop filter inside another one sees only its parent: the suggestions get a nearly solid sheet instead */
+.suggest.card { background: var(--glass-solid); -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 18px; }
+.suggest li[aria-selected="true"], .suggest li:hover { background: var(--glass-press); }
+
+/* ---------- top bar: search pill as in the look (wordmark and hairline drawn here, no markup change) ---------- */
+.search { border-radius: 26px; padding: 0 18px 0 20px; gap: 0; }
+.search::before { content: "SARnik"; order: 0; flex: none; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--ink); }
+.search::after { content: ""; order: 1; flex: none; width: 1px; height: 20px; margin: 0 14px; background: var(--ink); opacity: .22; }
+.search input { order: 2; font-size: 15px; min-width: 0; }
+.search .ico { order: 3; width: 18px; height: 18px; color: var(--ink); opacity: .8; margin-left: 10px; }
+.search:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+.tools { border-radius: 26px; padding: 0 6px; }
+.tool { border-radius: 50%; }
+.tool:hover:not(:disabled) { background: var(--glass-press); }
+.tools-sep { background: var(--hair); }
+.lenses { border-radius: 26px; padding: 0 6px; }
+.lenses button { border-radius: 20px; }
+.lenses button:hover { background: var(--glass-press); }
+.drawhint { border-radius: 26px; }
+
+/* ---------- right: round glass buttons ---------- */
+.iconbtn { border-radius: 50%; }
+#radar-btn { border-radius: 26px; }
+.zoom { border-radius: 26px; }
+.zoom button + button { border-top: 1px solid var(--hair); }
+
+/* ---------- place card: title, one quiet list, "all points" as the way to more ---------- */
+.sidecard { padding: 22px 24px 20px; border-radius: var(--radius); }
+.sidecard h2 { font-size: 22px; line-height: 1.2; }
+.sidecard .sub { font-size: 13px; margin-top: 4px; }
+/* "clear selection" becomes the close cross in the top right corner of the card */
+.sidecard:has(#clear-sel) .collapse-head h2 { padding-right: 36px; }
+.sidecard #clear-sel {
+  position: absolute; top: 18px; right: 16px; width: 34px; height: 34px; border-radius: 50%;
+  font-size: 0; color: transparent; text-decoration: none;
+}
+.sidecard #clear-sel::before, .sidecard #clear-sel::after {
+  content: ""; position: absolute; left: 10px; top: 16px; width: 14px; height: 1.6px; border-radius: 1px; background: var(--ink); opacity: .75;
+}
+.sidecard #clear-sel::before { transform: rotate(45deg); }
+.sidecard #clear-sel::after { transform: rotate(-45deg); }
+.sidecard #clear-sel:hover { background: var(--glass-press); }
+.sidecard .foot:has(> #clear-sel:only-child) { margin: 0; }
+/* the score container is gone from the design; the radar sentence stays as one quiet line */
+.spot-score-card { display: none; }
+.sidecard .nisar-banner { background: transparent; border: 0; box-shadow: none; padding: 0; margin: 14px 0 0; }
+.sidecard .nisar-banner-head { margin: 0 0 4px; }
+.sidecard .nisar-pill { background: transparent; color: var(--ink-2); padding: 0; font-size: 11px; letter-spacing: .08em; }
+.sidecard .nisar-pill .sar-i { stroke: currentColor; }
+.sidecard .nisar-orbit { color: var(--ink-3); }
+.sidecard .nisar-quote { display: none; }
+.sidecard .nisar-state { background: transparent; border: 0; padding: 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.sidecard .nisar-state b { color: var(--ink); }
+/* cons and pros read as one list of rows: title on the left, the app's status word on the right, the worst first */
+.pc-section { margin: 0; }
+.pc-head, .pc-empty { display: none; }
+.spot-score-card + .pc-section .pc-list { margin-top: 16px; border-top: 1px solid var(--hair); }
+.pc-list { gap: 0; }
+.pc-item, .pc-item.con-item, .pc-item.con-item.warn-item, .pc-item.con-item.info-item, .pc-item.pro-item {
+  background: none; border: 0; border-radius: 0; border-bottom: 1px solid var(--hair);
+  padding: 12px 0; min-height: 46px; align-items: center; justify-content: space-between; gap: 14px;
+}
+.pc-item > div { min-width: 0; }
+.pc-item b { font-weight: 400; font-size: 15px; line-height: 1.3; color: var(--ink); }
+.pc-item br, .pc-item small { display: none; } /* the explanation of every row is under "all points" */
+.pc-item::after {
+  flex: none; white-space: nowrap; font-size: 13px; color: var(--ink-2); padding-left: 16px;
+  content: "W normie";
+}
+.pc-item.con-item::after {
+  content: "Uwaga"; color: var(--alarm); font-weight: 700;
+  background: radial-gradient(circle at 4px 50%, var(--alarm) 4px, transparent 4.6px);
+}
+.pc-item.con-item.warn-item::after, .pc-item.con-item.info-item::after {
+  content: "Do sprawdzenia"; color: var(--ink); font-weight: 500;
+  background: radial-gradient(circle at 4px 50%, transparent 2.4px, currentColor 2.8px 3.9px, transparent 4.3px);
+}
+.pc-item.con-item.info-item::after { content: "Informacja"; color: var(--ink-2); font-weight: 400; }
+:root[lang="en"] .pc-item::after { content: "Fine"; }
+:root[lang="en"] .pc-item.con-item::after { content: "Warning"; }
+:root[lang="en"] .pc-item.con-item.warn-item::after { content: "Worth checking"; }
+:root[lang="en"] .pc-item.con-item.info-item::after { content: "Information"; }
+/* the folded section with every row and its explanation is the card's "more" */
+.sidecard .pc-all > summary {
+  list-style: none; display: inline-flex; align-items: center; gap: 10px; margin: 16px 0 4px; padding: 2px 0;
+  font-size: 15px; font-weight: 500; color: var(--ink); cursor: pointer;
+}
+.sidecard .pc-all > summary::-webkit-details-marker { display: none; }
+.sidecard .pc-all > summary::after {
+  content: ""; flex: none; width: 7px; height: 7px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg); margin-top: -4px; opacity: .85;
+}
+.sidecard .pc-all[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+
+/* ---------- start card: quick examples fit the card and sit on the glass ---------- */
+.featured-spots { background: transparent; border-color: var(--hair); border-radius: 16px; }
+.featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.f-spot { min-width: 0; background: var(--glass-press); border-color: transparent; border-radius: 12px; }
+.f-spot:hover { background: var(--glass); border-color: var(--hair); box-shadow: none; transform: none; }
+/* the folded start card is only its title and "Show": the radar banner and the quick examples open with it */
+.sidecard.min .nisar-banner, .sidecard.min .featured-spots { display: none; }
+
+/* ---------- legend and time line: same glass ---------- */
+.legend { border-radius: 18px; }
+.timeline { border-radius: var(--radius); }
+.playbtn { background: transparent; border-color: var(--hair); }
+.tl-big { font-weight: 700; }
+/* the caption under the year is one or two short lines, never spilling out of the bar */
+.tl-kind { font-size: 13px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+@media (max-width: 760px) {
+  .search { padding: 0 14px 0 16px; }
+  .search::after { margin: 0 10px; }
+  .sidecard { padding: 16px 18px 14px; }
+  .sidecard h2 { font-size: 20px; }
+  .sidecard #clear-sel { top: 12px; right: 10px; }
+  .tl-kind { font-size: 11.5px; }
+}
+@media (max-width: 520px) {
+  .search::before, .search::after { display: none; } /* phones: the field needs the room next to the drawing tools */
+}
