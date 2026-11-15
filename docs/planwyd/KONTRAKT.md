@@ -2,7 +2,7 @@
 
 Ten plik jest wiążący dla wszystkich pięciu urządzeń. Dzięki niemu moduły pisane równolegle pasują do rdzenia od razu, bez uzgodnień w trakcie.
 
-- **Rdzeń** (Urządzenie 1) implementuje ten kontrakt w `poznan-trend-detective/web/app.js`.
+- **Rdzeń** (Urządzenie 1) implementuje ten kontrakt w `poznan-trend-detective/web/app/06-sarnik-ext.js` (rdzeń to części `web/app/*.js`, dawniej jeden `web/app.js`; zasady: `web/app/README.md`).
 - **Moduły** (Urządzenia 2 i 3) piszą wyłącznie własne pliki i rejestrują się przez `window.SARNIK`.
 - **Testy modułów** używają `docs/planwyd/kontrakt/fake_core.mjs`, czyli tego samego kontraktu w Node, bez przeglądarki.
 
@@ -14,7 +14,7 @@ Poza tą zmianą kontraktu nie zmieniamy w trakcie pracy. Jeśli czegoś brakuje
 
 | Co | Ścieżka | Kto może edytować |
 |---|---|---|
-| Rdzeń aplikacji | `web/app.js`, `web/index.html`, `web/i18n.js`, `web/i18n_sar.js`, `web/styles.css` | tylko Urządzenie 1 |
+| Rdzeń aplikacji | `web/app/*.js` (dawniej `web/app.js`), `web/index.html`, `web/i18n.js`, `web/i18n_sar.js`, `web/css/*.css` (dawniej `web/styles.css`) | tylko Urządzenie 1 |
 | Lista modułów | `web/sarnik/manifest.js` | tylko Urządzenie 1 |
 | Moduł | `web/sarnik/<nazwa>.js`, opcjonalnie `web/sarnik/<nazwa>.css` | tylko autor modułu |
 | Dane modułu | `web/data/sarnik/<nazwa>/…` | tylko autor modułu |

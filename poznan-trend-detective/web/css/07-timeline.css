@@ -1,0 +1,74 @@
+/* SARnik styles, part 7 of 17: time line. Loaded in order by index.html; rules: web/css/README.md */
+/* ---------- timeline ---------- */
+.timeline {
+  position: fixed; left: var(--gap); right: var(--gap); bottom: var(--gap); z-index: 999; height: 116px;
+  display: grid; grid-template-columns: 52px 160px 1fr; align-items: center; gap: 0 20px; padding: 0 30px 0 22px;
+}
+body.drawer-open .timeline { right: calc(440px + var(--gap)); }
+.playbtn { width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--card); cursor: pointer; display: grid; place-items: center; color: var(--ink); }
+.playbtn svg { width: 18px; height: 18px; }
+.playbtn .i-pause { display: none; }
+.playbtn.on .i-play { display: none; }
+.playbtn.on .i-pause { display: inline; }
+.playbtn svg path { fill: currentColor; stroke: none; }
+.tl-big { font-size: 34px; font-weight: 720; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tl-kind { color: var(--ink-2); font-size: 15px; margin-top: 4px; }
+.timeline.future .tl-kind { color: var(--pred); }
+.tl-track { position: relative; }
+.tl-labels { position: relative; height: 20px; font-size: 14px; color: var(--ink-2); }
+.tl-labels span { white-space: nowrap; }
+.tl-labels #tl-real { position: absolute; top: 0; transform: translateX(-50%); }
+.tl-labels .tl-pred { position: absolute; top: 0; color: var(--pred); transform: translateX(-50%); font-weight: 600; }
+.tl-rail { position: relative; height: 26px; }
+.tl-rail::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--line); }
+.tl-fill { position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--ink); }
+.tl-future {
+  position: absolute; top: 11px; right: 0; height: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, var(--ink-3) 0 6px, transparent 6px 12px); opacity: .55;
+}
+.tl-future .on {
+  position: absolute; left: 0; top: 0; height: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, var(--pred) 0 6px, transparent 6px 12px);
+}
+.tl-now {
+  position: absolute; top: 17px; width: 2px; height: 7px; border-radius: 1px;
+  background: var(--ink); transform: translateX(-50%); z-index: 1; pointer-events: none;
+}
+.tl-rail input {
+  position: absolute; left: -11px; top: -9px; width: calc(100% + 22px); height: 44px; margin: 0;
+  padding: 0; border: none; outline: none; box-sizing: border-box; z-index: 3;
+  -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+}
+.tl-rail input::-webkit-slider-runnable-track { height: 44px; background: transparent; }
+.tl-rail input::-moz-range-track { height: 44px; background: transparent; }
+.tl-rail input::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: 11px; border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--ink); border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 2px 6px rgba(0,0,0,.25);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.tl-rail input::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--ink); border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 2px 6px rgba(0,0,0,.25);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.tl-rail input:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.tl-rail input:active::-webkit-slider-thumb { transform: scale(1.22); }
+.tl-rail input:hover::-moz-range-thumb { transform: scale(1.15); }
+.tl-rail input:active::-moz-range-thumb { transform: scale(1.22); }
+.tl-rail input:focus-visible { outline: none; }
+.tl-rail input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--area), 0 2px 6px rgba(0,0,0,.3); }
+.tl-rail input:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--area), 0 2px 6px rgba(0,0,0,.3); }
+.timeline.future .tl-rail input::-webkit-slider-thumb { background: var(--pred); }
+.timeline.future .tl-rail input::-moz-range-thumb { background: var(--pred); }
+.tl-ticks { position: relative; height: 22px; margin-top: 6px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tl-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.tl-ticks span.first { transform: none; }
+.tl-ticks span.last { transform: translateX(-100%); }
+.tl-ticks span.now { color: var(--ink); font-weight: 650; cursor: pointer; text-decoration: underline dotted; transition: color 0.15s; }
+.tl-ticks span.now:hover { color: var(--area); text-decoration: underline; }
+.timeline.radar .tl-ticks span.now, .timeline.radar .tl-ticks span.now:hover { color: var(--ink); cursor: default; text-decoration: none; } /* radar time line: "now" marks the selected year, it is not the Today button */
+

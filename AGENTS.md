@@ -24,6 +24,14 @@ strona w przeglądarce, Spacja to kolejny krok, kamera przybliża prawdziwe zrzu
   Nie trzeba logowania do Firebase ani żadnych kluczy, tylko prawo do pusha.
 - **Pełna instrukcja:** `poznan-trend-detective/promo/prezentacje/interaktywna/README.md`.
 
+## Kod aplikacji
+
+Rdzeń aplikacji to części `poznan-trend-detective/web/app/NN-*.js` (dawniej jeden `web/app.js`), style to
+`web/css/NN-*.css` (dawniej `web/styles.css`). Która część za co odpowiada i jakie są zasady (jedna nazwa najwyższego
+poziomu tylko w jednej części, nowe style w nowym pliku): `web/app/README.md` i `web/css/README.md`. Test zasad:
+`node poznan-trend-detective/tests/app_parts.mjs`. Zmiany zrobione jeszcze na starym `app.js`/`styles.css` przenosi
+`python3 poznan-trend-detective/tools/przenies_zmiany_app.py <stash albo gałąź>`.
+
 Zasady: liczby tylko z aplikacji i z sekcji „Dowody” w `README.md` repo (albo z `poznan-trend-detective/web/data`);
 3 minuty, ok. 17 kroków; wygląd aplikacji według `poznan-trend-detective/docs/DESIGN.md` (Archivo, bez wersalików,
 bez monospace, bez kart z cieniem, bez „kostiumów”); żadnych haseł, tokenów ani kluczy w repo (jest publiczne).

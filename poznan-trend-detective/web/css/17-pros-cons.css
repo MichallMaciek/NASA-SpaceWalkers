@@ -1,0 +1,56 @@
+/* SARnik styles, part 17 of 17: pros and cons. Loaded in order by index.html; rules: web/css/README.md */
+/* Pros and Cons (Alarms first) */
+.pc-section {
+  margin: 10px 0 12px;
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 7px;
+}
+.pc-head.cons-head { color: #E0332F; }
+.pc-head.pros-head { color: #2F8A4F; }
+.pc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pc-item {
+  font-size: 13.5px;
+  line-height: 1.35;
+  padding: 7px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pc-item.con-item {
+  background: rgba(224, 51, 47, 0.08);
+  border-left: 3px solid #E0332F;
+  color: var(--ink);
+}
+.pc-item.con-item.warn-item {
+  background: rgba(242, 163, 27, 0.09);
+  border-left: 3px solid #F2A31B;
+}
+.pc-item.con-item.info-item { background: var(--soft); border-left-color: var(--ink-3); } /* a neutral point to check */
+.pc-all > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 4px 0 6px; } /* every check-up row, folded */
+.pc-item.pro-item {
+  background: rgba(47, 138, 79, 0.08);
+  border-left: 3px solid #2F8A4F;
+  color: var(--ink);
+}
+.pc-empty {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-style: italic;
+  padding: 4px 6px;
+}

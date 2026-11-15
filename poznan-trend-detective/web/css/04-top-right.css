@@ -1,0 +1,18 @@
+/* SARnik styles, part 4 of 17: buttons top right. Loaded in order by index.html; rules: web/css/README.md */
+/* ---------- top right ---------- */
+.topright { position: fixed; top: var(--gap); right: var(--gap); z-index: 1000; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.iconbtn { width: 52px; height: 52px; border: 0; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+.iconbtn svg { width: 22px; height: 22px; }
+.zoom { display: flex; flex-direction: column; overflow: hidden; }
+.zoom button { width: 52px; height: 52px; border: 0; background: none; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+.zoom button + button { border-top: 1px solid var(--line); }
+.zoom svg { width: 20px; height: 20px; }
+#radar-btn .iconbtn-t { display: none; } /* the visible label only where the top row has room for it */
+.topright { pointer-events: none; } .topright > * { pointer-events: auto; } /* the column is as wide as its widest button: its empty part must not catch clicks */
+@media (min-width: 1600px) {
+  #radar-btn { width: auto; grid-auto-flow: column; gap: 8px; padding: 0 16px 0 15px; }
+  #radar-btn .iconbtn-t { display: inline; font-size: 14px; font-weight: 600; }
+}
+body.drawer-open .topright { right: calc(440px + var(--gap)); }
+body.drawer-open #lenses { visibility: hidden; } /* the drawer covers its right end and lists the same views */
+

@@ -1,0 +1,45 @@
+/* SARnik styles, part 11 of 17: technical checklist, theme change, drawing, tablets. Loaded in order by index.html; rules: web/css/README.md */
+/* technical inspection checklist */
+.check { margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: var(--soft); }
+.check-h { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.ck { display: grid; grid-template-columns: 14px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.ck:last-child { border-bottom: 0; padding-bottom: 0; }
+.ck-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; }
+.ck-t { font-weight: 600; font-size: 13.5px; }
+.ck-s { font-weight: 700; font-size: 12px; margin-left: 4px; }
+.ck-v { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.ck-v a { color: var(--area); text-decoration: underline; }
+.ck-note { font-size: 12px; color: var(--ink-3); margin: 8px 0 0; }
+
+.rng { margin: 0 10px; }
+
+/* theme toggle + smooth layer changes */
+#theme-btn .i-sun { display: none; }
+:root[data-theme="dark"] #theme-btn .i-sun { display: inline; }
+:root[data-theme="dark"] #theme-btn .i-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #theme-btn .i-sun { display: inline; }
+  :root:not([data-theme="light"]) #theme-btn .i-moon { display: none; }
+}
+#theme-btn svg { width: 21px; height: 21px; }
+.land-canvas, .leaflet-tile-container canvas { transition: opacity .25s ease; }
+.tl-fill, .tl-future .on { transition: none; }
+body, .card, .drawer, .sheet { transition: background-color .25s ease, color .25s ease; }
+@media (prefers-reduced-motion: reduce) { .land-canvas, body, .card, .drawer, .sheet { transition: none; } }
+
+/* drawing: no browser panning while tracing; tools also on phones */
+#map.drawing { touch-action: none; }
+@media (max-width: 760px) {
+  .tools { display: flex; height: 46px; padding: 0 4px; }
+  .tool { width: 34px; height: 34px; }
+  .tools-sep { display: none; }
+  .drawhint { top: 64px; left: 10px; right: 10px; transform: none; font-size: 13px; }
+}
+
+/* tablets (761-1024 px): the open drawer lies over the map instead of squeezing the search bar and the timeline */
+@media (min-width: 761px) and (max-width: 1024px) {
+  body.drawer-open .topright, body.drawer-open .timeline { right: var(--gap); }
+  body.drawer-open .leaflet-bottom.leaflet-right { right: 0; }
+  .drawer { box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18); }
+}
+

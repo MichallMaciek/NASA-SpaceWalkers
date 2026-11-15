@@ -1,0 +1,54 @@
+/* SARnik styles, part 15 of 17: NISAR 2026 banner in the card. Loaded in order by index.html; rules: web/css/README.md */
+/* NISAR 2026 ground banner & headline */
+.nisar-banner {
+  background: linear-gradient(135deg, rgba(138, 92, 246, 0.09), rgba(138, 92, 246, 0.02));
+  border: 1px solid rgba(138, 92, 246, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0 12px;
+}
+.nisar-banner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.nisar-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--c-nisar);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.nisar-orbit {
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.nisar-quote {
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 7px;
+  font-style: italic;
+}
+.nisar-state {
+  font-size: 13px;
+  line-height: 1.35;
+  background: var(--card);
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.nisar-state b {
+  color: var(--c-nisar);
+}
+

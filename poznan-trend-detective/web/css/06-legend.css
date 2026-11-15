@@ -1,0 +1,11 @@
+/* SARnik styles, part 6 of 17: legend. Loaded in order by index.html; rules: web/css/README.md */
+/* ---------- legend ---------- */
+.legend { position: fixed; left: var(--gap); bottom: calc(var(--gap) + 116px + 12px); z-index: 998; padding: 12px 16px; min-width: 240px; max-width: 300px; max-height: 180px; overflow-y: auto; font-size: 13px; }
+.legend:empty { display: none; }
+.legend .lt { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.legend .lblock + .lblock { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.legend .ramp { height: 7px; border-radius: 4px; }
+.legend .ticks { display: flex; justify-content: space-between; color: var(--ink-2); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.legend .lrow { display: flex; gap: 8px; align-items: center; color: var(--ink-2); margin-top: 6px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
