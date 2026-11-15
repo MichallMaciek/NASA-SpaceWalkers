@@ -73,6 +73,35 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // finding (it does not test the model: ranking open land by existing building gives the same; science review N35)
     return sar.nisar ? { lband: F.lband, radar: F.radar, ...(state.expert ? { modelRadar: F.modelRadar, wet: F.wet } : {}), ground: F.ground, ...hist } : { ...F, ...hist };
   };
+  // The demo tiles. The number on a tile is the score the card shows after the click: it is computed with the card's own
+  // functions once the place layers have loaded in the background, never typed in (typed-in numbers drifted from the card:
+  // 92/35/56/80 on the tiles against 98/27/87/62 in the card). Until then a tile shows its name only.
+  const SPOTS = [
+    { k: "morasko", lat: 52.4833, lng: 16.8992, icon: "🌲", name: "Morasko", label: "fMorasko", place: "Morasko (rezerwat przyrody)" },
+    { k: "warta", lat: 52.4042, lng: 16.9458, icon: "🌊", name: "Dolina Warty", label: "fWarta", place: "Dolina Warty (strefa podtopień PIG-PIB)" },
+    { k: "naramowice", lat: 52.4485, lng: 16.9550, icon: "🏗️", name: "Naramowice", label: "fNaramowice", place: "Nowe Naramowice (nowa zabudowa wg radaru)" },
+    { k: "rynek", lat: 52.4083, lng: 16.9335, icon: "🏛️", name: "Stary Rynek", label: "fRynek", place: "Stary Rynek (centrum Poznania)" },
+  ];
+  let spotScores = null, spotScoresP = null;
+  function spotBadge(k) {
+    if (!spotScores) return "";
+    const sc = spotScores[k];
+    return `<span class="f-badge ${sc >= 80 ? "f-great" : sc >= 65 ? "f-good" : sc >= 45 ? "f-warn" : "f-risk"}">${sc}</span>`;
+  }
+  async function loadSpotScores() {
+    try {
+      await Promise.all([loadGrids(), loadRadarYears(), ...PLACE_LAYERS().map(loadGray)]); // the same layers a click needs
+      if (!rankPool.risk) prepareRiskPool();
+      const out = {};
+      SPOTS.forEach((sp) => {
+        const ring = circleRing(sp.lat, sp.lng, 1), sq = cellAt(gL, sp.lat, sp.lng);
+        const sel = { kind: "point", lat: sp.lat, lng: sp.lng, ring, sq: sq >= 0 ? [sq] : [], cells: cellsInRing(ring).filter((i) => L8.study[i]), ready: true, ext: {} };
+        out[sp.k] = computeProsAndCons(sel, plainChecks(sel)).score;
+      });
+      spotScores = out;
+      if (!state.sel && !state.finding) renderFindings(); // the start card is still on screen: show the numbers
+    } catch (e) { console.warn("SARnik: demo scores not computed", e); }
+  }
   function renderFindings() {
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
@@ -89,39 +118,15 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const featuredHTML = `
       <div class="featured-spots">
         <div class="featured-head">📍 ${u.featuredHead || "Szybkie przykłady – zobacz kontrasty w terenie:"}</div>
-        <div class="featured-grid">
-          <button type="button" class="f-spot" data-spot="morasko">
-            <span class="f-icon">🌲</span>
+        <div class="featured-grid">${SPOTS.map((sp) => `
+          <button type="button" class="f-spot" data-spot="${sp.k}">
+            <span class="f-icon">${sp.icon}</span>
             <div class="f-text">
-              <b>Morasko</b>
-              <small>${u.fMorasko || "Oaza zieleni · 92/100"}</small>
+              <b>${sp.name}</b>
+              <small>${u[sp.label]}${spotScores ? ` · ${spotScores[sp.k]}/100` : ""}</small>
             </div>
-            <span class="f-badge f-great">92</span>
-          </button>
-          <button type="button" class="f-spot" data-spot="warta">
-            <span class="f-icon">🌊</span>
-            <div class="f-text">
-              <b>Dolina Warty</b>
-              <small>${u.fWarta || "Zagrożenie powodziowe · 35/100"}</small>
-            </div>
-            <span class="f-badge f-risk">35</span>
-          </button>
-          <button type="button" class="f-spot" data-spot="naramowice">
-            <span class="f-icon">🏗️</span>
-            <div class="f-text">
-              <b>Naramowice</b>
-              <small>${u.fNaramowice || "Plac budowy (SAR) · 56/100"}</small>
-            </div>
-            <span class="f-badge f-warn">56</span>
-          </button>
-          <button type="button" class="f-spot" data-spot="rynek">
-            <span class="f-icon">🏛️</span>
-            <div class="f-text">
-              <b>Stary Rynek</b>
-              <small>${u.fRynek || "Śródmieście · 80/100"}</small>
-            </div>
-            <span class="f-badge f-good">80</span>
-          </button>
+            ${spotBadge(sp.k)}
+          </button>`).join("")}
         </div>
       </div>`;
     card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
@@ -134,12 +139,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
     if (focused) { const n = card.querySelector(focused); if (n) n.focus({ preventScroll: true }); }
     card.querySelectorAll("[data-spot]").forEach((b) => b.addEventListener("click", () => {
-      const sp = b.dataset.spot;
-      if (sp === "morasko") selectPoint(52.4833, 16.8992, "Morasko (Rezerwat przyrody)", { zoom: 14 });
-      else if (sp === "warta") selectPoint(52.4042, 16.9458, "Dolina Warty (Most Rocha / Strefa zalewowa)", { zoom: 14 });
-      else if (sp === "naramowice") selectPoint(52.4485, 16.9550, "Nowe Naramowice (Aktywne budowy)", { zoom: 14 });
-      else if (sp === "rynek") selectPoint(52.4083, 16.9335, "Stary Rynek (Centrum Poznania)", { zoom: 14 });
+      const sp = SPOTS.find((x) => x.k === b.dataset.spot);
+      if (sp) selectPoint(sp.lat, sp.lng, sp.place, { zoom: 14 });
     }));
+    if (!spotScoresP) spotScoresP = new Promise((r) => setTimeout(r, 800)).then(loadSpotScores); // after the first paint
     $("#fold").addEventListener("click", () => {
       state.findingsOpen = !state.findingsOpen;
       try { localStorage.setItem("ptd-fold", state.findingsOpen ? "open" : "closed"); } catch (e) { /* ignore */ }
