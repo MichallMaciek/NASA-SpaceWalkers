@@ -139,8 +139,8 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
   check("po wczytaniu: jeden wiersz historii, bez prognozy (brak drugiego zestawu)", r.items.length === 1 && r.hist && !r.prog, JSON.stringify(r.items.map((i) => i.id)));
   const h = r.hist;
   check("tytuł wiersza", h.t === "Zabudowa wokół wg radaru, rok po roku", h.t);
-  check("udział dziś 80%, w 2007 r. 40%", h.v.startsWith("Radar widzi w 2026 r. zabudowę na 80% terenu w promieniu 1 km (w 2007 r.: 40%)."), h.v);
-  check("po 2020: ok. 3,0 ha, najwięcej w 2023, ponad 90% miejsc", h.v.includes("Po 2020 r., gdzie kończy się mapa optyczna, przybyło ok. 3,0 ha (najwięcej w 2023 r.), więcej niż w 90% miejsc wokół Poznania."), h.v);
+  check("po 2020: ok. 3,0 ha, najwięcej w 2023, ponad 90% miejsc; od 2007 łącznie 4,0 ha", h.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 3,0 ha nowej zabudowy (najwięcej w 2023 r.), więcej niż w 90% miejsc wokół Poznania. Od 2007 r. łącznie ok. 4,0 ha.", h.v);
+  check("bez udziału zabudowy w procentach", !/%\s+terenu|zabudowę na/.test(h.v), h.v);
   check("słowo statusu: +3,0 ha od 2020", h.word === "+3,0 ha od 2020", h.word);
   check("3,0 ha >= kwantyl 90% i test przeszedł -> warn", h.lvl === "warn", h.lvl);
   check("źródło z lat w meta: S1 2015–2026, ALOS 2007–2010, NISAR 2026", h.src === "Radar Sentinel-1 2015–2026, ALOS PALSAR 2007–2010, NISAR 2026", h.src);
@@ -159,7 +159,7 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
   r.core.setLang("en");
   const en = r.core.items(r.sel)[0];
   check("EN: tytuł", en.t === "Buildings around, by radar, year by year", en.t);
-  check("EN: kropka dziesiętna i treść", en.v === "In 2026 the radar sees buildings on 80% of the land within 1 km (in 2007: 40%). Since 2020, where the optical map ends, about 3.0 ha have been built (most in 2023), more than in 90% of places around Poznań.", en.v);
+  check("EN: kropka dziesiętna i treść", en.v === "After 2020, where the optical map ends, the radar sees about 3.0 ha of new buildings within 1 km (most in 2023), more than in 90% of places around Poznań. Since 2007, about 4.0 ha in all.", en.v);
   check("EN: słowo statusu", en.word === "+3.0 ha since 2020", en.word);
   check("EN: bez naruszeń kontraktu", r.core.problems([en]).length === 0);
 }
@@ -202,15 +202,36 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
 {
   const r = await run({ fy: grid([[7, 5], [18, 5], [1, 10]]) });
   check("bez nowej zabudowy: 'bez zmian od 2020'", r.hist.word === "bez zmian od 2020", r.hist.word);
-  check("treść mówi wprost, że nic nie przybyło", r.hist.v === "Radar widzi w 2026 r. zabudowę na 50% terenu w promieniu 1 km (w 2007 r.: 25%). Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi tu nowej zabudowy.", r.hist.v);
+  check("nic po 2020, coś przed: zdanie o latach 2008–2020", r.hist.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi w promieniu 1 km nowej zabudowy. W latach 2008–2020 przybyło ok. 2,5 ha.", r.hist.v);
   check("0 ha < kwantyl 75% przy pełnym pomiarze i teście -> ok", r.hist.lvl === "ok", r.hist.lvl);
+  r.core.setLang("en");
+  check("EN: nic po 2020, coś przed", r.core.items(r.sel)[0].v === "After 2020, where the optical map ends, the radar sees no new buildings within 1 km. In 2008–2020 about 2.5 ha were added.", r.core.items(r.sel)[0].v);
+  const ra = await run({ fy: grid([[7, 5], [18, 5], [1, 10]]) }, areaSel());
+  check("obszar: nic po 2020, coś przed", ra.hist.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi na tym obszarze nowej zabudowy. W latach 2008–2020 przybyło ok. 2,5 ha.", ra.hist.v);
+  ra.core.setLang("en");
+  check("EN obszar: nic po 2020, coś przed", ra.core.items(ra.sel)[0].v === "After 2020, where the optical map ends, the radar sees no new buildings in this area. In 2008–2020 about 2.5 ha were added.", ra.core.items(ra.sel)[0].v);
+
+  // nic nowego od początku zapisu
+  const z = await run({ fy: grid([[7, 10], [1, 10]]) });
+  check("nic od 2007: jedno zdanie", z.hist.v === "Od 2007 r. radar nie widzi w promieniu 1 km nowej zabudowy." && z.hist.word === "bez zmian od 2020", z.hist.v);
+  z.core.setLang("en");
+  check("EN: nic od 2007", z.core.items(z.sel)[0].v === "Since 2007 the radar sees no new buildings within 1 km.", z.core.items(z.sel)[0].v);
+  const za = await run({ fy: grid([[7, 10], [1, 10]]) }, areaSel());
+  check("obszar: nic od 2007", za.hist.v === "Od 2007 r. radar nie widzi na tym obszarze nowej zabudowy.", za.hist.v);
+  za.core.setLang("en");
+  check("EN obszar: nic od 2007", za.core.items(za.sel)[0].v === "Since 2007 the radar sees no new buildings in this area.", za.core.items(za.sel)[0].v);
+
+  // zapis od 2019 r.: przed 2020 r. zostaje jeden rok
+  const y1 = await run({ fy: grid([[19, 5], [20, 2], [1, 13]]), meta: mkMeta({ years: range(2019, 2027), start_year: 2019 }) });
+  check("jeden rok przed 2020: 'W 2020 r. przybyło'", y1.hist.v.endsWith("nowej zabudowy. W 2020 r. przybyło ok. 1,0 ha."), y1.hist.v);
+  check("hektary 10 i więcej bez części dziesiętnej", (await run({ meta: mkMeta({ cell_ha: 3.5 }) })).hist.v.includes("ok. 21 ha nowej zabudowy"));
 }
 
 // 6. Progi kwantyli (punkt): ściśle powyżej kwantyla, poniżej mediany bez zdania
 {
   const fyN = (n) => grid([[7, 10], [22, n], [1, 20 - 10 - n]]);
   const one = (await run({ fy: fyN(1) })).hist; // 0,5 ha = mediana
-  check("0,5 ha (równe medianie): bez zdania o miejscach", !/więcej niż/.test(one.v) && /przybyło ok\. 0,5 ha, wszystko w 2022 r\.$/.test(one.v) && !/\.\.$/.test(one.v), one.v);
+  check("0,5 ha (równe medianie): bez zdania o miejscach", !/więcej niż/.test(one.v) && /radar widzi w promieniu 1 km ok\. 0,5 ha nowej zabudowy, wszystko w 2022 r\.$/.test(one.v) && !/\.\.$/.test(one.v), one.v);
   check("0,5 ha < kwantyl 75% -> ok", one.lvl === "ok", one.lvl);
   const two = (await run({ fy: fyN(2) })).hist; // 1,0 ha
   check("1,0 ha: 'więcej niż w 50% miejsc'", /więcej niż w 50% miejsc wokół Poznania/.test(two.v), two.v);
@@ -220,7 +241,7 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
   const ten = (await run({ fy: grid([[22, 10], [24, 2], [1, 8]]) })).hist; // 6,0 ha > kwantyl 99%
   check("6,0 ha: 'więcej niż w 99% miejsc', najwięcej w 2022", /\(najwięcej w 2022 r\.\), więcej niż w 99% miejsc/.test(ten.v), ten.v);
   const tie = (await run({ fy: grid([[7, 10], [21, 2], [25, 2], [1, 6]]) })).hist;
-  check("remis lat: bez 'najwięcej w'", !/najwięcej|wszystko w/.test(tie.v) && /przybyło ok\. 2,0 ha, więcej niż w 75%/.test(tie.v), tie.v);
+  check("remis lat: bez 'najwięcej w'", !/najwięcej|wszystko w/.test(tie.v) && /ok\. 2,0 ha nowej zabudowy, więcej niż w 75%/.test(tie.v), tie.v);
   const pure = setup().mod.pure;
   const q = pure.quants(Q);
   check("above(): progi 50/75/90/95/99", pure.above(0.4, q) === null && pure.above(0.6, q) === "50" && pure.above(2.5, q) === "90" && pure.above(3.1, q) === "95" && pure.above(9, q) === "99");
@@ -244,11 +265,11 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
 // 8. Obszar narysowany przez użytkownika
 {
   const r = await run({}, areaSel());
-  check("obszar: 'na tym obszarze', nie 'w promieniu 1 km'", /terenu na tym obszarze \(w 2007 r\./.test(r.hist.v) && !/promieniu/.test(r.hist.v), r.hist.v);
+  check("obszar: 'na tym obszarze', nie 'w promieniu 1 km'", r.hist.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar widzi na tym obszarze ok. 3,0 ha nowej zabudowy, najwięcej w 2023 r. Od 2007 r. łącznie ok. 4,0 ha.", r.hist.v);
   check("obszar: bez porównania z miejscami wokół Poznania", !/więcej niż/.test(r.hist.v), r.hist.v);
   check("obszar: poziom info mimo dużego przyrostu", r.hist.lvl === "info", r.hist.lvl);
   r.core.setLang("en");
-  check("EN obszar: 'in this area'", /of the land in this area \(in 2007/.test(r.core.items(r.sel)[0].v));
+  check("EN obszar: 'in this area'", r.core.items(r.sel)[0].v === "After 2020, where the optical map ends, the radar sees about 3.0 ha of new buildings in this area, most in 2023. Since 2007, about 4.0 ha in all.", r.core.items(r.sel)[0].v);
 }
 
 // 9. Zapis od 2015 r. (bez ALOS) a od 2007 r.
@@ -256,13 +277,21 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
   const fy15 = grid([[15, 6], [17, 2], [23, 2], [1, 10]]);
   const r = await run({ fy: fy15, meta: mkMeta({ years: YEARS_15, start_year: 2015, source: "Sentinel-1 RTC; NISAR GCOV" }) });
   check("od 2015: źródło bez ALOS", r.hist.src === "Radar Sentinel-1 2015–2026, NISAR 2026", r.hist.src);
-  check("od 2015: zdanie '(w 2015 r.: 30%)'", /na 50% terenu w promieniu 1 km \(w 2015 r\.: 30%\)\./.test(r.hist.v), r.hist.v);
+  check("od 2015: 'Od 2015 r. łącznie'", r.hist.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 1,0 ha nowej zabudowy (wszystko w 2023 r.), więcej niż w 50% miejsc wokół Poznania. Od 2015 r. łącznie ok. 2,0 ha.", r.hist.v);
+  const q15 = await run({ fy: grid([[15, 6], [17, 2], [1, 12]]), meta: mkMeta({ years: YEARS_15, start_year: 2015 }) });
+  check("od 2015, nic po 2020: 'W latach 2016–2020'", q15.hist.v === "Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi w promieniu 1 km nowej zabudowy. W latach 2016–2020 przybyło ok. 1,0 ha.", q15.hist.v);
+  const n15 = await run({ fy: grid([[15, 6], [1, 14]]), meta: mkMeta({ years: YEARS_15, start_year: 2015 }) });
+  check("od 2015, nic nowego: 'Od 2015 r. radar nie widzi'", n15.hist.v === "Od 2015 r. radar nie widzi w promieniu 1 km nowej zabudowy.", n15.hist.v);
+  const g7 = await run({ fy: grid([[7, 6], [17, 2], [23, 2], [1, 10]]) });
+  check("ta sama zabudowa przy zapisie od 2007: 'Od 2007 r. łącznie'", g7.hist.v.endsWith("Od 2007 r. łącznie ok. 2,0 ha."), g7.hist.v);
   const r2 = await run({ fy: fy15, meta: mkMeta({ years: YEARS_15, start_year: 2015, source: "Sentinel-1 RTC" }) });
   check("bez NISAR w meta.source: źródło bez NISAR", r2.hist.src === "Radar Sentinel-1 2015–2026", r2.hist.src);
   const r3 = await run({ meta: mkMeta({ years: undefined }) });
   check("bez meta.years: źródło od start_year do 2026", r3.hist.src === "Radar Sentinel-1 2026, ALOS PALSAR 2007, NISAR 2026" && r3.hist.lvl === "warn", r3.hist.src);
   r.core.setLang("en");
-  check("EN od 2015: '(in 2015: 30%)' i źródło", /\(in 2015: 30%\)\./.test(r.core.items(r.sel)[0].v) && r.core.items(r.sel)[0].src === "Radar Sentinel-1 2015–2026, NISAR 2026");
+  check("EN od 2015: 'Since 2015' i źródło", r.core.items(r.sel)[0].v.endsWith("Since 2015, about 2.0 ha in all.") && r.core.items(r.sel)[0].src === "Radar Sentinel-1 2015–2026, NISAR 2026", r.core.items(r.sel)[0].v);
+  q15.core.setLang("en");
+  check("EN od 2015, nic po 2020: 'In 2016–2020'", q15.core.items(q15.sel)[0].v.endsWith("In 2016–2020 about 1.0 ha were added."), q15.core.items(q15.sel)[0].v);
 }
 
 // 10. Prognoza: obecna, ostrzeżenie, brak wolnego terenu
@@ -319,7 +348,7 @@ console.log("=== TESTY MODUŁU RADAR_LATA ===");
     check(`zły meta (${name}) -> info, bez wyjątku`, r.items.length === 1 && r.hist.lvl === "info" && /brak danych/.test(r.hist.word) && r.core.warnings.length === 0 && r.core.problems(r.items).length === 0, JSON.stringify(r.items) + r.core.warnings.join(";"));
   }
   const odd = await run({ meta: mkMeta({ near_1km: { new_ha_since_2020_quantiles: { 50: "x" } }, checks: "tak", years: "2007-2026" }) });
-  check("złe kwantyle i checks: bez zdania o miejscach, info", odd.hist.lvl === "info" && !/więcej niż/.test(odd.hist.v) && /ok\. 3,0 ha \(|ok\. 3,0 ha, najwięcej w 2023/.test(odd.hist.v) && odd.core.warnings.length === 0, odd.hist.v);
+  check("złe kwantyle i checks: bez zdania o miejscach, info", odd.hist.lvl === "info" && !/więcej niż/.test(odd.hist.v) && /ok\. 3,0 ha nowej zabudowy, najwięcej w 2023 r\. Od 2007/.test(odd.hist.v) && odd.core.warnings.length === 0, odd.hist.v);
   const p5 = new Uint8Array(N).fill(60);
   const badP = await run({ pmeta: { checks: null, quantiles_open: [], start_year: "x", horizon_years: -2, training: 7 }, p5 });
   check("zły meta prognozy: wartości domyślne (5 lat, 2026), info", badP.prog && badP.prog.lvl === "info" && /w ciągu 5 lat, licząc od tego, co radar widzi w 2026 r\.$/.test(badP.prog.v) && badP.core.warnings.length === 0, badP.prog && badP.prog.v);

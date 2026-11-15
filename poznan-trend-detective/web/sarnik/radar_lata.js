@@ -120,17 +120,17 @@
   const above = (v, q) => (q ? QK.find((k) => v > q[k]) || null : null);
   const passed = (meta, test) => !!(isObj(meta.checks) && isObj(meta.checks[test]) && meta.checks[test].passed === true);
 
+  // tylko zmiana: komórki zabudowane pierwszy raz po roku początku zapisu, osobno do 2020 r. i po nim
+  // (udziału zabudowy wiersz nie podaje: karta ma go już w wierszu "Zabudowa", liczonym z mapy optycznej)
   function history(cells, fy, m) {
     const s0 = m.sy - 2000, perYear = {};
-    let valid = 0, now = 0, start = 0, fresh = 0;
+    let valid = 0, old = 0, fresh = 0;
     for (const i of cells) {
       const v = fy[i];
       if (!v) continue;
       valid++;
-      if (v < 7) continue;
-      now++;
-      if (v <= s0) start++;
-      if (v > OPT - 2000 && v <= 26) { fresh++; perYear[2000 + v] = (perYear[2000 + v] || 0) + 1; }
+      if (v <= s0 || v > 26) continue;
+      if (v > OPT - 2000) { fresh++; perYear[2000 + v] = (perYear[2000 + v] || 0) + 1; } else old++;
     }
     let peak = null, peakN = 0, tie = false;
     for (const y of Object.keys(perYear).map(Number).sort((a, b) => a - b)) {
@@ -138,9 +138,8 @@
     }
     const nYears = Object.keys(perYear).length;
     return {
-      cells: cells.length, valid, now, start, fresh,
-      shareNow: valid ? (100 * now) / valid : 0, shareStart: valid ? (100 * start) / valid : 0,
-      newHa: fresh * m.ha, peak: tie ? null : peak, only: nYears === 1,
+      cells: cells.length, valid, fresh, old,
+      newHa: fresh * m.ha, oldHa: old * m.ha, totalHa: (fresh + old) * m.ha, peak: tie ? null : peak, only: nYears === 1,
     };
   }
 
@@ -197,11 +196,13 @@
         bad_word: "brak danych",
         bad: "Plik z zapisem radaru jest niepełny, więc nie liczę tu zabudowy.",
         where: (area) => (area ? "na tym obszarze" : "w promieniu 1 km"),
-        share: (d) => `Radar widzi w ${d.end} r. zabudowę na ${d.now} terenu ${d.where} (w ${d.start} r.: ${d.then}).`,
-        grew: (d) => dot(`Po 2020 r., gdzie kończy się mapa optyczna, przybyło ok. ${d.ha} ha` +
+        grew: (d) => dot(`Po 2020 r., gdzie kończy się mapa optyczna, radar widzi ${d.where} ok. ${d.ha} ha nowej zabudowy` +
           (d.peak ? (d.q ? ` (${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.)` : `, ${d.only ? "wszystko" : "najwięcej"} w ${d.peak} r.`) : "") +
           (d.q ? `, więcej niż w ${d.q}% miejsc wokół Poznania` : "")),
-        same: "Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi tu nowej zabudowy.",
+        total: (d) => `Od ${d.start} r. łącznie ok. ${d.ha} ha.`,
+        quiet: (d) => `Po 2020 r., gdzie kończy się mapa optyczna, radar nie widzi ${d.where} nowej zabudowy.`,
+        before: (d) => `${d.from === d.to ? `W ${d.to} r.` : `W latach ${d.from}–${d.to}`} przybyło ok. ${d.ha} ha.`,
+        none: (d) => `Od ${d.start} r. radar nie widzi ${d.where} nowej zabudowy.`,
         part: (p) => `Radar mierzy tylko ${p} tego terenu.`,
         word_new: (ha) => `+${ha} ha od 2020`,
         word_same: "bez zmian od 2020",
@@ -233,11 +234,13 @@
         bad_word: "no data",
         bad: "The radar record file is incomplete, so buildings are not counted here.",
         where: (area) => (area ? "in this area" : "within 1 km"),
-        share: (d) => `In ${d.end} the radar sees buildings on ${d.now} of the land ${d.where} (in ${d.start}: ${d.then}).`,
-        grew: (d) => `Since 2020, where the optical map ends, about ${d.ha} ha have been built` +
+        grew: (d) => `After 2020, where the optical map ends, the radar sees about ${d.ha} ha of new buildings ${d.where}` +
           (d.peak ? (d.q ? ` (${d.only ? "all" : "most"} in ${d.peak})` : `, ${d.only ? "all" : "most"} in ${d.peak}`) : "") +
           (d.q ? `, more than in ${d.q}% of places around Poznań.` : "."),
-        same: "Since 2020, where the optical map ends, the radar sees no new buildings here.",
+        total: (d) => `Since ${d.start}, about ${d.ha} ha in all.`,
+        quiet: (d) => `After 2020, where the optical map ends, the radar sees no new buildings ${d.where}.`,
+        before: (d) => `${d.from === d.to ? `In ${d.to}` : `In ${d.from}–${d.to}`} about ${d.ha} ha were added.`,
+        none: (d) => `Since ${d.start} the radar sees no new buildings ${d.where}.`,
         part: (p) => `The radar measures only ${p} of this land.`,
         word_new: (ha) => `+${ha} ha since 2020`,
         word_same: "no change since 2020",
@@ -287,8 +290,12 @@
       const nearQ = isObj(meta.near_1km) ? quants(meta.near_1km.new_ha_since_2020_quantiles) : null;
       const q = point && h.newHa > 0 ? above(h.newHa, nearQ) : null;
       const ha = haTxt(h.newHa, ctx);
-      const parts = [s.share({ end: m.end, now: pctTxt(h.shareNow, ctx), where: s.where(area), start: m.sy, then: pctTxt(h.shareStart, ctx) })];
-      parts.push(h.fresh ? s.grew({ ha, peak: h.peak, only: h.only, q }) : s.same);
+      const where = s.where(area), parts = [];
+      if (h.fresh) {
+        parts.push(s.grew({ where, ha, peak: h.peak, only: h.only, q }));
+        if (h.old) parts.push(s.total({ start: m.sy, ha: haTxt(h.totalHa, ctx) }));
+      } else if (h.old) parts.push(s.quiet({ where }), s.before({ from: m.sy + 1, to: OPT, ha: haTxt(h.oldHa, ctx) }));
+      else parts.push(s.none({ start: m.sy, where }));
       const cover = h.cells ? h.valid / h.cells : 0;
       if (cover < FULL) parts.push(s.part(pctTxt(100 * cover, ctx)));
       let lvl = "info";
