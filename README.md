@@ -37,6 +37,7 @@ Wpisujesz adres lub klikasz dowolny punkt w Poznaniu i okolicach, a radary z orb
 3. 🟢 **Budowa w toku (Sentinel-1):** Wzrost odbicia z podwójnym odbiciem od ścian, jesień 2025 → jesień 2026, pokazuje miejsca z sygnałem jak od nowych ścian (górna granica: część to pola i prace ziemne).
 4. 🟢 **Prognoza zabudowy do 2035 (model):** Model uczony na latach 2005–2015 i sprawdzony na 2015–2020 szacuje szansę zabudowy wolnego terenu wokół Twojej działki.
 5. 🟢 **Wycinka drzew i wyspy ciepła:** Rejestr ubytku lasów od 2001 roku i anomalie letnich upałów z satelitów NASA MODIS.
+6. 🟢 **Co powstało obok po 2020 roku (Sentinel-1 2015–2026, NISAR 2026):** Ile hektarów nowej zabudowy radar widzi w promieniu 1 km, rok po roku, tam gdzie kończy się mapa ze zdjęć.
 
 ---
 
@@ -80,6 +81,19 @@ EGMS mierzy 24% obszaru, głównie zabudowę i jej okolice; wartości są w peł
 ### 🛰️ Test 4: NISAR (pasmo L)
 Między 25 czerwca a 24 sierpnia 2026 echo HH z NISAR wzrosło o 2 dB lub więcej na **37%** otwartego terenu: to deszcz razem ze żniwami i uprawą pól, a nie samo nasiąkanie. W strefach podtopień PIG-PIB taki wzrost był o połowę rzadszy (**19% wobec 38%**); przyczyna nie jest jeszcze znana.
 
+---
+
+### 📡 Test 5: Zabudowa z radaru, rok po roku (2015–2026)
+*Implementacja: `poznan-trend-detective/pipeline/sarnik_radar_lata.py`, dane: `web/data/sarnik/radar_lata/meta.json`, opis: `docs/przeglad-v2/RADAR_LATA.md`*
+
+Mapa zabudowy ze zdjęć optycznych kończy się na 2020 roku. Co powstało później, wiemy tylko z radaru: **265 przelotów z 12 lat** (Sentinel-1 każdego lata 2015–2026, NISAR w 2026 r., ALOS PALSAR 2007–2010).
+
+1. Dla każdego roku liczymy z Sentinel-1 mapę zabudowy i rok, w którym radar widzi zabudowę pierwszy raz.
+2. **Sprawdzenie na latach, które zna mapa optyczna:** tam, gdzie mapa optyczna pokazuje nową zabudowę z lat 2015–2020, radar datuje ją na te lata **46 razy** częściej niż na terenie, który został wolny (95% przedział 40–53).
+3. **Dwa niezależne radary pasma L:** ALOS-2 widzi zabudowę tam, gdzie widzi ją Sentinel-1, **20 razy** częściej niż gdzie indziej (18–23). NISAR potwierdza zabudowę, którą Sentinel-1 datuje na lata 2021–2024, **22 razy** częściej niż na pustym terenie (20–24).
+4. **Wynik:** po 2020 roku radar widzi wokół Poznania **1839 ha** nowej zabudowy, z tego **393 ha** w samym mieście. Te lata są na mapie i w karcie miejsca, a prognozę liczymy tylko na terenie, który radar nadal widzi jako wolny.
+5. **Co się nie potwierdziło:** na działkach z decyzją o budowie z 2026 r. radar widzi nową zabudowę tylko ok. 2 razy częściej, z przedziałem 0,3–4,8, więc w karcie ten wiersz jest informacją, a nie ostrzeżeniem. ALOS PALSAR z lat 2007–2010 nie nadaje się do datowania, dlatego zapis zaczyna się w 2015 roku. Prognoza uczona na samym radarze nie przeszła niezależnego sprawdzenia i nie ma jej w aplikacji.
+
 
 ---
 
@@ -108,6 +122,8 @@ Otwórz w przeglądarce: **`http://localhost:8000`**
 - **Copernicus C3S / Open-Meteo:** ERA5, pogoda w dni przelotów NISAR (Weather data by Open-Meteo.com, CC BY 4.0).
 - **Polska geodezja i geologia:** PIG-PIB (tereny zagrożone podtopieniami), GEOPOZ Poznań (ortofotomapa 2025 i decyzje budowlane WUIA), GUGiK Geoportal, GUS BDL.
 - **JAXA:** Mozaiki radarowe pasma L ALOS-2 PALSAR-2 (2015–2021).
+- **Radar rok po roku:** Sentinel-1 RTC z każdego lata 2015–2026 (ESA, przez Microsoft Planetary Computer), ALOS PALSAR 2007–2010 (JAXA, przez ASF DAAC), NISAR GCOV z orbity 57 i GUNW z orbity 158 (NASA-ISRO, ASF DAAC).
+- **NISAR i OPERA jako warstwy mapy:** koherencja NISAR GUNW, wilgotność gleby NISAR SME2 (200 m, wersja wstępna), zaburzenia lasu OPERA DIST-ALERT-S1 (NASA/JPL, z Sentinel-1, styczeń–luty 2026).
 
 ---
 
@@ -123,6 +139,7 @@ Search any address or drop a pin across Poznań and its metropolitan area: space
 - **Flooding:** PIG-PIB groundwater-flood areas and terrain hollows from the Copernicus DEM (TanDEM-X radar).
 - **Construction:** Sentinel-1 double-bounce brightening, autumn 2025 → autumn 2026. Strong brightening is about 4 times as common on plots with a new-building decision (16 of 766 cells from 8 decisions; block-bootstrap 95% interval about 1.7–7); the new-wall signature alone is about 3.5 times as common, a borderline result.
 - **Urban growth projection to 2035:** logistic model trained on 2005–2015 and tested on 2015–2020 (Landsat-based GHSL).
+- **Built-up year by year from radar (2015–2026):** 265 radar passes over 12 years (Sentinel-1 every summer, NISAR in 2026, ALOS PALSAR 2007–2010). The optical built-up map ends in 2020, so radar is the only source for what was built after it: 1,839 ha around Poznań, 393 ha in the city. Where the optical map shows new building in 2015–2020, radar dates it to those years 46 times more often than elsewhere (95% interval 40–53), and NISAR confirms the building Sentinel-1 dates to 2021–2024 22 times more often than on open land (20–24). The projection is computed only on land that radar still sees as open.
 - **NISAR:** L-band picture of 2026 and the change from June to August (rain together with harvest and tillage); building detection and ground motion use Sentinel-1 and EGMS for now, because five months of NISAR cannot yet give a year-on-year comparison.
 
 **Quickstart:**
