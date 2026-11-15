@@ -278,7 +278,7 @@
   function loadGray(name, low) {
     if (L8[name]) return Promise.resolve(L8[name]);
     if (grayLoading[name]) return grayLoading[name];
-    const url = `data/land/${name}.png?v=${DATA_V}`;
+    const url = `data/${name.includes("/") ? "" : "land/"}${name}.png?v=${DATA_V}`; // a name with a folder: data/<name>.png
     const viaBytes = () => fetch(url, low === true ? { priority: "low" } : undefined)
       .then((r) => { if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`); return r.arrayBuffer(); })
       .then((buf) => decodeGrayPNG(buf).catch((e) => { e.png = true; throw e; }));
@@ -305,6 +305,22 @@
     grayLoading[name] = pr;
     pr.then(() => delete grayLoading[name], () => delete grayLoading[name]);
     return pr;
+  }
+  // The first year radar sees each cell built (data/sarnik/radar_lata; 21..26 = 2021..2026), under the L8 key the card
+  // module radar_lata also reads. The history view draws it for the years after the optical map. Loaded once; if it is
+  // missing or broken the view stays as it was, with one warning in the console.
+  const RL = "sarnik/radar_lata/first_year";
+  let rlLast = 0, rlP = null; // last radar year, once the layer is usable
+  const radarFirst = () => (rlLast && L8[RL]) || null;
+  function loadRadarYears() {
+    if (rlP) return rlP;
+    rlP = skCtx.loadJSON("sarnik/radar_lata/meta.json").then((meta) => {
+      if (!meta || !Array.isArray(meta.years) || !meta.years.length) throw new Error("meta.json without years");
+      return loadGray(RL).then((arr) => { if (arr.length !== land.width * land.height) throw new Error("size differs from the grid"); rlLast = Math.max(...meta.years); });
+    }).then(() => {
+      if (map) { renderTimeline(); renderLegend(); redraw(); }
+    }).catch((e) => { delete L8[RL]; console.warn(`SARnik: ${RL} not used:`, (e && e.message) || e); });
+    return rlP;
   }
   // any year 1975-2035 lies between two 5-year epochs (observed to 2020, projected after)
   function epochPair(y) {
@@ -968,9 +984,10 @@
     if (k === "built") {
       // Smooth time: blend the two surrounding 5-year epochs, so dragging or playing the timeline flows year by year.
       const yf = clamp(state.yearF, land.epochs[0], horizonEnd());
-      // Base layer represents the measured city up to 2025/2026.
-      // We cap the base layer interpolation at 2025 so it never pre-draws the future 2030 projection in orange!
-      const yBase = Math.min(yf, 2025);
+      // The optical map (GHSL) ends in 2020; built_2025 on are the model's projections, not measurements. With the radar
+      // layer the base stops at 2020 and radar adds what it saw built after it (below). Without it the base still blends
+      // 2020 -> projected 2025, capped there so it never pre-draws the 2030 projection.
+      const fy = radarFirst(), yBase = Math.min(yf, fy ? LAST_OBS() : 2025);
       const { e0, e1, t } = epochPair(yBase);
       const a0 = smoothed(e0), a1 = smoothed(e1), lut = lutFor(RAMPS.built);
       const thr = THR(), b25 = L8.built_2025;
@@ -980,6 +997,14 @@
         if (v < 0.04) continue;
         const k = (Math.sqrt(v) * 255) | 0, q = i * 4, a = 60 + v * 520;
         px[q] = lut[k * 3]; px[q + 1] = lut[k * 3 + 1]; px[q + 2] = lut[k * 3 + 2]; px[q + 3] = a > 235 ? 235 : a;
+      }
+      if (fy && yf > LAST_OBS()) { // new building radar saw from 2021 to the timeline year; that year's cells fade in
+        const rc = hexRgb(css("--c-radar")), yr = Math.min(yf, NOW_YEAR), y0 = LAST_OBS() - 2000;
+        for (let i = 0; i < n; i++) {
+          if (!st[i] || fy[i] <= y0) continue;
+          const f = clamp(yr - (2000 + fy[i]) + 1, 0, 1);
+          if (f > 0) put(i, rc, Math.round(235 * f));
+        }
       }
       if (yf > NOW_YEAR) { // projected new building (filtered by the model's chance) fades in after 2026
         const predColor = hexRgb(css("--pred"));
@@ -991,7 +1016,7 @@
           if (!st[i]) continue;
           // Established existing buildings (b25 >= thr) are never changed or overwritten!
           // Only newly converted open land shows the distinct prediction color.
-          if (b25[i] >= thr) continue;
+          if (b25[i] >= thr || (fy && fy[i] >= 15)) continue; // nor cells radar already sees built (15 = by 2015)
 
           const diff30 = Math.max(0, P30[i] - P25[i]);
           const diff35 = Math.max(0, P35[i] - P30[i]);
@@ -1144,6 +1169,7 @@
   // them, so the legend says so and offers another try instead of describing colours that are not there (renderLegend).
   const layerFailed = new Set();
   async function ensure(k) {
+    if (k === "built") loadRadarYears(); // small, never rejects; the map is redrawn when it lands
     if (PIXEL[k]) { // heat and greenness layers are drawn from the MODIS grids
       if (gridsOK()) return;
       $("#map").style.cursor = "progress";
@@ -1200,7 +1226,7 @@
     $("#tl-pred").textContent = u.predicted;
     $("#tl-pred").style.left = `${(nowP + 100) / 2}%`;
     $("#tl-year").textContent = state.year;
-    $("#tl-kind").textContent = isFuture() ? u.modelForecast : u.fromMeasurements;
+    $("#tl-kind").textContent = isFuture() ? u.modelForecast : state.lyr.built.on && radarFirst() && state.year > LAST_OBS() ? u.fromRadar : u.fromMeasurements;
     inp.setAttribute("aria-valuetext", `${state.year}, ${$("#tl-kind").textContent}`);
     $("#timeline").classList.toggle("future", isFuture());
     const ticks = innerWidth < 760 ? [1975, 2000] : [1975, 1985, 1995, 2005, 2015];
@@ -1217,6 +1243,7 @@
     state.year = Math.round(state.yearF);
     renderTimeline();
     redraw();
+    if (state.year !== prev) renderLegend(); // the built-up key changes after 2020 and after today
     // the side card is heavier: refresh it once the year settles (or every whole year while playing)
     if (state.sel && state.sel.ready && (state.year !== prev || opts.now)) {
       const run = () => { cardT = null; if (state.sel && state.sel.ready) renderCard(); };
@@ -1283,7 +1310,7 @@
           RADAR_LEGEND[kk].map(([lab, co, cx]) => sw(`rgb(${radarRgb(kk, co, cx).join(",")})`, u.lg[lab])).join(""));
       }
     }
-    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
+    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
     if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
