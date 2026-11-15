@@ -142,7 +142,18 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       const sp = SPOTS.find((x) => x.k === b.dataset.spot);
       if (sp) selectPoint(sp.lat, sp.lng, sp.place, { zoom: 14 });
     }));
-    if (!spotScoresP) spotScoresP = new Promise((r) => setTimeout(r, 800)).then(loadSpotScores); // after the first paint
+    // The example scores need every place-card layer and both MODIS grids (about 12 MB). They are not fetched at start:
+    // they are computed when the visitor shows interest in the start card (pointer or keyboard focus on it), or at once
+    // when a selection has already brought those layers into memory.
+    if (!spotScoresP) {
+      if (gridsOK() && PLACE_LAYERS().every((nm) => L8[nm])) spotScoresP = loadSpotScores();
+      else if (!card.dataset.spotWired) {
+        card.dataset.spotWired = "1";
+        const go = () => { if (!spotScoresP) spotScoresP = loadSpotScores(); };
+        card.addEventListener("pointerenter", go, { once: true });
+        card.addEventListener("focusin", go, { once: true });
+      }
+    }
     $("#fold").addEventListener("click", () => {
       state.findingsOpen = !state.findingsOpen;
       try { localStorage.setItem("ptd-fold", state.findingsOpen ? "open" : "closed"); } catch (e) { /* ignore */ }
