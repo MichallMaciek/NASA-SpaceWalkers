@@ -14,7 +14,7 @@
 .legend .hexsteps .hs { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .legend .hexsteps .sw.hex { width: 15px; height: 17px; }
 .legend .hexsteps small { font-size: 11px; line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
-/* the pill above the zoom buttons: hexagons or heat map; the active one is filled */
+/* the pill above the zoom buttons: heat map (default) or hexagons; the active one is filled */
 .mapmode button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
 .mapmode button[aria-pressed="true"] svg circle { fill: currentColor; }
 .mapmode button svg circle { stroke: none; fill: currentColor; }
