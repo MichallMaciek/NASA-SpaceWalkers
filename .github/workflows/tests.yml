@@ -85,3 +85,7 @@ jobs:
         run: |
           set -e
           for t in poznan-trend-detective/tests/sarnik/*.test.mjs; do echo "== $t"; node "$t"; done
+
+      - name: Core parts (web/app/*.js, web/css/*.css)
+        if: success() || failure()
+        run: node poznan-trend-detective/tests/app_parts.mjs

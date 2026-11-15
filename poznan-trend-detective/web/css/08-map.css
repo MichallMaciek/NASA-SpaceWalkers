@@ -1,0 +1,22 @@
+/* SARnik styles, part 8 of 17: map details. Loaded in order by index.html; rules: web/css/README.md */
+/* ---------- map details ---------- */
+.leaflet-container { background: var(--map); font: inherit; }
+.leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--card) 80%, transparent) !important; color: var(--ink-2); }
+.leaflet-control-attribution a { color: var(--ink-2); }
+.leaflet-bottom.leaflet-right { bottom: calc(var(--gap) + 116px); }
+body.drawer-open .leaflet-bottom.leaflet-right { right: 440px; }
+.land-canvas { image-rendering: auto; }
+.land-canvas.crisp { image-rendering: pixelated; }
+.mlabel span {
+  display: inline-block; transform: translate(-50%, -50%); white-space: nowrap; font-size: 13px; color: var(--ink-2);
+  text-shadow: 0 0 2px var(--map), 0 0 3px var(--map), 0 0 4px var(--map);
+}
+.mlabel.city span { font-size: 17px; font-weight: 700; color: var(--ink); }
+#map.far .mlabel:not(.city) { display: none; }
+.on-photo .mlabel span { color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000; }
+.pin { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.3); }
+#map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair; }
+
+.hovertip { position: fixed; z-index: 1200; pointer-events: none; padding: 8px 10px; font-size: 13px; line-height: 1.35; max-width: 260px; border-radius: 10px; }
+.hovertip b { font-weight: 640; }
+

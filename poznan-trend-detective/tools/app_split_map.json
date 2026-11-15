@@ -1,0 +1,399 @@
+{
+ "from_commit_file": "web/app.js and web/styles.css",
+ "js": [
+  {
+   "file": "app/01-helpers.js",
+   "old_lines": [
+    7,
+    162
+   ],
+   "what": "helpers: DATA_V, fetchJSON, colour ramps, statistics (Theil-Sen, Mann-Kendall)"
+  },
+  {
+   "file": "app/02-geometry.js",
+   "old_lines": [
+    163,
+    232
+   ],
+   "what": "data: grid geometry, projections, cells, municipalities and flood polygons"
+  },
+  {
+   "file": "app/03-gray-layers.js",
+   "old_lines": [
+    233,
+    309
+   ],
+   "what": "grey-level PNG layers: decoding and loading (loadGray)"
+  },
+  {
+   "file": "app/04-built-up.js",
+   "old_lines": [
+    310,
+    410
+   ],
+   "what": "built-up epochs: radar first year, smoothing, projection, heat ranks, grids, risk pool"
+  },
+  {
+   "file": "app/05-state.js",
+   "old_lines": [
+    411,
+    443
+   ],
+   "what": "state: the one state object, NISAR dates, hires and sar handles"
+  },
+  {
+   "file": "app/06-sarnik-ext.js",
+   "old_lines": [
+    444,
+    558
+   ],
+   "what": "SARnik extension modules: window.SARNIK, ctx, the module loader (docs/planwyd/KONTRAKT.md)"
+  },
+  {
+   "file": "app/07-layer-keys.js",
+   "old_lines": [
+    559,
+    567
+   ],
+   "what": "layer keys, L-band years, which views use the radar time line"
+  },
+  {
+   "file": "app/08-nisar-passes.js",
+   "old_lines": [
+    568,
+    597
+   ],
+   "what": "NISAR passes of summer 2026 (animation on the time line)"
+  },
+  {
+   "file": "app/09-layer-needs.js",
+   "old_lines": [
+    598,
+    635
+   ],
+   "what": "map padding, pixel layers and the data each layer needs (PIXEL, NEEDS), decoders, year helpers"
+  },
+  {
+   "file": "app/10-map-layers.js",
+   "old_lines": [
+    636,
+    737
+   ],
+   "what": "map: Leaflet layer handles, building decisions (WUiA), overlays, canvas and pixel layers"
+  },
+  {
+   "file": "app/11-base-map.js",
+   "old_lines": [
+    738,
+    845
+   ],
+   "what": "base map (OpenFreeMap vector tiles), theme, smooth wheel zoom"
+  },
+  {
+   "file": "app/12-map-init.js",
+   "old_lines": [
+    846,
+    944
+   ],
+   "what": "map start (initMap), place names, base switch, radar colour stretch"
+  },
+  {
+   "file": "app/13-layers-hires.js",
+   "old_lines": [
+    945,
+    1045
+   ],
+   "what": "data layers, part 1: sharp (hires) radar pictures"
+  },
+  {
+   "file": "app/14-layers.js",
+   "old_lines": [
+    1046,
+    1290
+   ],
+   "what": "data layers, part 2: renderLand, choropleth, redraw, ensure"
+  },
+  {
+   "file": "app/15-timeline.js",
+   "old_lines": [
+    1291,
+    1416
+   ],
+   "what": "time line: years, radar axis, play"
+  },
+  {
+   "file": "app/16-legend.js",
+   "old_lines": [
+    1417,
+    1458
+   ],
+   "what": "legend"
+  },
+  {
+   "file": "app/17-lenses.js",
+   "old_lines": [
+    1459,
+    1554
+   ],
+   "what": "SAR mark and the map views (lenses)"
+  },
+  {
+   "file": "app/18-drawer.js",
+   "old_lines": [
+    1555,
+    1715
+   ],
+   "what": "drawer: map settings, layer switches, sliders"
+  },
+  {
+   "file": "app/19-hover.js",
+   "old_lines": [
+    1716,
+    1800
+   ],
+   "what": "hover tooltip"
+  },
+  {
+   "file": "app/20-draw.js",
+   "old_lines": [
+    1801,
+    1949
+   ],
+   "what": "drawing an area (polygon, freehand)"
+  },
+  {
+   "file": "app/21-selection.js",
+   "old_lines": [
+    1950,
+    2035
+   ],
+   "what": "selection: clear, cells in a ring, select a point or an area"
+  },
+  {
+   "file": "app/22-place-numbers.js",
+   "old_lines": [
+    2036,
+    2091
+   ],
+   "what": "numbers for the selection: built-up share, forest, risk, prices, heat"
+  },
+  {
+   "file": "app/23-radar-stats.js",
+   "old_lines": [
+    2092,
+    2188
+   ],
+   "what": "radar numbers for a selection (sarStats, sarSeries, radarChart)"
+  },
+  {
+   "file": "app/24-card.js",
+   "old_lines": [
+    2189,
+    2292
+   ],
+   "what": "place card: renderCard, renderCardLoading"
+  },
+  {
+   "file": "app/25-card-checks.js",
+   "old_lines": [
+    2293,
+    2345
+   ],
+   "what": "place card: the plain check-up rows (plainChecks)"
+  },
+  {
+   "file": "app/26-card-pros-cons.js",
+   "old_lines": [
+    2346,
+    2480
+   ],
+   "what": "place card: pros and cons, place score 0-100"
+  },
+  {
+   "file": "app/27-card-checkup-view.js",
+   "old_lines": [
+    2481,
+    2542
+   ],
+   "what": "place card: HTML of the plain check-up (plainHTML, riskHTML)"
+  },
+  {
+   "file": "app/28-card-technical.js",
+   "old_lines": [
+    2543,
+    2674
+   ],
+   "what": "place card: technical inspection, mini charts, 'more'"
+  },
+  {
+   "file": "app/29-findings.js",
+   "old_lines": [
+    2675,
+    2779
+   ],
+   "what": "findings list (no place selected)"
+  },
+  {
+   "file": "app/30-trend-test.js",
+   "old_lines": [
+    2780,
+    2862
+   ],
+   "what": "full trend test dialog"
+  },
+  {
+   "file": "app/31-search.js",
+   "old_lines": [
+    2863,
+    2943
+   ],
+   "what": "search box (Nominatim)"
+  },
+  {
+   "file": "app/32-main.js",
+   "old_lines": [
+    2944,
+    3108
+   ],
+   "what": "language, wiring of the controls, main(): start of the app (runs last)"
+  }
+ ],
+ "css": [
+  {
+   "file": "css/01-base.css",
+   "old_lines": [
+    1,
+    60
+   ],
+   "what": "colour variables (light, dark), base type"
+  },
+  {
+   "file": "css/02-search-tools.css",
+   "old_lines": [
+    61,
+    85
+   ],
+   "what": "search box and drawing tools"
+  },
+  {
+   "file": "css/03-card.css",
+   "old_lines": [
+    86,
+    150
+   ],
+   "what": "place card, risk indicator, findings list"
+  },
+  {
+   "file": "css/04-top-right.css",
+   "old_lines": [
+    151,
+    167
+   ],
+   "what": "buttons top right"
+  },
+  {
+   "file": "css/05-drawer.css",
+   "old_lines": [
+    168,
+    246
+   ],
+   "what": "drawer, toggle switch, sliders, segmented control"
+  },
+  {
+   "file": "css/06-legend.css",
+   "old_lines": [
+    247,
+    256
+   ],
+   "what": "legend"
+  },
+  {
+   "file": "css/07-timeline.css",
+   "old_lines": [
+    257,
+    329
+   ],
+   "what": "time line"
+  },
+  {
+   "file": "css/08-map.css",
+   "old_lines": [
+    330,
+    350
+   ],
+   "what": "map details"
+  },
+  {
+   "file": "css/09-dialogs.css",
+   "old_lines": [
+    351,
+    374
+   ],
+   "what": "dialogs"
+  },
+  {
+   "file": "css/10-small-screens.css",
+   "old_lines": [
+    375,
+    411
+   ],
+   "what": "smaller screens"
+  },
+  {
+   "file": "css/11-inspection-theme-draw.css",
+   "old_lines": [
+    412,
+    455
+   ],
+   "what": "technical checklist, theme change, drawing, tablets"
+  },
+  {
+   "file": "css/12-sarnik-v2-radar.css",
+   "old_lines": [
+    456,
+    498
+   ],
+   "what": "SARnik v2: radar, 'How radar sees the ground'"
+  },
+  {
+   "file": "css/13-sarnik-v3-plain.css",
+   "old_lines": [
+    499,
+    613
+   ],
+   "what": "SARnik v3: lenses, plain check-up, modules, SAR mark, radar time line"
+  },
+  {
+   "file": "css/14-qa-fixes.css",
+   "old_lines": [
+    614,
+    674
+   ],
+   "what": "QA fixes of 14 Nov, short screens, phones"
+  },
+  {
+   "file": "css/15-nisar-banner.css",
+   "old_lines": [
+    675,
+    727
+   ],
+   "what": "NISAR 2026 banner in the card"
+  },
+  {
+   "file": "css/16-score.css",
+   "old_lines": [
+    728,
+    759
+   ],
+   "what": "place score card"
+  },
+  {
+   "file": "css/17-pros-cons.css",
+   "old_lines": [
+    760,
+    814
+   ],
+   "what": "pros and cons"
+  }
+ ]
+}

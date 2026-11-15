@@ -2,8 +2,8 @@
 """Data contract of the SARnik web app (poznan-trend-detective/web).
 
 Checks, one printed line each (OK / FAIL / SKIP / INFO), exit code 1 if any FAIL:
-  - every data file main() in web/app.js fetches exists and parses as JSON
-  - land.json and sar.json hold every key web/app.js (and i18n_sar.js) reads
+  - every data file main() in web/app/ (the core, formerly web/app.js) fetches exists and parses as JSON
+  - land.json and sar.json hold every key the core in web/app/ (and i18n_sar.js) reads
   - per-pass arrays in sar.json are as long as their date lists
   - every grey-level PNG layer the app requests or the JSON names exists, is an 8-bit grey PNG
     of 956 x 898 (the time-series sheets: (2*bw) x (n*bh)), without colour-management chunks
@@ -49,7 +49,10 @@ def read(p):
     return p.read_text(encoding="utf-8")
 
 
-app_js = read(WEB / "app.js")
+# the app's core: the parts in web/app/ (the former app.js), in load order, read as one text
+app_js = "\n".join(read(f) for f in sorted((WEB / "app").glob("[0-9][0-9]*.js")))
+if not app_js:
+    sys.exit("FAIL no core parts in web/app/")
 i18n_sar = read(WEB / "i18n_sar.js") if (WEB / "i18n_sar.js").exists() else ""
 
 

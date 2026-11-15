@@ -1,0 +1,33 @@
+/* SARnik styles, part 16 of 17: place score card. Loaded in order by index.html; rules: web/css/README.md */
+/* Overall spot score card */
+.spot-score-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--soft);
+  margin: 10px 0 12px;
+  border: 1px solid var(--line);
+}
+.score-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 750;
+  color: #fff;
+  flex: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.score-badge.tier-great { background: #2F8A4F; }
+.score-badge.tier-good { background: #7DBB8A; color: #154522; }
+.score-badge.tier-warn { background: #F2A31B; }
+.score-badge.tier-risk { background: #E0332F; }
+.score-info { flex: 1; min-width: 0; }
+.score-title { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.score-sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+
