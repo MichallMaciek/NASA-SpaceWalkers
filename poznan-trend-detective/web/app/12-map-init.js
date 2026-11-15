@@ -63,7 +63,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         el.addEventListener("mouseenter", hideTip);
       });
     });
-    map.on("click", (e) => { if (!draw.mode && performance.now() > draw.suppressUntil) selectPoint(e.latlng.lat, e.latlng.lng, null); });
+    map.on("click", (e) => mapPick(e)); // from zoom 16 a click picks the plot under it, below that the map zooms in (21a-parcels.js)
     map.on("zoomend", () => $("#map").classList.toggle("far", map.getZoom() < 10));
   }
 
