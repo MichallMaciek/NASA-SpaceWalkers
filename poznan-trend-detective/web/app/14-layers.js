@@ -188,27 +188,60 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       }
     } else if (k === "score") {
       const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
-      const eg = L8.sar_egms, sc = L8.sar_change, lut = lutFor(RAMPS.score);
+      const eg = L8.sar_egms, sc = L8.sar_change, wat = L8.sar_water, lut = lutFor(RAMPS.score);
       const w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
-        let s = 68;
-        if (ff && ff[i]) s += (Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255) * 25; // forest that still stands: the 2000 share minus what was lost since
-        if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
-        if (b25 && b25[i] > 120) s -= 6;
+        // Open water (Warta river channel, lakes) is not a parcel: leave transparent so blue base water shows
+        if (wat && wat[i] && waterOf(wat[i]) >= 0.20) continue;
+
+        let s = 72; // baseline for habitable land in the study area
+        const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0;
+        const built = b25 ? b25[i] : 0;
+
+        // Substantive greenery evaluation:
+        // Optimal residential greenery: 15% to 65% canopy (leafy suburbs, gardens, parks) -> up to +18
+        // Deep continuous uninhabited forest (>70% canopy, built < 35): protected nature reserve (WPN, Morasko) -> +6
+        if (treeFrac >= 0.15 && (treeFrac < 0.70 || built >= 35)) {
+          s += Math.round(18 * Math.min(1, treeFrac / 0.45));
+        } else if (treeFrac >= 0.70 && built < 35) {
+          s += 6;
+        } else if (treeFrac >= 0.05) {
+          s += 6;
+        } else if (built > 140) {
+          s -= 4; // heavily sealed urban core / heat island prone
+        }
+
+        // River corridor & groundwater flood zone:
+        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
+        if (inFlood(la, lo)) {
+          if (built >= 75) {
+            // Established urban river district (Chwaliszewo, Garbary, bulwary): protected & municipal drainage
+            s -= 8;
+          } else {
+            // Open, unpaved flood meadow: serious groundwater flood risk
+            s -= 24;
+          }
+        }
+
+        // Development pressure (AI forecast on open land)
+        if (p30 && p30[i] > 25 && built < 50) s -= Math.round((p30[i] / 255) * 16);
+
+        // Geotechnical stability (InSAR / EGMS vertical motion)
         if (eg && eg[i]) {
           const v = egmsOf(eg[i]);
-          if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
-          else if (v >= -0.5 && v <= 1) s += 5;
+          if (v <= -2) s -= Math.min(28, Math.abs(v) * 6);
+          else if (v >= -0.5 && v <= 1) s += 4;
         }
+
+        // Active construction disturbances (SAR 2026 walls)
         if (sc && sc[i]) {
           const ch = changeOf(sc[i]);
-          if (ch >= 3) s -= 15;
+          if (ch >= 3) s -= 12;
         }
-        const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
-        if (inFlood(la, lo)) s -= 28;
-        s = clamp(s, 5, 95);
-        const t = (s - 5) / 90, j = ((t * 255) | 0) * 3;
+
+        s = clamp(s, 10, 95);
+        const t = (s - 10) / 85, j = ((t * 255) | 0) * 3;
         put(i, [lut[j], lut[j + 1], lut[j + 2]], 185);
       }
     }
