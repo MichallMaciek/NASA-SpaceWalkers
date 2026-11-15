@@ -6,7 +6,7 @@
 :root {
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --radius: 22px;
-  --glass: rgba(255, 255, 255, .74); /* the map opens on an orthophoto: enough milk to read on dark, busy pixels */
+  --glass: rgba(255, 255, 255, .92); /* own surface colour: text keeps 4.5:1 over any layer (orange score, orthophoto) */
   --glass-solid: rgba(255, 255, 255, .95); /* lists that open over other glass (search suggestions) */
   --glass-line: rgba(255, 255, 255, .78);
   --glass-shadow: 0 10px 30px rgba(20, 20, 20, .10), inset 0 1px 0 rgba(255, 255, 255, .55);
@@ -16,13 +16,13 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+    --glass: rgba(22, 22, 25, .90); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
     --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
     --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
   }
 }
 :root[data-theme="dark"] {
-  --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+  --glass: rgba(22, 22, 25, .90); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
   --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
 }
