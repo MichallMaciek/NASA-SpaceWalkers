@@ -180,59 +180,53 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
 
-    // Overall Score (0-100) - continuous livability index matching satellite map
-    let score = 72; // baseline for solid, standard land in the agglomeration (neutral ~72)
+    // Overall Score (0-100)
+    let score = 70; // baseline for solid, standard land in the agglomeration (neutral 70)
 
-    // 1. Built-up density curve
-    if (bu >= 8 && bu <= 40) {
-      score += Math.round(6 + (40 - Math.abs(bu - 22)) * 0.22);
-    } else if (bu > 40 && bu <= 70) {
-      score += Math.round(4 - (bu - 40) * 0.12);
-    } else if (bu > 70 && bu <= 85) {
-      score -= Math.round(3 + (bu - 70) * 0.2);
-    } else if (bu > 85) {
-      score -= Math.min(22, Math.round(8 + (bu - 85) * 0.25));
-    }
+    // Greenery balance: optimal 10% to 65% canopy in the neighborhood
+    if (ff >= 10 && ff <= 65) score += Math.round((ff / 65) * 14);
+    else if (ff > 65) score += 5; // dense woodland: safe nature
+    else if (bu > 60 && ff < 5) score -= 16; // heavily sealed urban core / heat island
 
-    // 2. Greenery & tree canopy
-    score += Math.min(14, Math.round((ff / 100) * 20));
-
-    // 3. Topographic relief & drainage
-    if (wf.reliefMean >= 1.0) score += clamp(Math.round(wf.reliefMean * 2), 1, 5);
-    else if (wf.hollow) score -= 4;
-
-    // 4. River corridor & flood risk
+    // River corridor & drainage
     if (isWater) {
-      score = 20; // open water is not a plot
+      score = 25; // open water is not a plot
     } else if (wf.floodShare > 0) {
       if (bu >= 20 || wf.reliefMean >= 0.5) {
-        score += 3; // managed, elevated riverside urban fabric & Wartostrada amenity
+        score += 2; // managed, elevated riverside urban fabric
       } else {
-        score -= 26; // unpaved low-lying floodplain meadow (active retention polder -> WARN/RISK)
+        score -= 38; // unpaved low-lying floodplain meadow (active water hazard -> RED!)
       }
+    } else {
+      if (!wf.hollow) score += 3;
+      if (wf.reliefMean >= 1.0) score += 2;
     }
 
-    // 5. Ground stability (InSAR / EGMS) - real satellite value!
-    if (s && s.egMed <= -2.0) score -= Math.min(42, Math.round(Math.abs(s.egMed) * 11)); // dangerous subsidence -> RED!
-    else if (s && s.egMin <= -4) score -= 16; // localized settlement -> WARN!
-    else if (!s || (s.egMed >= -0.5 && s.egMin >= -1.5)) score += 2; // solid stable bedrock (+2)
+    if (!isWater && wf.hollow) score -= 14;
 
-    // 6. Active SAR construction (walls in 2026)
-    if (s && s.walls > 0.02) score -= 15;
+    // Ground stability (InSAR / EGMS) - real satellite value!
+    if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 3;
+    else if (s && s.egMed <= -2.5) score -= 40; // dangerous subsidence -> RED!
+    else if (s && s.egMin <= -4) score -= 20; // localized settlement -> WARN!
 
-    // 7. Tree loss
+    // Sprawl pressure vs established fabric
+    if (bu >= 35) score += 3; // established urban fabric
+    else if (rk && rk.chance < 0.08) score += 3; // peaceful stable suburb
+    else if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0 && bu < 35) score -= 12;
+
+    // Active SAR construction (walls in 2026)
+    if (s && s.walls > 0.02) score -= 16;
+
+    // Tree loss
     if (lost >= 2 * kHa) score -= 16;
-
-    // 8. Sprawl pressure on agricultural land
-    if (rk && (rk.chance >= 0.16 || rk.level >= 5) && wf.floodShare === 0 && bu < 15) score -= 10;
 
     score = clamp(Math.round(score), 15, 95);
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
     if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }
-    else if (score < 63) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana (uwagi)"; }
-    else if (score < 75) { tierClass = "tier-neutral"; tierLabel = u.tierNeutral || "Standardowa (w normie)"; }
-    else if (score < 85) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (zielona)"; }
+    else if (score < 62) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana (uwagi)"; }
+    else if (score < 76) { tierClass = "tier-neutral"; tierLabel = u.tierNeutral || "Standardowa (w normie)"; }
+    else if (score < 84) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (zielona)"; }
 
     // What radar sees here (2026), from measured radar only: the radar first-year layer (Sentinel-1 yearly, NISAR confirms
     // 2025-2026), Sentinel-1 walls (autumn 2025 -> 2026), NISAR's June -> August change on open land. isNisar: the sentence is NISAR's.

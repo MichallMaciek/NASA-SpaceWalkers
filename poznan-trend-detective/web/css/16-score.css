@@ -23,9 +23,9 @@
   flex: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
-.score-badge.tier-great { background: #16A34A; }
-.score-badge.tier-good { background: #52B788; color: #fff; }
-.score-badge.tier-neutral { background: #64748B; color: #fff; }
+.score-badge.tier-great { background: #059669; }
+.score-badge.tier-good { background: #34D399; color: #064E3B; }
+.score-badge.tier-neutral { background: #94A3B8; color: #fff; }
 .score-badge.tier-warn { background: #F59E0B; }
 .score-badge.tier-risk { background: #DC2626; }
 .score-info { flex: 1; min-width: 0; }

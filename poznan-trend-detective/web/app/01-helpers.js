@@ -95,7 +95,7 @@
     wet: ["#CFE3F5", "#8CBDE8", "#3F8FD6", "#155FA8"],
     water: ["#9ED0F5", "#4AA3E8", "#1C73C9", "#0B4A8C"],
     sink: ["#F7C3B0", "#EB7E5B", "#CC3B24", "#8C1A10"],
-    score: ["#DC2626", "#EA580C", "#F59E0B", "#E2E8F0", "#34D399", "#15803D"],
+    score: ["#DC2626", "#EA580C", "#F97316", "#F59E0B", "#EAB308", "#E2E8F0", "#94A3B8", "#34D399", "#059669"],
   };
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rampCache = new Map();
