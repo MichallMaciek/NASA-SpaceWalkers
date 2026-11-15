@@ -41,6 +41,26 @@ ceny (GUS), pozwolenia i działki (GUNB, GUGiK).
 Co powstało rok po roku od 2015: 240 przelotów Sentinel-1, a nowe budowy potwierdza NISAR. I czy grunt się rusza.
 Mapa ze zdjęć kończy się na 2020 roku; wszystko po niej, 1839 hektarów nowej zabudowy, wiemy tylko z radaru.”
 
+### Dopisek wajlk, 15.11.2026, 11:45: trzy warstwy radarowe, które doszły do `main` o 11:33
+
+Pochodzą z gałęzi autora aplikacji (PR #33, na publicznej stronie od 11:13). Opis i liczby: `web/data/land/sar.json`,
+pole `zips`.
+
+| Radar | Lata | Ile | Co z niego bierzemy | Co to wnosi |
+|---|---|---|---|---|
+| **NISAR, koherencja** (GUNW, orbita 158) | czerwiec–październik 2026 | 8 par kolejnych przelotów | warstwę „NISAR: stabilność powierzchni” (mediana z par) | pokazuje, gdzie powierzchnia się zmienia (pola, budowy, woda), a gdzie jest stała (budynki, drogi) |
+| **NISAR, wilgotność gleby** (SME2, 200 m) | 25.06 i 24.08.2026 | 2 mapy z 9 dat | warstwę „NISAR: wilgotność gleby” | mediana terenu 0,275 m³/m³ w czerwcu i 0,215 w sierpniu; produkt wstępny, jeszcze nieskalibrowany |
+| **OPERA DIST-ALERT-S1** (NASA/JPL, z Sentinel-1, 30 m) | styczeń–luty 2026 | – | warstwę „Zaburzenia lasu z radaru” w widoku „Ubytek zieleni”, tylko tam, gdzie w 2000 r. był las | ok. 3% komórek leśnych z wysoką pewnością zaburzenia; to sygnał do sprawdzenia: wycinka, wiatrołomy, ale też śnieg i mróz |
+
+Dwie uwagi do mówienia o nich:
+
+- To mapy do oglądania. Karta miejsca i ocena 0–100 z nich nie korzystają.
+- Wilgotność gleby pokazujemy, ale nie wyciągamy z niej wniosków o zalewaniu: w naszym teście nie odróżnia terenów
+  podtopień (patrz niżej, krok „Piszemy też, co się nie potwierdziło”).
+
+Na pytanie „ile produktów NISAR używacie” odpowiedź brzmi teraz: trzy. Obraz GCOV (mapa, przeloty, potwierdzenie
+zabudowy), koherencja GUNW i wilgotność gleby SME2.
+
 ## Propozycje do trzech kroków prezentacji
 
 **Krok „Co powstanie obok do 2035”.** Dziś: „Prognoza z 50 lat zdjęć Landsat, sprawdzona na latach 2015–2020”.
