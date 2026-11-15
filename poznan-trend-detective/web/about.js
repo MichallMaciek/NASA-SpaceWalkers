@@ -13,8 +13,9 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
   };
-  let lang = (navigator.language || "pl").toLowerCase().startsWith("en") ? "en" : "pl";
+  let lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
   { const s = store.get(LANG_KEY); if (s === "pl" || s === "en") lang = s; }
+  { const q = new URLSearchParams(location.search).get("lang"); if (q === "pl" || q === "en") { lang = q; store.set(LANG_KEY, q); } }
 
   let sar = null, land = null, loadState = "loading";
   const failed = [];
