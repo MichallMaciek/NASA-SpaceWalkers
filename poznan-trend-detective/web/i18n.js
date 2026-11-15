@@ -238,7 +238,7 @@ window.I18N.pl.ui = {
   measured: "Dane z pomiarów", predicted: "Predykcja", modelForecast: "prognoza modelu", fromMeasurements: "dane z pomiarów", fromRadar: "dane z pomiarów radaru", today: "Dziś",
   lg: {
     built: "Intensywność zabudowy", low: "niska", high: "wysoka", projected: "Prognozowana zabudowa",
-    radarNew: (a, b) => `nowa zabudowa wg radaru (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
+    radarNew: (a, b) => `nowa i gęstsza zabudowa wg radaru (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
     forest: "Wycinka lasów (rok)", forestLeft: "Las z 2000 r., który stoi",
     price: (y) => `Cena za m² (GUS), ${y}`, activity: "Aktywność terenu, radar 2017–2024",
     brighter: "Jaśniej: nowe dachy, stal, beton", darker: "Ciemniej: wycinka, woda, rozbiórka",
@@ -290,7 +290,7 @@ window.I18N.en.ui = {
   measured: "Measured data", predicted: "Prediction", modelForecast: "model forecast", fromMeasurements: "measured", fromRadar: "measured by radar", today: "Today",
   lg: {
     built: "Built-up intensity", low: "low", high: "high", projected: "Projected building",
-    radarNew: (a, b) => `new building seen by radar (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
+    radarNew: (a, b) => `new and denser building seen by radar (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
     forest: "Forest loss (year)", forestLeft: "Forest of 2000 still standing",
     price: (y) => `Price per m² (GUS), ${y}`, activity: "Ground activity, radar 2017–2024",
     brighter: "Brighter: new roofs, steel, concrete", darker: "Darker: clearing, water, demolition",
@@ -365,6 +365,8 @@ window.I18N.pl.ui.chk.waterAreaLow = (p) => `${p}% zaznaczenia leży w obniżeni
 window.I18N.pl.ui.chk.waterAreaOk = (p) => `Tylko ${p}% zaznaczenia leży w obniżeniach terenu.`;
 window.I18N.en.ui.chk.waterAreaLow = (p) => `${p}% of the selection lies in hollows (1.5 m or more below the surroundings), where water can gather.`;
 window.I18N.en.ui.chk.waterAreaOk = (p) => `Only ${p}% of the selection lies in hollows.`;
+window.I18N.pl.ui.chk.waterTrees = "Tu rosną drzewa albo gęsto stoją budynki, a model wysokości mierzy ich wierzchołki. Nie oceniamy więc, czy teren leży w obniżeniu.";
+window.I18N.en.ui.chk.waterTrees = "Trees or dense buildings stand here and the height model measures their tops, so we do not judge whether the ground lies in a hollow.";
 Object.assign(window.I18N.pl.ui.L, { flood: "Podtopienia (PIG-PIB)" });
 Object.assign(window.I18N.pl.ui.Lsub, { flood: "zagrożenie powodzią od wód gruntowych" });
 Object.assign(window.I18N.pl.ui.lg, { flood: "Obszar zagrożony podtopieniami (PIG-PIB)", floodNote: "Woda gruntowa może podnosić się do piwnic, dane PIG-PIB" });

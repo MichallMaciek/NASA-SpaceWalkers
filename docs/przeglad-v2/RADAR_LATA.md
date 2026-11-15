@@ -18,7 +18,8 @@ pierwszy raz widzi tam zabudowę, od 2015 do 2026 r.
 
 - **Skąd:** 265 dat radarowych z 12 lat. Sentinel-1 co roku od 2015 do 2026 r. (240 przelotów), NISAR w 2026 r.,
   ALOS PALSAR z lat 2007–2010 i ALOS-2 z lat 2015–2021 do sprawdzenia.
-- **Co mówi:** po 2020 r. radar widzi 1839 ha nowej zabudowy w obszarze badań, z tego 393 ha w Poznaniu.
+- **Co mówi:** po 2020 r. radar widzi 1839 ha nowej i gęstszej zabudowy w obszarze badań, z tego 393 ha w Poznaniu
+  (1379 ha na terenie, którego mapa optyczna z 2020 r. nie miała jako zabudowany; 460 ha to dogęszczenie).
   Tego nie ma żadna inna warstwa w aplikacji.
 - **Co się potwierdziło:** tam, gdzie mapa optyczna pokazuje nową zabudowę z lat 2015–2020, radar datuje ją
   na te lata 46 razy częściej niż gdzie indziej. Drugi satelita w paśmie L widzi tę samą zmianę (20 razy),
@@ -95,7 +96,13 @@ w 2026 r.), więc regułę zaostrzyliśmy. Wyniki pierwszej wersji: `metoda_2015
 | obszar badań | 461 | 382 | 367 | 409 | 438 | 360 | 373 | 372 | 341 | 180 | 214 |
 | Poznań (miasto) | 76 | 70 | 87 | 84 | 91 | 90 | 78 | 65 | 81 | 33 | 46 |
 
-- Po 2020 r. radar widzi **1839 ha** nowej zabudowy w obszarze badań, z tego **393 ha** w Poznaniu.
+- Po 2020 r. radar widzi **1839 ha** nowej i gęstszej zabudowy w obszarze badań, z tego **393 ha** w Poznaniu.
+- **Dopisek, 15.11, 12:10.** Z tych 1839 ha 1379 ha (2573 komórki) leży tam, gdzie mapa optyczna z 2020 r. miała
+  poniżej 15% zabudowy. Pozostałe 460 ha (859 komórek, 25%) to komórki, które mapa optyczna miała już jako
+  zabudowane, prawie wszystkie w przedziale 15–30%: radar widzi tam dogęszczenie, a nie zabudowę na pustym
+  terenie. W latach 2016–2020 ten udział był jeszcze większy (47% względem mapy z 2015 r.), bo radar uznaje
+  komórkę za zabudowaną przy gęstszej zabudowie niż próg 15% mapy optycznej. Uczciwe sformułowanie:
+  „1839 ha nowej i gęstszej zabudowy”, a jako ściśle nową podawać 1379 ha.
 - To ok. 306 ha rocznie. Mapa optyczna przybywała w latach 2015–2020 po ok. 580 ha rocznie
   (w mieście ok. 107 ha). Radar w tym samym okresie 2016–2020 daje ok. 411 ha rocznie.
   Radar jest więc ostrożniejszy niż mapa optyczna (ok. 0,7 jej tempa), a nie luźniejszy.
@@ -438,7 +445,7 @@ Dwa przebiegi `sarnik_radar_lata.py` dały identyczną warstwę (0 różnych kom
 126 sprawdzeń) dodaje wiersz „Zabudowa wokół wg radaru, rok po roku” w grupie „Z radaru SAR”.
 Przykład dla Naramowic w Poznaniu:
 
-> Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 21 ha nowej zabudowy
+> Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 21 ha nowej i gęstszej zabudowy
 > (najwięcej w 2023 r.), więcej niż w 95% miejsc wokół Poznania. Od 2015 r. łącznie ok. 29 ha.
 
 - Wiersz mówi tylko o zmianie w hektarach. Udział zabudowy podaje wiersz „Zabudowa” w karcie; druga,

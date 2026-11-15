@@ -26,11 +26,20 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
 
-    if (s && (s.egMed <= -3 || s.egMin <= -5)) {
+    if (s && s.egMed <= -3) {
       cons.push({
         lvl: "risk",
         t: lang === "pl" ? `Osiadanie gruntu (${sgn(s.egMin || s.egMed, 0)} mm/rok)` : `Ground sinking (${sgn(s.egMin || s.egMed, 0)} mm/yr)`,
         d: lang === "pl" ? "Satelitarny radar interferometryczny (InSAR) wykrywa opadanie podłoża. Ryzyko pękania murów." : "Interferometric radar (InSAR) detects ground subsidence. Risk of wall cracks."
+      });
+    } else if (s && s.egMin <= -5) {
+      // the typical cell here is stable and one or more cells in the circle sink: in 95% of such places the sinking cell is
+      // not the plot or its neighbour, so this is a spot to check on the map, not a verdict on the plot (same split as the
+      // technical row: risk for the median, warn for the minimum)
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? `Osiadające miejsca w okolicy (do ${sgn(s.egMin, 0)} mm/rok)` : `Sinking spots nearby (down to ${sgn(s.egMin, 0)} mm/yr)`,
+        d: lang === "pl" ? `Grunt jest tu w większości stabilny, ale radar (InSAR) mierzy w tej okolicy miejsca, które osiadają. Sprawdź w widoku „${u.lens.ground}”, czy to Twoja działka.` : `The ground here is mostly stable, but radar (InSAR) measures spots in this area that are sinking. Check in the “${u.lens.ground}” view whether it is your plot.`
       });
     }
 
