@@ -75,7 +75,7 @@ const STOP = "if (window.SARNIK_STOP) throw window.SARNIK_STOP;";
 const src = js.map((f) => read("app", f));
 const asts = js.map((f, i) => parseScript(src[i], `web/app/${f}`));
 js.forEach((f, i) => {
-  const code = src[i].replace(/^\s*\/\*[\s\S]*?\*\//, "").split("\n").filter((l) => l.trim() && !/^\s*\/\//.test(l));
+  const code = src[i].replace(/^\s*\/\*[\s\S]*?\*\//, "").split(/\r?\n/).filter((l) => l.trim() && !/^\s*\/\//.test(l));
   ok(code[0] === '"use strict";', `web/app/${f}: the first statement must be "use strict";`);
   if (i > 0) ok(code[1] && code[1].startsWith(STOP), `web/app/${f}: the second line must be the stop line (${STOP} ...)`);
 });
