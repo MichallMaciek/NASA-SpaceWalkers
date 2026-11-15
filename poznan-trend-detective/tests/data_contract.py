@@ -314,6 +314,63 @@ orphans = sorted(p.stem for p in LAND.glob("*.png") if p.stem not in requested a
 if orphans:
     print(f"INFO PNGs in data/land not requested by app.js (deployed but never loaded): {', '.join(orphans)}")
 
+# data sets in web/data/sarnik/<set>/: a folder with meta.json declares its files, layers[].file (full-grid layers,
+# 956 x 898), layout.file (a sheet of frames, (2*bw) x (n*bh); every frame's hh / hv box lies inside it) and files[]
+# (data files of a card module, name or name + .json). frames[].file names the source scene, not a file in the folder.
+# A folder without meta.json (wuia) is skipped.
+SARNIK = DATA / "sarnik"
+for d in sorted(p for p in SARNIK.iterdir() if p.is_dir()) if SARNIK.is_dir() else []:
+    mp = d / "meta.json"
+    if not mp.exists():
+        print(f"INFO data/sarnik/{d.name}: no meta.json, not checked")
+        continue
+    try:
+        meta = json.loads(mp.read_text(encoding="utf-8"))
+    except ValueError as e:
+        check(f"data/sarnik/{d.name}/meta.json is valid JSON", False, str(e))
+        continue
+    want, bad = {}, []
+    for lyr in meta.get("layers") or []:
+        if isinstance(lyr, dict) and lyr.get("file"):
+            want[lyr["file"]] = (GRID_W, GRID_H)
+    lay, frames = meta.get("layout"), meta.get("frames") or []
+    if isinstance(lay, dict) and lay.get("file"):
+        blk, bw, bh, n = lay.get("block") or 1, lay.get("bw", 0), lay.get("bh", 0), lay.get("n", len(frames))
+        if (bw, bh) != (math.ceil(GRID_W / blk), math.ceil(GRID_H / blk)):
+            bad.append(f"layout: bw={bw} bh={bh} do not cover the grid with block {blk}")
+        if len(frames) != n:
+            bad.append(f"layout.n={n} but {len(frames)} frames")
+        want[lay["file"]] = (2 * bw, n * bh)
+        for f in frames:
+            for pol in ("hh", "hv"):
+                xy = f.get(pol)
+                if xy is None and pol == "hv":
+                    continue
+                if not (isinstance(xy, list) and len(xy) == 2 and xy[0] in (0, bw) and xy[1] % max(bh, 1) == 0 and 0 <= xy[1] < n * bh):
+                    bad.append(f"frame {f.get('date')}: {pol} box {xy} is not inside the sheet")
+    listed = [x for x in meta.get("files") or [] if isinstance(x, str)]
+    lost = [x for x in listed if not (d / x).exists() and not (d / f"{x}.json").exists()]
+    if lost:
+        bad.append(f"{len(lost)} of {len(listed)} files[] missing, e.g. {', '.join(lost[:3])}")
+    for fn, size in want.items():
+        p = d / fn
+        info = png_info(p) if p.exists() and fn.endswith(".png") else None
+        if not p.exists():
+            bad.append(f"{fn}: missing")
+        elif fn.endswith(".png"):
+            if info is None:
+                bad.append(f"{fn}: not a PNG")
+                continue
+            if (info[0], info[1]) != size:
+                bad.append(f"{fn}: {info[0]} x {info[1]}, expected {size[0]} x {size[1]}")
+            if (info[2], info[3]) != (8, 0):
+                bad.append(f"{fn}: bit depth {info[2]}, colour type {info[3]} (the app reads 8-bit grey)")
+            cm = sorted(set(info[4]) & {"gAMA", "cHRM", "iCCP", "sRGB"})
+            if cm:
+                bad.append(f"{fn}: colour-management chunks {cm} may change grey values in the browser")
+    check(f"data/sarnik/{d.name}: meta.json is valid; declared files exist ({len(listed)} data, {len(want)} PNG: 8-bit grey, declared size)",
+          not bad, "; ".join(bad))
+
 
 # ---------------------------------------------------------------- 5. decode rules
 LD, SD = land.get("decode", {}), sar.get("decode", {})

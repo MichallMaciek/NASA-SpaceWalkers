@@ -897,7 +897,7 @@
   const RADAR_LEGEND = {
     s1rgb: [["rgbBuilt", -5.8, -12.3], ["rgbStrong", -3, -13], ["rgbVeg", -8.2, -13.3], ["rgbBare", -9.5, -17], ["rgbWater", -20, -27]],
     alos: [["rgbBuilt", -6.8, -13.7], ["rgbStrong", -2, -12], ["rgbVeg", -6.3, -11.5], ["rgbBare", -13.8, -22.5], ["rgbWater", -24, -30]],
-    nisar: [["rgbBuilt", -4.5, -11.1], ["rgbStrong", 5.3, -10.3], ["rgbVeg", -4.7, -10.2], ["rgbBare", -9.9, -16.7], ["rgbWater", -15.5, -19.8]],
+    nisar: [["rgbBuiltVeg", -4.6, -10.6], ["rgbStrong", 5.3, -10.3], ["rgbBare", -9.9, -16.7], ["rgbWater", -15.5, -19.8]], // in L-band built-up land and forest look alike (strong HV): one entry
   };
 
   /* ================= rendering of the data layers ================= */
@@ -1677,18 +1677,13 @@
         }
       }
       if (Ly.sarchange.on && ready("sarchange") && L8.sar_change[c.i]) {
-        const ch = changeOf(L8.sar_change[c.i]);
-        const chT = ch >= 3 ? (lang === "pl" ? "Nowa ściana / budowa" : "New building / wall")
-                  : ch <= -3 ? (lang === "pl" ? "Wycinka / rozbiórka" : "Clearing / demolition")
-                  : (lang === "pl" ? "Stabilne odbicie" : "Stable");
-        lines.push(`${u.L.sarchange}: ${chT} (${sgn(ch, 1)} dB)`);
+        const ch = changeOf(L8.sar_change[c.i]), r = L8.sar_dratio[c.i] ? changeOf(L8.sar_dratio[c.i]) : 0, h = u.hov; // same words and wall rule as the plain mode
+        const chT = ch >= Ly.sarchange.min ? (r >= (sar.s1.wall_db || 1.5) ? h.walls : h.brighter) : ch <= -Ly.sarchange.min ? h.darker : h.noChange;
+        lines.push(`${chT} (${sgn(ch, 1)} dB)`);
       }
       if (Ly.nisarwet.on && ready("nisarwet") && L8.nisar_wetdry[c.i]) {
-        const nw = changeOf(L8.nisar_wetdry[c.i]);
-        const nwT = nw >= 2 ? (lang === "pl" ? "Mocno nasiąka wodą" : "Heavy water soaking")
-                  : nw <= -2 ? (lang === "pl" ? "Wysycha" : "Drying")
-                  : (lang === "pl" ? "Umiarkowana wilgotność" : "Moderate moisture");
-        lines.push(`${u.L.nisarwet}: ${nwT} (${sgn(nw, 1)} dB)`);
+        const nw = changeOf(L8.nisar_wetdry[c.i]), h = u.hov;
+        lines.push(`${nw >= 2 ? h.soaks : nw <= -2 ? h.dries : h.steady} (${sgn(nw, 1)} dB)`);
       }
       if (Ly.sarwet.on && ready("sarwet") && L8.sar_wet[c.i]) lines.push(`${u.L.sarwet}: r = ${num(wetOf(L8.sar_wet[c.i]), 2)}`);
       if (Ly.sarwater.on && ready("sarwater") && L8.sar_water[c.i]) lines.push(`${u.L.sarwater}: ${num(waterOf(L8.sar_water[c.i]) * 100, 0)}%`);
@@ -2260,6 +2255,9 @@
     items.push(wf.floodShare > (wf.own ? 0 : 0.05) ? { lvl: "risk", t: p.waterT, v: wf.own ? p.waterFlood : p.waterFloodArea(pctS(wf.floodShare)), src: p.waterSrcFlood, sar: "no" }
       : wf.hollow ? { lvl: "warn", t: p.waterT, v: wf.own ? p.waterHollow(num(wf.depth, 0)) : p.waterHollowArea(pctS(wf.lowShare)), src: p.waterSrcHollow, sar: "yes" }
       : { lvl: "ok", t: p.waterT, v: p.waterOk, src: p.waterSrc, sar: "part" });
+    // 3b. what NISAR saw this summer around the place: an observation (rain, harvest and tillage together), never a flag
+    if (s && sar.nisar) items.push({ lvl: "info", t: p.nisarT, v: s.nisarOpen ? p.nisarV(pctS(s.nisarWetUp)) : p.nisarNone, sar: "yes",
+      src: p.nisarSrc(sar.nisar.track, sar.nisar.dates.length, passDate(sar.nisar.dry), passDate(sar.nisar.wet)) });
     // 4. ground motion (EGMS)
     if (s) items.push(!s.egN ? { lvl: "info", t: p.groundT, v: p.groundNone, src: p.groundSrc }
       : s.egMed <= -3 ? { lvl: "risk", t: p.groundT, v: p.groundSinks(num(Math.abs(s.egMed), 0)), src: p.groundSrc }
@@ -2506,9 +2504,9 @@
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
     const focused = card.contains(document.activeElement) ? focusKey(document.activeElement) : null;
-    card.innerHTML = `<div class="collapse-head"><h2>${t.caseTitle}</h2>
+    card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold" aria-expanded="${state.findingsOpen}">${state.findingsOpen ? u.hide : u.show}</button></div>
-      <p class="sub">${u.caseIntro}</p>
+      <p class="sub">${u.caseIntro}${sar && sar.nisar ? ` ${u.nisarLine}` : ""}</p>
       ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
       <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
@@ -2694,6 +2692,7 @@
   /* ================= i18n & wiring ================= */
   function applyLang() {
     document.documentElement.lang = lang;
+    document.title = U().docTitle;
     const t = T(), u = U();
     document.querySelectorAll("[data-i18n]").forEach((el) => { const v = u[el.dataset.i18n] ?? t[el.dataset.i18n]; if (typeof v === "string") el.textContent = v; });
     document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = u[el.dataset.i18nPh] ?? t[el.dataset.i18nPh]; });
@@ -2715,6 +2714,8 @@
       applyLang();
     }));
     $("#menu-btn").addEventListener("click", () => openDrawer($("#drawer").hidden));
+    // phones: the legend is a small key under the map views; a tap opens and closes it (styles.css, max-width 760px)
+    $("#legend").addEventListener("click", (e) => { if (innerWidth <= 760 && !e.target.closest("button")) $("#legend").classList.toggle("open"); });
     $("#theme-btn").addEventListener("click", () => setTheme(dark() ? "light" : "dark"));
     $("#drawer-close").addEventListener("click", () => openDrawer(false));
     $("#zoom-in").addEventListener("click", () => map.zoomIn());
