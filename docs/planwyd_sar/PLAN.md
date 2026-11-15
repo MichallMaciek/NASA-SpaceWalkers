@@ -97,3 +97,8 @@ Inne zmiany w `app.js` z dzisiejszego ranka (PR #24): lata 2021–2026 w widoku 
 są liczone z radaru (`web/data/sarnik/radar_lata/`). Kto uruchamia `sar-3-mapa.js`, powinien zacząć od świeżego `main`.
 
 Budżet danych: `web/data` ma teraz 32,9 MB z 40 MB.
+
+Uzupełnienie z 10:20: punkty 5 (poprawki tekstów z audytu) i 6 (`tests/data_contract.py` dla zestawów `sarnik`)
+są zrobione w PR #30, razem z wierszem NISAR w karcie, legendą na telefonie i nazwą SARnik na stronie.
+Z zadań komputera 3 zostają punkty 2 (ogólne warstwy z `meta.json`) i 4 (manifest), oba czekają na dane
+komputerów 1, 2 i 4.
