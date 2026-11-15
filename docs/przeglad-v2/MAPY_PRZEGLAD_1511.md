@@ -6,9 +6,10 @@
 > Do decyzji autorów zostają: waga zieleni na mapie oceny (6), kolor „jaśniej” w widoku wody (7), rozmycie i maska
 > prognozy (8), krycie wycinki i miejsce warstwy OPERA (9), drobne z punktu 11 oraz nazwa widoku „Place budowy 2026 (SAR)”.
 >
-> **Oś lat radaru.** O 12:38, przy przebudowie osi czasu, z widoku „Satelita NISAR” wypadła oś lat radaru (ALOS-2 2015–2021,
-> NISAR 2026) i przycisk przelotów NISAR. #48 przywrócił je tylko w tym widoku; w pozostałych została nowa reguła
-> (oś tylko w prognozie i w ubytku zieleni). Pilnuje tego test `tests/sarnik/radar_w_rdzeniu.test.mjs`, który chodzi w CI.
+> **Oś lat radaru.** Od 12:38 oś czasu jest tylko w widokach prognozy i ubytku zieleni (zmiana Szymona). W widoku
+> „Satelita NISAR” nie ma więc osi lat radaru ani przycisku przelotów NISAR. #48 przywrócił je na chwilę, #50 to cofnął:
+> zostaje wersja Szymona. Test `tests/sarnik/radar_w_rdzeniu.test.mjs` pilnuje w CI zabudowy z radaru na mapie, w karcie
+> i w prognozie; osi czasu nie pilnuje.
 
 **Jak sprawdzane.** Kod warstw i karty przeczytany, a każda warstwa przeliczona na plikach z `web/data`.
 Punkty 1, 3, 4, 5, 6, 10 i gradient z punktu 9 przeliczyłem skryptami `poznan-trend-detective/tests/nauka/mapy_*.py`,
@@ -55,7 +56,7 @@ Potem tak samo `mapy_zaglebienia_osiadanie.py` i `mapy_zaglebienia_wariant.py` (
 - Koherencja i wilgotność gleby NISAR oraz OPERA: dekodowanie, liczby w legendzie i liczniki zgadzają się z `sar.json`; komórki bez danych nie są rysowane.
 - Ubytek lasu: lata 2001–2024, hektary w karcie zgadzają się z rastrem (6183 ha wobec 6220 ha w `land.json`).
 - Legenda i podpowiedź zmiany echa NISAR mówią „deszcz, żniwa, uprawa” i nie wspominają o zalaniu.
-- Oś czasu radaru (2015–2021 i 2026, opisana przerwa 2022–2025), animacja przelotów (10 klatek), legendy NISAR.
+- Legendy NISAR. Oś lat radaru i animacja przelotów działały do 12:38; teraz nie są dostępne w aplikacji (patrz góra dokumentu).
 - Ściany w mapie, karcie i pod kursorem liczone tą samą regułą; każdy plik wymagany przez warstwy istnieje.
 - Testy w przeglądarce: 60 z 60 na `main` = 497174d (po #38 i #41), szybki zestaw 15 z 15 po #48.
 
