@@ -26,8 +26,11 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     alos: () => [...lbandNames(state.lyr.alos.y), "study"],
     nisarwet: () => ["nisar_wetdry", "study"],
     score: () => ["study", "prob_2030", "forest2000_frac", "built_2025", "dem", ...(sar ? ["sar_egms", "sar_change"] : [])],
+    nisarcoh: () => ["nisar_coh", "study"],
+    nisarsm: () => [state.lyr.nisarsm.d === "0625" ? "nisar_sm_0625" : "nisar_sm_0824", "study"],
+    dist: () => ["dist_forest", "study"],
   };
-  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
+  const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) || (ZIP_OF[k] && !zipOk(k)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
     `alos_hv_${sar.alos.years[0]}`, `alos_hv_${sar.alos.years[sar.alos.years.length - 1]}`, ...(sar.nisar ? ["nisar_wetdry", "nisar_series"] : [])] : []);
   // decoders (sar.json "decode")

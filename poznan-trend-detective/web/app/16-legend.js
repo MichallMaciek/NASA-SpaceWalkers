@@ -28,6 +28,12 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
     if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
+    if (sar && sar.zips) {
+      const z = sar.zips, lz = u.lg;
+      if (L_.nisarcoh.on && z.coh) blocks.push(`<div class="lt">${lz.nisarcoh}</div>${ramp_(RAMPS.coh, lz.cohLow, lz.cohHigh)}<div class="lrow">${lz.cohNote(z.coh.pairs.length)}</div>`);
+      if (L_.nisarsm.on && z.sme) blocks.push(`<div class="lt">${lz.nisarsm(L_.nisarsm.d === "0625" ? "25.06" : "24.08")}</div>${ramp_(RAMPS.wet, "0,10", "0,40 m³/m³")}<div class="lrow">${lz.smNote}</div>`);
+      if (L_.dist.on && z.dist) blocks.push(`<div class="lt">${lz.dist}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[1]}"></span>${lz.distHi}</div><div class="lrow"><span class="sw" style="background:${RAMPS.dist[0]}"></span>${lz.distLo}</div><div class="lrow">${lz.distNote}</div>`);
+    }
     if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
     if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));
     if (L_.activity.on) blocks.push(`<div class="lt">${u.lg.activity}</div><div class="lrow"><span class="sw" style="background:${css("--c-terrain")}"></span>${u.lg.brighter}</div><div class="lrow"><span class="sw" style="background:#7A6FB0"></span>${u.lg.darker}</div>`);
