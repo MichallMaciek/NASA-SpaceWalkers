@@ -14,8 +14,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // half of it is not drawn (never as good or bad; the tooltip says "no data"). One cell alone never colours a hexagon (at least 2).
   const HEX_KEYS = ["built", "forest", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score", "flood"]; // bottom to top
   const HEX_S3 = Math.sqrt(3);
-  // flat-to-flat width in metres on the ground, by zoom: about 230, 40 and 10 cells of 120 m (73 m on the ground here)
-  const hexSizeFor = (z) => (z <= 11 ? 1200 : z <= 13 ? 500 : 250);
+  // flat-to-flat width in metres on the ground, one step per zoom level (about 1.4x), so a hexagon stays 13-125 px wide on
+  // screen: from about 1000 cells of 120 m (73 m on the ground here) for the whole region to 5 at street level, never fewer
+  const HEX_STEPS = [[9, 2400], [10, 1600], [11, 1100], [12, 750], [13, 500], [14, 350], [15, 250]];
+  const hexSizeFor = (z) => { for (const [zz, m] of HEX_STEPS) if (z <= zz) return m; return 180; };
   const hexZoom = () => (map ? Math.round(map.getZoom()) : 11); // the zoom GridLayer draws its tiles at (11: the opening view)
   const HEX_MIN = 2; // cells: one cell alone (speckle, a stray point) never colours a hexagon
   const HEX_COVER = 0.5; // share of the hexagon with data below which it is not drawn
@@ -23,7 +25,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   const hexGrids = {};
   // cell -> hexagon index for one size, made once and kept (Int32Array, -1 = outside the study area)
   function hexGrid(m) {
-    if (hexGrids[m]) return hexGrids[m];
+    if (hexGrids[m]) { hexGrids[m].used = performance.now(); return hexGrids[m]; }
+    // keep the four sizes used last (3.4 MB of index each, plus their caches); the rest are made again when needed
+    const kept = Object.values(hexGrids).sort((x, y) => y.used - x.used);
+    kept.slice(3).forEach((g) => delete hexGrids[g.m]);
     const w = land.width, h = land.height, st = L8.study, R = m / land.cell_m_ground / HEX_S3;
     const cols = Math.ceil(w / (R * HEX_S3)) + 3, rows = Math.ceil(h / (1.5 * R)) + 2, K = rows * cols;
     const idx = new Int32Array(w * h).fill(-1), cnt = new Uint16Array(K), ok = new Uint8Array(K);
@@ -36,7 +41,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     }
     const half = 0.5 * 1.5 * HEX_S3 * R * R; // half of the hexagon's area, in cells
     for (let k = 0; k < K; k++) ok[k] = cnt[k] >= half ? 1 : 0;
-    return (hexGrids[m] = { m, R, cols, rows, K, idx, cnt, ok, cache: {} });
+    return (hexGrids[m] = { m, R, cols, rows, K, idx, cnt, ok, cache: {}, used: performance.now() });
   }
   // the hexagon holding the point (u, v) of the 120 m grid (column, row; cell centres at +0.5); -1 off the grid
   function hexIdAt(R, cols, rows, u, v) {
