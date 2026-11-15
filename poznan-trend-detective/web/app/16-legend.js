@@ -42,7 +42,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (L_.nisar.on) blocks.push(`<div class="lt">${u.lg.nisar(NISAR_DATES[L_.nisar.i] || "")}</div><div class="lrow">${u.lg.nisarNote}</div>`);
     ["night", "day", "ndvi"].forEach((k) => { if (L_[k].on) { const P = PIXEL[k]; blocks.push(`<div class="lt">${u.L[k]}</div>${ramp_([...P.neg].reverse().concat([css("--ns")], P.pos), sgn(-P.max, P.max < 1 ? 2 : 1), sgn(P.max, P.max < 1 ? 2 : 1))}<div class="lrow"><span class="sw" style="background:${css("--ns")}"></span>${T().notSig}</div>`); } });
     if (L_.nightyear.on) blocks.push(`<div class="lt">${u.lg.nightyear(heatYear())}</div>${ramp_(RAMPS.heat, "10 °C", "20 °C")}`);
-    if (L_.score && L_.score.on) blocks.push(`<div class="lt">${u.lgScore || "Ocena działki"}</div>${ramp_(RAMPS.score, u.lgScoreRisk || "Ryzyko", u.lgScoreGood || "Zalety")}`);
+    if (L_.score && L_.score.on) blocks.push(`<div class="lt">${u.lgScore || "Ocena działki"}</div>${ramp_(RAMPS.score, u.lgScoreRisk || "Ryzyko", u.lgScoreGood || "Zalety")}${u.lgScoreNote ? `<div class="lrow">${u.lgScoreNote}</div>` : ""}`);
     const boot = BOOT[lang] || BOOT.pl;
     layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");

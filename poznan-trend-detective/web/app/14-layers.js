@@ -187,13 +187,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         put(i, [L[j], L[j + 1], L[j + 2]], 170 + t * 80);
       }
     } else if (k === "score") {
-      const p30 = L8.prob_2030, ff = L8.forest2000_frac, b25 = L8.built_2025;
+      const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
       const eg = L8.sar_egms, sc = L8.sar_change, lut = lutFor(RAMPS.score);
       const w = land.width, [trA, , trC, , trE, trF] = land.transform3857;
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
         let s = 68;
-        if (ff && ff[i]) s += (ff[i] / 255) * 25;
+        if (ff && ff[i]) s += (Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255) * 25; // forest that still stands: the 2000 share minus what was lost since
         if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 20;
         if (b25 && b25[i] > 120) s -= 6;
         if (eg && eg[i]) {

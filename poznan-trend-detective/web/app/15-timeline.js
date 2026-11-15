@@ -66,7 +66,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     $("#tl-pred").style.left = `${(nowP + 100) / 2}%`;
     $("#tl-year").textContent = state.year;
     $("#tl-kind").textContent = state.lens === "water"
-      ? (lang === "pl" ? "Woda i podtopienia (PIG-PIB) · w lecie wilgotność gleby spada o 40% (NISAR 2026)" : "Flood risk & water (PIG-PIB) · summer drying drops soil moisture ~40% (NISAR 2026)")
+      ? (lang === "pl" ? "Woda i podtopienia (PIG-PIB) · zmiana echa NISAR od czerwca do sierpnia 2026 (deszcz, żniwa, uprawa)" : "Flood areas & water (PIG-PIB) · NISAR echo change June → August 2026 (rain, harvest, tillage)")
       : state.lens === "build"
       ? (lang === "pl" ? "Place budowy SAR · zmiany ścian i geometrii w 2026 r." : "SAR construction sites · active wall & geometry changes in 2026")
       : state.lens === "ground"
