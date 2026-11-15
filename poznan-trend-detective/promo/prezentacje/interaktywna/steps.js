@@ -85,7 +85,7 @@ window.STEPS = [
     note: "Radar mierzy też ruch gruntu. Zwykle zero, ale około 50 miejsc osiada o 5 milimetrów rocznie lub szybciej. Tam pękają domy." },
 
   { kind: "shot", img: "historia", layout: "full", view: [400, 60, 1520, 1020],
-    title: "Co powstanie obok do 2035", sub: "Mapa ze zdjęć kończy się na 2020 r. Potem patrzy radar: 1839 ha nowej zabudowy z 265 przelotów z 12 lat. Dalej prognoza, sprawdzona na 2015–2020: 56,4% trafień. To ranking, nie wyrok.",
+    title: "Co powstanie obok do 2035", sub: "Mapa ze zdjęć kończy się na 2020 r. Potem patrzy radar: 1839 ha nowej i gęstszej zabudowy z 265 przelotów z 12 lat. Dalej prognoza, sprawdzona na 2015–2020: 56,4% trafień. To ranking, nie wyrok.",
     note: "A co powstanie obok? Mapa ze zdjęć kończy się w 2020 roku. Potem patrzy radar: w 265 przelotach widzi ponad 1800 hektarów nowej zabudowy. Dalej jest prognoza, 56 procent trafień. To ranking, nie wyrok." },
 
   { kind: "shot", img: "app", layout: "full", view: [10, 640, 1000, 440], focus: [16, 766, 268, 172],

@@ -96,6 +96,12 @@ w 2026 r.), więc regułę zaostrzyliśmy. Wyniki pierwszej wersji: `metoda_2015
 | Poznań (miasto) | 76 | 70 | 87 | 84 | 91 | 90 | 78 | 65 | 81 | 33 | 46 |
 
 - Po 2020 r. radar widzi **1839 ha** nowej zabudowy w obszarze badań, z tego **393 ha** w Poznaniu.
+- **Dopisek, 15.11, 12:10.** Z tych 1839 ha 1379 ha (2573 komórki) leży tam, gdzie mapa optyczna z 2020 r. miała
+  poniżej 15% zabudowy. Pozostałe 460 ha (859 komórek, 25%) to komórki, które mapa optyczna miała już jako
+  zabudowane, prawie wszystkie w przedziale 15–30%: radar widzi tam dogęszczenie, a nie zabudowę na pustym
+  terenie. W latach 2016–2020 ten udział był jeszcze większy (47% względem mapy z 2015 r.), bo radar uznaje
+  komórkę za zabudowaną przy gęstszej zabudowie niż próg 15% mapy optycznej. Uczciwe sformułowanie:
+  „1839 ha nowej i gęstszej zabudowy”, a jako ściśle nową podawać 1379 ha.
 - To ok. 306 ha rocznie. Mapa optyczna przybywała w latach 2015–2020 po ok. 580 ha rocznie
   (w mieście ok. 107 ha). Radar w tym samym okresie 2016–2020 daje ok. 411 ha rocznie.
   Radar jest więc ostrożniejszy niż mapa optyczna (ok. 0,7 jej tempa), a nie luźniejszy.
