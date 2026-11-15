@@ -1893,7 +1893,7 @@
     sel.failed = false;
     renderCardLoading();
     // a layer failed (flaky network, missing file): renderCardLoading then says so and offers a retry
-    try { await Promise.all([loadGrids(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
+    try { await Promise.all([loadGrids(), loadRadarYears(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }
     if (state.sel !== sel) return;
     // the 1 km MODIS squares under the place (heat and greenness rows of the card): all squares whose centre lies in a
     // drawn area, otherwise the one square that holds the point (or the area's centre)
@@ -1911,6 +1911,15 @@
   const cellHa = () => (land.cell_m_ground ** 2) / 1e4;
   function builtShare(cells, year) { const a = L8[`built_${year}`], t = THR(); return cells.length ? (cells.filter((i) => a[i] >= t).length / cells.length) * 100 : NaN; }
   function builtSeriesAll(cells) { return EPOCHS().map((y) => builtShare(cells, y)); }
+  // radar: the cell is first seen built in 2021..2026 (null-safe: false without the radar layer)
+  const radarBuilt = (i) => { const fy = radarFirst(); return !!fy && fy[i] > LAST_OBS() - 2000; };
+  // built-up share 2020..today with radar: built in the optical 2020 map or first seen built by radar in 2021..y; null without radar
+  function radarShares(cells) {
+    const fy = radarFirst(), a = L8[`built_${LAST_OBS()}`], t = THR(), out = [];
+    if (!fy || !cells.length) return null;
+    for (let y = LAST_OBS(); y <= NOW_YEAR; y++) out.push((cells.filter((i) => a[i] >= t || (fy[i] > LAST_OBS() - 2000 && fy[i] <= y - 2000)).length / cells.length) * 100);
+    return out;
+  }
   // forest lost 2001..upTo: cumulative loss shares exported for 2005/2010/2015/2020/2024, linear in between
   const LOSS_CUM = [2000, 2005, 2010, 2015, 2020, 2024];
   const lossCum = (y) => (y === 2000 ? null : y === 2024 ? L8.loss_frac : L8[`loss_cum_${y}`]);
@@ -1929,7 +1938,7 @@
   }
   function riskOf(cells) {
     const thr = THR(), p = L8.prob_2030, b25 = L8.built_2025;
-    const open = cells.filter((i) => b25[i] < thr);
+    const open = cells.filter((i) => b25[i] < thr && !radarBuilt(i)); // with radar: land it still sees open
     if (!open.length) return null;
     const chance = mean(open.map((i) => (p[i] / 255) ** 2));
     // Score on an absolute, logarithmic scale of the 5-year chance: 0.1 % -> 0, 30 % -> 100.
@@ -2083,7 +2092,10 @@
     // building
     const series = builtSeriesAll(sel.cells), ep = EPOCHS();
     // any year: blend the two surrounding 5-year epochs (the timeline moves year by year)
-    const share = (y) => { const { e0, e1, t } = epochPair(y), a = series[ep.indexOf(e0)], b = series[ep.indexOf(e1)]; return a + (b - a) * t; };
+    const blend = (y) => { const { e0, e1, t } = epochPair(y), a = series[ep.indexOf(e0)], b = series[ep.indexOf(e1)]; return a + (b - a) * t; };
+    // with radar: 2021..today as radar saw it, later years the model's growth counted from today's radar state
+    const rs = radarShares(sel.cells), off = rs ? rs[rs.length - 1] - blend(NOW_YEAR) : 0;
+    const share = (y) => (!rs || y <= LAST_OBS() ? blend(y) : y <= NOW_YEAR ? rs[y - LAST_OBS()] : blend(y) + off);
     const base = 1990;
     // change in percentage points: a relative change explodes from small bases (one built cell -> "+5000%")
     let builtV, builtNote;
@@ -2109,7 +2121,7 @@
     // chip in forecast mode
     const chip = fut ? `<span class="chip">${u.chip(num(land.model.top_n_hit_rate * 100, 0))}</span>` : "";
     // chart
-    const chart = miniChart(series, ep, Y);
+    const chart = miniChart(rs ? series.map((v, k) => (ep[k] > NOW_YEAR ? v + off : v)) : series, ep, Y, rs, share);
     // wage ratio footnote
     const wage = priceSeries(unitFor(sel), "64428"), pz = priceSeries(unitFor(sel), "633677");
     const wy = [2024, 2023].find((y) => wage[y] && pz[y]);
@@ -2131,13 +2143,13 @@
       <p class="sub tech-sub">${range}</p>
       ${sar && L8.sar_series ? radarBlock(sel) : ""}
       ${skCardTop(sel)}
-      ${sar ? `<div class="hist-h">${u.histHead}</div>` : ""}${chip}
+      ${sar ? `<div class="hist-h">${rs ? u.histHeadRadar : u.histHead}</div>` : ""}${chip}
       <div class="rows">
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-built")}"></span>${u.rowBuilt}</span><span class="v">${builtV}<small>${builtNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-forest")}"></span>${u.rowForest}</span><span class="v">${forestV}<small>${forestNote}</small></span></div>
         <div class="row"><span class="k"><span class="dot" style="background:${css("--c-price")}"></span>${u.rowPrice}</span><span class="v">${priceV}<small>${priceNote}</small></span></div>
       </div>
-      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}</div>
+      <div class="minichart"><div class="mh"><span>${u.builtShare}</span><span>${land.epochs[0]}–${end}</span></div>${chart}${rs ? `<div class="mh"><span style="color:${css("--c-radar")}">${u.lg.radarNew(LAST_OBS() + 1, NOW_YEAR)}</span></div>` : ""}</div>
       ${foot ? `<p class="foot">${foot}</p>` : ""}
       ${risk}
       ${more}
@@ -2175,6 +2187,8 @@
     items.push(!rk ? { lvl: "ok", t: p.nextT, v: p.nextBuilt, src: p.nextSrc }
       : rk.level >= 4 ? { lvl: "warn", t: p.nextT, v: p.nextHigh(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc }
       : rk.level === 3 ? { lvl: "info", t: p.nextT, v: p.nextMid(num(rk.chance * 100, 0), rk.pct), src: p.nextSrc } : { lvl: "ok", t: p.nextT, v: p.nextLow, src: p.nextSrc });
+    const rHa = sel.cells.filter((i) => L8.built_2025[i] < THR() && radarBuilt(i)).length * cellHa(); // open for the forecast, built for radar
+    if (rHa > 0) { const it = items[items.length - 1]; it.v += ` ${p.nextRadar(num(rHa, rHa < 10 ? 1 : 0))}`; it.src += p.nextSrcRadar; it.sar = "part"; }
     // 3. water: official groundwater-flood areas and hollows. The NISAR June -> August change mixes rain with
     //    harvest and tillage, so it is not a water verdict (science review N44); it stays on the map and in the details.
     const wf = waterFacts(sel);
@@ -2291,21 +2305,23 @@
     }).join("")}<p class="ck-note">${c.note}</p></div>`;
   }
 
-  function miniChart(series, years, cur) {
-    const W = 340, H = 64, ok = series.filter((v) => isFinite(v));
+  // rs: built-up share 2020..today with radar (radarShares), drawn as its own line; the forecast then starts from it; at(y): the card's share
+  function miniChart(series, years, cur, rs, at) {
+    const W = 340, H = 64, ok = series.filter((v, k) => isFinite(v) && !(rs && years[k] > LAST_OBS() && years[k] <= NOW_YEAR)).concat(rs || []);
     const lo = Math.min(...ok), hi = Math.max(...ok), pad = (hi - lo) * 0.15 || 1;
     const x = (y) => ((y - years[0]) / (years[years.length - 1] - years[0])) * W, y = (v) => H - ((v - lo + pad) / (hi - lo + 2 * pad)) * H;
     const obsN = land.epochs.length, end = horizonEnd();
     let d1 = "", d2 = "";
     years.forEach((yr, k) => { if (!isFinite(series[k]) || yr > end) return; if (k < obsN) d1 += `${d1 ? "L" : "M"}${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
-    d2 = `M${x(years[obsN - 1]).toFixed(1)},${y(series[obsN - 1]).toFixed(1)}`;
-    years.forEach((yr, k) => { if (k >= obsN && yr <= end) d2 += `L${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
+    d2 = rs ? `M${x(NOW_YEAR).toFixed(1)},${y(rs[rs.length - 1]).toFixed(1)}` : `M${x(years[obsN - 1]).toFixed(1)},${y(series[obsN - 1]).toFixed(1)}`;
+    years.forEach((yr, k) => { if (k >= obsN && yr <= end && (!rs || yr > NOW_YEAR)) d2 += `L${x(yr).toFixed(1)},${y(series[k]).toFixed(1)}`; });
+    const d3 = rs ? rs.map((v, k) => `${k ? "L" : "M"}${x(LAST_OBS() + k).toFixed(1)},${y(v).toFixed(1)}`).join("") : "";
     const { e0, e1, t } = epochPair(cur), k0 = years.indexOf(e0), k1 = years.indexOf(e1);
-    const cv = k0 >= 0 && k1 >= 0 ? series[k0] + (series[k1] - series[k0]) * t : NaN, cy = isFinite(cv) ? y(cv) : null, pred = css("--pred");
+    const cv = at ? at(cur) : k0 >= 0 && k1 >= 0 ? series[k0] + (series[k1] - series[k0]) * t : NaN, cy = isFinite(cv) ? y(cv) : null, pred = css("--pred");
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
       <line x1="${x(land.epochs[obsN - 1])}" x2="${x(land.epochs[obsN - 1])}" y1="0" y2="${H}" stroke="${css("--line")}" stroke-width="1"/>
       <path d="${d1}" fill="none" stroke="${css("--ink")}" stroke-width="2"/>
-      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>
+      <path d="${d2}" fill="none" stroke="${pred}" stroke-width="2" stroke-dasharray="4 4"/>${d3 ? `<path d="${d3}" fill="none" stroke="${css("--c-radar")}" stroke-width="2"/>` : ""}
       ${cy != null ? `<circle cx="${x(cur)}" cy="${cy}" r="4.5" fill="${css("--card")}" stroke="${cur > NOW_YEAR ? pred : css("--ink")}" stroke-width="2"/>` : ""}
     </svg>`;
   }

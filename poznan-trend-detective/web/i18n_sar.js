@@ -81,13 +81,13 @@
   Object.assign(pl, {
     secRadar: "RADAR 2026 (NISAR, SENTINEL-1)", secGround: "GRUNT I PASMO L", secHistory: "HISTORIA I PROGNOZA",
     minDb: "Minimalna zmiana", minWater: "Minimum przelotów „jak woda”", minMove: "Minimalny ruch", alosYear: "Rok", yr: "rok",
-    noPoints: "brak punktów pomiarowych", histHead: "Historia i prognoza (Landsat, model)",
+    noPoints: "brak punktów pomiarowych", histHead: "Historia i prognoza (Landsat, model)", histHeadRadar: "Historia i prognoza (Landsat, radar od 2021 r., model)",
     rawRadarData: "Surowe dane radarowe i przeloty NISAR (dla ekspertów)",
   });
   Object.assign(en, {
     secRadar: "RADAR 2026 (NISAR, SENTINEL-1)", secGround: "GROUND AND L-BAND", secHistory: "HISTORY AND PROJECTION",
     minDb: "Minimum change", minWater: "Minimum passes “like water”", minMove: "Minimum motion", alosYear: "Year", yr: "yr",
-    noPoints: "no measurement points", histHead: "History and projection (Landsat, model)",
+    noPoints: "no measurement points", histHead: "History and projection (Landsat, model)", histHeadRadar: "History and projection (Landsat, radar from 2021, model)",
     rawRadarData: "Raw radar measurements and NISAR passes (expert view)",
   });
   Object.assign(pl.L, { s1rgb: "Radar 2026: obraz", sarchange: "Radar 2026: zmiana", sarwet: "Reakcja na wilgoć", sarwater: "Woda w radarze", egms: "Ruch gruntu (InSAR)", alos: "Pasmo L: ALOS-2" });
@@ -324,6 +324,8 @@
     nextLow: "Raczej nic dużego tu nie powstanie w ciągu 5 lat.",
     nextBuilt: "Okolica jest już zabudowana, wolnego terenu prawie nie ma.",
     nextSrc: "Nasza prognoza (Landsat; uczona na latach 2005–2015, sprawdzona na 2015–2020)",
+    nextRadar: (ha) => `Radar widzi już zabudowę po 2020 r. na ${ha} ha terenu, który prognoza liczyła jako wolny.`,
+    nextSrcRadar: "; wolny teren sprawdzony radarem (Sentinel-1, NISAR, 2026)",
     waterT: "Woda",
     waterFlood: "Miejsce leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.",
     waterFloodArea: (p) => `${p}% terenu leży w strefie zagrożonej podtopieniami. Zapytaj o wody gruntowe i izolację piwnicy.`,
@@ -368,6 +370,8 @@
     nextLow: "Nothing big is likely to go up here within 5 years.",
     nextBuilt: "The area is already built up; there is hardly any open land.",
     nextSrc: "Our projection (Landsat; trained on 2005–2015, tested on 2015–2020)",
+    nextRadar: (ha) => `Radar already sees building since 2020 on ${ha} ha of the land the forecast counted as open.`,
+    nextSrcRadar: "; open land checked by radar (Sentinel-1, NISAR, 2026)",
     waterT: "Water",
     waterFlood: "This spot lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.",
     waterFloodArea: (p) => `${p}% of the land lies in an area at risk of groundwater flooding. Ask about groundwater and basement waterproofing.`,
