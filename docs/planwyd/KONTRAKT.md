@@ -53,6 +53,7 @@ window.SARNIK = {
 | `onSelect` | `(sel, ctx) => void` | raz na wybór miejsca, po przygotowaniu `sel.cells` |
 | `checks` | `(sel, ctx) => item \| item[] \| null` | przy każdym rysowaniu karty (także przy zmianie roku), synchronicznie |
 | `cardTop` | `(sel, ctx) => string` | przy każdym rysowaniu karty; HTML wstawiany pod blokiem radarowym |
+| `overlay` | `{ wms, layers, minZoom, attribution }` | przy rejestracji: rdzeń dodaje przezroczystą warstwę WMS (tylko `https://`, wersja 1.3.0, EPSG:3857), widoczną od `minZoom` (domyślnie 16); przykład: granice działek GUGiK w module `dzialka` |
 
 Zasady:
 - `checks` i `cardTop` **nigdy nie pobierają danych**. Czytają tylko `sel.ext` i dane już załadowane. Pobieranie zaczyna się w `onSelect`.
@@ -114,6 +115,7 @@ Pola, na których moduł może polegać:
 | `loadJSON(path)` | `Promise`: ładuje `data/<path>` z wersją w adresie; wynik jest zapamiętany |
 | `fetchOnce(sel, key, fn, ms = 6000)` | patrz niżej |
 | `rerender()` | rysuje kartę ponownie, jeśli `sel` jest nadal wybrany |
+| `outline(sel, ring)` | rysuje na mapie obrys (pierścień `[[lat, lng], ...]`, np. granicę działki), jeśli `sel` jest nadal wybrany; znika przy następnym wyborze. Może go nie być (starszy rdzeń): sprawdzaj `if (ctx.outline)` |
 
 ### `fetchOnce`
 

@@ -436,6 +436,7 @@
     register(name, def) {
       if (typeof name !== "string" || !name) { console.warn("SARnik: register() needs a module name"); return; }
       SK.modules[name] = def || {};
+      skOverlay(name);
       const sel = state.sel; // a module that loads after a place was picked still gets its onSelect
       if (!skShown(sel)) return;
       if (SK.modules[name].onSelect) skGuard(name, "onSelect", () => SK.modules[name].onSelect(sel, skCtx));
@@ -481,7 +482,22 @@
       Promise.race([work, timeout]).then((res) => { clearTimeout(timer); sel.ext[key] = res; if (state.sel === sel) skCtx.rerender(); });
     },
     rerender() { if (state.sel && state.sel.ready) renderCard(); },
+    // outline of a plot (a ring of [lat, lng]) for this selection, under the pin; the next pick clears it
+    outline(sel, ring) {
+      if (state.sel !== sel || !selLayer || !Array.isArray(ring) || ring.length < 3) return;
+      L.polygon(ring, { pane: "sel", interactive: false, color: HALO(), weight: 5, fill: false, lineJoin: "round" }).addTo(selLayer);
+      L.polygon(ring, { pane: "sel", interactive: false, color: css("--area"), weight: 2, fillColor: css("--area"), fillOpacity: 0.14, lineJoin: "round" }).addTo(selLayer);
+    },
   };
+  // def.overlay = { wms, layers, minZoom, attribution }: a transparent WMS layer of the module, shown only from minZoom
+  const skOverlays = {};
+  function skOverlay(name) {
+    const o = (SK.modules[name] || {}).overlay;
+    if (!map || !o || typeof o.wms !== "string" || !/^https:\/\//.test(o.wms) || skOverlays[name]) return;
+    if (!map.getPane("skOverlay")) { map.createPane("skOverlay"); map.getPane("skOverlay").style.zIndex = 640; map.getPane("skOverlay").style.pointerEvents = "none"; }
+    skOverlays[name] = L.tileLayer.wms(o.wms, { layers: String(o.layers || ""), styles: "", format: "image/png", transparent: true, version: "1.3.0",
+      minZoom: o.minZoom || 16, maxZoom: 19, opacity: 0.75, pane: "skOverlay", attribution: o.attribution || "" }).addTo(map);
+  }
   function skSelect(sel) {
     sel.ext = sel.ext || {};
     skOrder().forEach((name) => { const d = SK.modules[name]; if (d.onSelect) skGuard(name, "onSelect", () => d.onSelect(sel, skCtx)); });
@@ -780,6 +796,7 @@
     choroLayer = L.geoJSON(areas, { interactive: false, pane: "land", style: () => ({ stroke: false, fillOpacity: state.lyr.price.op, fillColor: "#ccc" }) });
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
+    Object.keys(SK.modules).forEach(skOverlay); // modules that registered before the map existed
     floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
     // fit the 18 municipalities first, without animation, and only then add the base map: it then asks for the tiles of
     // the opening view only (an animated fit made it fetch the tiles of the provisional view as well)

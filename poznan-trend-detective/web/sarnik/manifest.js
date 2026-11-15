@@ -4,4 +4,4 @@
 // Add a module only when its files are in main, e.g.:
 //   window.SARNIK_MODULES = ["flood", "landslide", "wuia"];
 // An empty list means no modules: the app works exactly as without this file.
-window.SARNIK_MODULES = [];
+window.SARNIK_MODULES = ["dzialka"];

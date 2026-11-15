@@ -10,6 +10,7 @@ export function createCore(opts = {}) {
   let lang = opts.lang || 'pl'
   const warnings = []
   const waiting = []
+  const outlines = []
   let rerenders = 0
   let current = null
 
@@ -74,6 +75,7 @@ export function createCore(opts = {}) {
       waiting.push(done)
     },
     rerender() { rerenders++ },
+    outline(sel, ring) { if (sel === current) outlines.push({ sel, ring }) },
   }
 
   const guard = (name, what, fn) => {
@@ -84,6 +86,7 @@ export function createCore(opts = {}) {
     SARNIK,
     ctx,
     warnings,
+    outlines,
     setLang(l) { lang = l },
     get rerenders() { return rerenders },
     // wybór miejsca: jak finishSelection w aplikacji

@@ -79,3 +79,9 @@ jobs:
       - name: Place-card module contract self-test
         if: success() || failure()
         run: node docs/planwyd/kontrakt/selftest.mjs
+
+      - name: Place-card module tests (tests/sarnik/*.test.mjs)
+        if: success() || failure()
+        run: |
+          set -e
+          for t in poznan-trend-detective/tests/sarnik/*.test.mjs; do echo "== $t"; node "$t"; done
