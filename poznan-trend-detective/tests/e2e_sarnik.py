@@ -571,8 +571,8 @@ async def s3_radar_keyboard(run, b, lang, vp):
         await set_lens(pg, "radar")  # v4: the radar axis is in the NISAR view
         st = await tl_state(pg)
         if not st["radar"]:
-            check(not await pg.locator("#lenses [data-lens=radar]").count(), "the NISAR view has no radar time line")
-            return errs, "no radar axis in this version (skipped)", {}
+            # since 15.11 (team decision) the time line is only in the forecast and tree-loss views
+            return errs, "the NISAR view has no time line in this version (skipped)", {}
         await pg.focus("#year")
         seq = []
         for _ in range(3):
@@ -961,6 +961,9 @@ async def s3_passes(run, b, lang, vp):
         except Exception:
             pass
         btn = pg.locator("#tl-pass")
+        if await pg.evaluate("document.body.classList.contains('no-tl')"):
+            # since 15.11 (team decision) the time line is only in the forecast and tree-loss views, so the passes cannot be opened
+            return errs, "the NISAR view has no time line in this version (skipped)", {}
         exp_open, exp_close, hh_tail = await i18n(pg, "[U.passOpen, U.passClose, U.passKind('\\u0001', true).split('\\u0001')[1]]")
         check(await btn.count() and await btn.is_visible(), f"no visible {exp_open!r} link on the NISAR time line")
         check(await btn.get_attribute("aria-label") == exp_open, f"pass link is labelled {await btn.get_attribute('aria-label')!r}, expected {exp_open!r}")
