@@ -78,3 +78,22 @@ Agenci w workflow nie robią commitów. Gałąź, commit i PR robi osoba przy ko
 | **do 13:30** | PR 3 jako ostatni: włącza moduły w `manifest.js` (`flood`, `landslide`, `{name:"wuia", css:true}`, `nisar_zmiany`, `nisar_polaryzacje`, `nisar_wilgoc`, `historia_l`, `opera_dist`) i pokazuje nowe warstwy. Warstwa bez swojego `meta.json` się nie pokazuje, więc kolejność scalania niczego nie psuje |
 | **14:00** | bramka: test w przeglądarce na złożonej całości. Potem wdrożenie na Firebase (robi właściciel projektu) |
 | **16:00** | koniec zmian w aplikacji |
+
+## Dopisek wajlk, 15.11.2026, 09:30: co z zadań komputera 3 jest już w `main`
+
+Nikt nie zaczął jeszcze zadań z tego planu, a animacja przelotów NISAR jest najbliżej tego, o co prosi wyzwanie,
+więc zrobiłem ją osobno (PR #28). Żeby nikt nie robił tego drugi raz:
+
+| Punkt zadań komputera 3 (`sar-3-mapa.js`) | Stan |
+|---|---|
+| 1. Kontrakt 1.1: `ctx.loadGray(name, dir)` | **zrobione** (#28) |
+| 2. Ogólne warstwy z `web/data/sarnik/<zestaw>/meta.json` | do zrobienia |
+| 3. Animacja przelotów NISAR (`pipeline/sar_animacja.py`, `web/data/sarnik/anim/`) | **zrobione** (#28): 10 przelotów toru 57, 1,45 MB |
+| 4. Manifest z modułami komputerów 1, 2 i 4 | do zrobienia; dziś w manifeście są `dzialka` i `radar_lata` |
+| 5. Poprawki tekstów z audytu (punkty 6 i 7) | do zrobienia |
+| 6. `tests/data_contract.py` dla zestawów `sarnik` | do zrobienia |
+
+Inne zmiany w `app.js` z dzisiejszego ranka (PR #24): lata 2021–2026 w widoku „Historia”, w karcie i w prognozie
+są liczone z radaru (`web/data/sarnik/radar_lata/`). Kto uruchamia `sar-3-mapa.js`, powinien zacząć od świeżego `main`.
+
+Budżet danych: `web/data` ma teraz 32,9 MB z 40 MB.
