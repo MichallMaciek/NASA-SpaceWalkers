@@ -73,7 +73,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#9CC6EC", "#2F7FCC"], dry: ["#EDC45A", "#B7801A"], wetS1: ["#9CC6EC", "#3F8FD6", "#155FA8"],
       water: ["#9ED0F5", "#3C93DE", "#0B4A8C"],
       sink: ["#F2A07B", "#D9572F", "#9E2A12"], stable: "#AFC2B6", rise: "#4A90D9",
-      flood: "#1F6FBF", edge: "rgba(255,255,255,0.6)", fill: 0.46,
+      flood: "#1F6FBF", edge: "rgba(255,255,255,0.45)", fill: 0.38,
     },
     dark: {
       score: ["#F26B35", "#B87650", "#5A6066", "#3F9C80", "#4FD8AE"],
@@ -83,7 +83,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       wet: ["#3A6E9E", "#7FC0FF"], dry: ["#8F7426", "#E5BE4E"], wetS1: ["#2F5F8F", "#3F8FD6", "#7FC0FF"],
       water: ["#24527F", "#2F7FD0", "#7CC4FF"],
       sink: ["#8C3A22", "#D9572F", "#FF7A50"], stable: "#4C5A52", rise: "#5DA8F0",
-      flood: "#5FA8EE", edge: "rgba(255,255,255,0.22)", fill: 0.44,
+      flood: "#5FA8EE", edge: "rgba(255,255,255,0.16)", fill: 0.36,
     },
   };
   const hexPal = () => HEX_PAL[dark() ? "dark" : "light"];
@@ -422,6 +422,11 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     ctx.lineJoin = "round";
     for (const l of lay) {
       const cl = HEX[l.k].classes();
+      // a slight blend between neighbours: each hexagon's colour spills a little over its edge, faintly, under the fills
+      if (l.mark !== "ring" && Rp >= 5) l.paths.forEach((p, k) => {
+        if (!p || !cl[k]) return;
+        ctx.globalAlpha = (cl[k].a || P.fill) * l.op * 0.3; ctx.strokeStyle = cl[k].c; ctx.lineWidth = Rp * 0.35; ctx.stroke(p);
+      });
       l.paths.forEach((p, k) => {
         if (!p || !cl[k]) return;
         if (l.mark === "ring") {
@@ -429,7 +434,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
           return;
         }
         ctx.globalAlpha = (cl[k].a || P.fill) * l.op; ctx.fillStyle = cl[k].c; ctx.fill(p);
-        if (edges) { ctx.globalAlpha = 1; ctx.strokeStyle = P.edge; ctx.lineWidth = l.mark === "inset" ? 0.75 : 1; ctx.stroke(p); }
+        if (edges) { ctx.globalAlpha = 1; ctx.strokeStyle = P.edge; ctx.lineWidth = l.mark === "inset" ? 0.6 : 0.8; ctx.stroke(p); }
       });
     }
     ctx.globalAlpha = 1;
