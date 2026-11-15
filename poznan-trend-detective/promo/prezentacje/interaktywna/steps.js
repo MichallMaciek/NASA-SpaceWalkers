@@ -60,7 +60,7 @@ window.STEPS = [
 
   { kind: "shot", img: "woda", layout: "cover", view: [640, 120, 1000, 720], focus: [958, 333, 340, 340], round: true,
     title: "Ta sama woda na mapie",
-    sub: "Niebieski pas: podtopienia wzdłuż Warty (PIG-PIB). Plamy: gdzie po deszczu ziemia nasiąka (NISAR 2026).",
+    sub: "Niebieski pas: podtopienia wzdłuż Warty (PIG-PIB). Plamy: gdzie echo NISAR wzrosło od czerwca do sierpnia 2026 (deszcz razem ze żniwami).",
     note: "Na mapie widać dlaczego: działka leży w pasie podtopień wzdłuż Warty." },
 
   { kind: "shot", img: "card", layout: "side", view: [0, 630, 380, 330], focus: [6, 700, 368, 108],
@@ -85,16 +85,16 @@ window.STEPS = [
     note: "Radar mierzy też ruch gruntu. Zwykle zero, ale około 50 miejsc osiada o 5 milimetrów rocznie lub szybciej. Tam pękają domy." },
 
   { kind: "shot", img: "historia", layout: "full", view: [400, 60, 1520, 1020],
-    title: "Co powstanie obok do 2035", sub: "Prognoza z 50 lat zdjęć Landsat, sprawdzona na latach 2015–2020: 56,4% trafień. To ranking, nie wyrok.",
-    note: "A co powstanie obok? Prognoza z pięćdziesięciu lat zdjęć Landsat. Sprawdziliśmy ją na latach, których nie widziała: 56 procent trafień. To ranking, nie wyrok." },
+    title: "Co powstanie obok do 2035", sub: "Mapa ze zdjęć kończy się na 2020 r. Potem patrzy radar: 1839 ha nowej zabudowy z 265 przelotów z 12 lat. Dalej prognoza, sprawdzona na 2015–2020: 56,4% trafień. To ranking, nie wyrok.",
+    note: "A co powstanie obok? Mapa ze zdjęć kończy się w 2020 roku. Potem patrzy radar: w 265 przelotach widzi ponad 1800 hektarów nowej zabudowy. Dalej jest prognoza, 56 procent trafień. To ranking, nie wyrok." },
 
   { kind: "shot", img: "app", layout: "full", view: [10, 640, 1000, 440], focus: [16, 766, 268, 172],
     title: "NISAR: nowy radar NASA i ISRO",
-    sub: "Pasmo L widzi przez chmury, nocą i przez korony drzew. W strefach podtopień echo rosło dwa razy rzadziej: 19% wobec 38% (czerwiec → sierpień 2026).",
-    note: "A to NISAR, nowy radar NASA i ISRO. W strefach podtopień jego echo rosło latem dwa razy rzadziej niż gdzie indziej. Dlaczego, jeszcze nie wiemy." },
+    sub: "Pasmo L widzi przez chmury, nocą i przez korony drzew. Tam, gdzie Sentinel-1 datuje nową zabudowę na lata 2021–2024, NISAR widzi ją 22 razy częściej niż na pustym terenie (przedział 20–24).",
+    note: "A to NISAR, nowy radar NASA i ISRO. Potwierdza nowe budowy: widzi zabudowę 22 razy częściej tam, gdzie starszy radar datuje nowe osiedla." },
 
-  { kind: "text", lines: ["Piszemy też, co się nie potwierdziło.", "Prognoza a radar 2026: przewaga ok. 1,3 raza, to nie dowód. Pięć miesięcy NISAR to jeszcze nie porównanie rok do roku."], small: 1,
-    note: "I mówimy uczciwie, co się nie potwierdziło: prognoza a radar 2026 to za mało na dowód, a NISAR ma dopiero pięć miesięcy danych." },
+  { kind: "text", lines: ["Piszemy też, co się nie potwierdziło.", "Zmiana NISAR w jednym sezonie nie wskazuje budów: zagłuszają ją pola. Wilgotność gleby z NISAR nie odróżnia terenów podtopień. Prognoza trafia w okolicę, nie w działkę."], small: 1,
+    note: "I mówimy uczciwie, co się nie potwierdziło: zmiana NISAR w jednym sezonie nie wskazuje budów, a prognoza trafia w okolicę, nie w działkę." },
 
   { kind: "close", title: "Deweloper ci tego nie powie. Radar tak.", sub: "Zeskanuj i sprawdź swój adres",
     url: "poznan-trend-detective.web.app", foot: "SARnik · SpaceWalkers · NASA Space Apps Challenge 2026 · Poznań",
