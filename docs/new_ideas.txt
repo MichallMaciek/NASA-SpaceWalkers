@@ -1,0 +1,13 @@
+Ja bym też np nie wyświetlał wszystkich statystyk o danym polu od razu tam po lewej
+Tylko np najbardziej niepokojące fakty albo najbardziej skrajne statystyki przetłumaczone na ludzki język np wysokie ryzyko zalewań na wiosnę
+A potem szczegóły by można kliknąć
+I są wszystkie te charty i statystyki co teraz
+Żeby można było tak patrzeć konkretne spoty i widzieć od razu co jest z nimi nie tak
+I taki ogólną mapę w skali kolorów czerwony-zielony obliczającą jakiś overall score z tego wszystkiego
+I np każdy jakiś teren by mial na zielono zalety np bliskość zieleni czy coś, i na czerwono te wady
+A potem te bardziej wyszukane widoki jako dodatek
+
+Porównanie screenshota np fajnie wyglądająca działka vS jej przyszłość albo naturalne zagrożenia idk - i np animacja po różnych filtrach na mapie (na pierwszy rzut oka wygląda dobrze, a w rzeczywistości...)
+I potem animacja jak wiele innych miejsc staje się czerwona itp
+
+Ujednolicić wszystkie filtry do common color scale, żeby np wszędzie niebieskie było lepsze a czerwone gorsze (UX)
