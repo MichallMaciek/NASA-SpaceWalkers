@@ -1,4 +1,4 @@
-/* SARnik styles, part 19: hexagon layers on the map (app/13a-hex-layers.js). Loaded in order by index.html; rules: web/css/README.md */
+/* SARnik styles, part 20: hexagon layers on the map (app/13a-hex-layers.js). Loaded in order by index.html; rules: web/css/README.md */
 /* legend swatches in the shape the map draws: a pointy-top hexagon */
 .legend .sw.hex { width: 11px; height: 12px; border-radius: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
 /* flood areas: an outline inside the hexagon, not a fill */
@@ -14,3 +14,7 @@
 .legend .hexsteps .hs { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .legend .hexsteps .sw.hex { width: 15px; height: 17px; }
 .legend .hexsteps small { font-size: 11px; line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
+/* the pill above the zoom buttons: hexagons or heat map; the active one is filled */
+.mapmode button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.mapmode button[aria-pressed="true"] svg circle { fill: currentColor; }
+.mapmode button svg circle { stroke: none; fill: currentColor; }

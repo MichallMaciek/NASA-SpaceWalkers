@@ -12,7 +12,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     state.techOpen = false; // a new place opens with the plain check-up
     const sel = state.sel, u = U();
     box.scrollTop = 0; // otherwise the new card opens where the previous one was scrolled, with its title out of view
-    $("#sidecard").innerHTML = `<h2>${esc(sel.label || (sel.kind === "area" ? u.selectedArea : u.selectedPlace))}</h2><p class="sub">${sel.failed ? u.loadFail : u.loading}</p>` +
+    $("#sidecard").innerHTML = `<h2>${esc(sel.kind === "parcel" ? u.parcelTitle(sel.parcel) : sel.label || (sel.kind === "area" ? u.selectedArea : u.selectedPlace))}</h2><p class="sub">${sel.failed ? u.loadFail : u.loading}</p>` +
       (sel.failed ? `<button type="button" class="linkish" id="retry-sel">${u.retry}</button>` : "");
     if (sel.failed) $("#retry-sel").addEventListener("click", () => finishSelection(sel));
   }
@@ -22,7 +22,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const sel = state.sel, u = U(), t = T(), tp = t.place;
     if (!sel.ready) { renderCardLoading(); return; }
     card.classList.remove("min");
-    const title = sel.kind === "area" ? u.selectedArea : esc(sel.label || u.selectedPlace);
+    const title = sel.kind === "area" ? u.selectedArea : sel.kind === "parcel" ? esc(u.parcelTitle(sel.parcel)) : esc(sel.label || u.selectedPlace);
     if (!sel.area || !sel.cells.length) {
       card.innerHTML = `<h2>${title}</h2><p class="sub">${tp.outside}</p><button type="button" class="linkish" id="clear-sel">${u.clear}</button>`;
       $("#clear-sel").addEventListener("click", clearSelection);
@@ -30,7 +30,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     }
     const km2 = (sel.cells.length * cellHa()) / 100;
     const fut = isFuture(), Y = state.year, end = horizonEnd();
-    const sub = sel.kind === "area" ? `${num(km2, 1)} km²` : u.radius1km;
+    const sub = sel.kind === "area" ? `${num(km2, 1)} km²` : sel.kind === "parcel" ? `${fmtInt(Math.round(sel.parcel.areaM2))} m²`
+      : u.radiusAround(radiusLabel(sel.r || 1)) + (sel.note === "noParcel" ? ` · ${u.noParcel}` : "");
     const range = fut ? u.forecastFor(Y) : `${land.epochs[0]}–${Y}`;
     // building
     const series = builtSeriesAll(sel.cells), ep = EPOCHS();

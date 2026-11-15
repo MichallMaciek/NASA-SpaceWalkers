@@ -5,7 +5,7 @@
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ---- plain-language check-up (default card): one traffic light and one sentence per question ---- */
   function waterFacts(sel) {
-    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null;
+    const own = sel.kind !== "area" ? landCell(sel.lat, sel.lng) : null;
     const rel = own ? localRelief([own.i]) : localRelief(sel.cells);
     const floodShare = own ? (inFlood(sel.lat, sel.lng) ? 1 : 0)
       : (() => { const sample = sel.cells.filter((_, k) => k % Math.max(1, Math.floor(sel.cells.length / 1500)) === 0);

@@ -31,6 +31,7 @@ startu, gdy nie wczytał się Leaflet albo teksty (patrz niżej).
 | `19-hover.js` | dymek po najechaniu |
 | `20-draw.js` | rysowanie obszaru (wielokąt, odręcznie) |
 | `21-selection.js` | wybór miejsca: czyszczenie, komórki w pierścieniu, punkt albo obszar |
+| `21a-parcels.js` | działki z ULDK (GUGiK): jedno pobieranie z pamięcią, podświetlenie pod kursorem, wybór kliknięciem, linki `#dz=`, promień koła |
 | `22-place-numbers.js` | liczby dla wyboru: udział zabudowy, las, ryzyko, ceny, upał |
 | `23-radar-stats.js` | liczby radarowe dla wyboru (`sarStats`, `sarSeries`, `radarChart`) |
 | `24-card.js` | karta miejsca: `renderCard`, `renderCardLoading` |

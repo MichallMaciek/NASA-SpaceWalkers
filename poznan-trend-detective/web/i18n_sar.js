@@ -459,6 +459,7 @@
     lgScoreGood: "korzystna / bezpieczna",
     lgScoreRisk: "więcej wad / ryzyko",
     // hexagons on the map (app/13a-hex-layers.js): legend classes and tooltip lines; r is a range such as "5–15%"
+    modeHex: "Mapa w heksach (średnie z siatki 120 m)", modeHeat: "Mapa ciepła (płynne przejścia)",
     hex: {
       size: (m) => `Heks ok. ${m} m: średnia albo udział komórek siatki 120 m w jego środku`,
       builtCap: "udział zabudowy w heksie",
@@ -544,6 +545,7 @@
     lgScore: "Plot score (green = pros, red = cons)",
     lgScoreGood: "advantageous / safe",
     lgScoreRisk: "more issues / risk",
+    modeHex: "Hexagon map (means of the 120 m grid)", modeHeat: "Heat map (smooth blend)",
     hex: {
       size: (m) => `Hexagon about ${m} m: the mean or share of the 120 m grid cells whose centres it holds`,
       builtCap: "built-up share of the hexagon",
@@ -646,4 +648,29 @@
     distNote: "Felling or storm damage, but also snow and frost: a sign to check. At the eastern edge of the map flags are many times more common (about 30% of forest against 1–2% in the west), which points to snow or a scene boundary, not felling.",
   });
   pl.passDate = "Przelot"; en.passDate = "Pass";
+})();
+
+/* ===== plots on the map (ULDK, GUGiK) and the circle tool (web/app/21a-parcels.js, 20-draw.js) ===== */
+(() => {
+  const pl = window.I18N.pl.ui, en = window.I18N.en.ui;
+  Object.assign(pl, {
+    toolCircle: "Zaznacz koło",
+    hintCircle: (r) => `Kliknij mapę, aby zaznaczyć koło o promieniu ${r}. Przybliż albo oddal mapę, żeby zmienić promień.`,
+    zoomForParcel: "Przybliż, aby wybrać działkę",
+    parcelTitle: (p) => `Działka ${p.number}, obręb ${p.obreb}, ${p.gmina}`,
+    parcelTip: (p) => `Działka ${p.number}, obręb ${p.obreb}`,
+    noParcel: "nie znaleziono tu działki",
+    radiusAround: (r) => `${r} wokół punktu`,
+    parcelNotFound: "Nie znaleziono działki z linku.",
+  });
+  Object.assign(en, {
+    toolCircle: "Select a circle",
+    hintCircle: (r) => `Click the map to select a circle with a ${r} radius. Zoom in or out to change the radius.`,
+    zoomForParcel: "Zoom in to pick a plot",
+    parcelTitle: (p) => `Plot ${p.number}, precinct ${p.obreb}, ${p.gmina}`,
+    parcelTip: (p) => `Plot ${p.number}, precinct ${p.obreb}`,
+    noParcel: "no plot found here",
+    radiusAround: (r) => `${r} around the point`,
+    parcelNotFound: "The plot from the link was not found.",
+  });
 })();

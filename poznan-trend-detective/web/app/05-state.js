@@ -5,7 +5,7 @@
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ================= state ================= */
   const state = {
-    year: NOW_YEAR, yearF: NOW_YEAR, horizon: 10, minChance: 5, base: "map",
+    year: NOW_YEAR, yearF: NOW_YEAR, horizon: 10, minChance: 5, base: "orto", // start on the GUGiK aerial photo
     lyr: {
       s1rgb: { on: false, op: 0.8 },
       sarchange: { on: false, op: 0.9, min: 3 },
@@ -27,13 +27,15 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       radar: { on: false, op: 0.85, lo: -18, hi: -4 },
       nisar: { on: false, op: 0.85, i: 0 },
       wuia: { on: false, op: 0.85 },
-      score: { on: true, op: 0.85 },
+      score: { on: false, op: 0.85 },
       night: { on: false, op: 0.8 }, day: { on: false, op: 0.8 }, ndvi: { on: false, op: 0.8 }, nightyear: { on: false, op: 0.8 },
     },
-    sel: null, // {kind: 'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}
+    sel: null, // {kind: 'parcel'|'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}; parcel: sel.parcel {id, number, obreb, gmina, ring, areaM2}; point: sel.r (km)
     findingsOpen: (() => { try { const v = localStorage.getItem("ptd-fold"); if (v) return v === "open"; } catch (e) { /* ignore */ } return innerWidth >= 760; })(), finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
-    lens: "score",
+    // the rating and quantity layers as hexagons (true) or as the smooth heat map (false); the pill above the zoom buttons
+    hex: (() => { try { return localStorage.getItem("ptd-hex") !== "0"; } catch (e) { return true; } })(),
+    lens: null, // no view and no layer at the start: a clean map; the view buttons switch them on
     ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];

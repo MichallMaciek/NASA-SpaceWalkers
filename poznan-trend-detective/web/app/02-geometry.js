@@ -9,6 +9,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // They arrive later through loadGrids(); until then gL, gN, geo.L and geo.N are undefined, and gridsOK() says so.
   const geo = {};
   const L8 = {};
+  const smooth = {}; // smoothed built-up intensity per epoch (Float32Array)
 
   function sinuToLatLng(x, y) { const lat = y / R_SIN; return [lat * 180 / Math.PI, (x / (R_SIN * Math.cos(lat))) * 180 / Math.PI]; }
   function latLngToSinu(lat, lng) { const la = lat * Math.PI / 180; return [R_SIN * (lng * Math.PI / 180) * Math.cos(la), R_SIN * la]; }

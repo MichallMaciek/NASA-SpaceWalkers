@@ -368,9 +368,17 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
 
   /* ---- drawing: one tiled canvas layer for all hexagon layers, only the hexagons in view ---- */
+  // the pill above the zoom buttons: hexagons or the heat map (the raster drawing of part 14) for the same layers
+  function setHexMode(on) {
+    state.hex = !!on;
+    try { localStorage.setItem("ptd-hex", on ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    $("#mode-hex").setAttribute("aria-pressed", String(state.hex)); $("#mode-heat").setAttribute("aria-pressed", String(!state.hex));
+    renderLegend(); redraw();
+  }
+  const hexDrawn = (k) => state.hex && HEX_KEYS.includes(k); // drawn as hexagons now, so not as the heat map
   let hexOn = []; // active layers bottom to top: { k, mark: "fill" | "inset" | "ring", op }
   let hexPainted = "", hexStyle = ""; // what the tiles show (layers, inputs, theme); the same without the inputs
-  function hexLayers() { return L8.study ? HEX_KEYS.filter((k) => state.lyr[k] && state.lyr[k].on && ready(k) && !layerFailed.has(k)) : []; }
+  function hexLayers() { return state.hex && L8.study ? HEX_KEYS.filter((k) => state.lyr[k] && state.lyr[k].on && ready(k) && !layerFailed.has(k)) : []; }
   function hexEntry(k, G) { // the classes of one layer on one hexagon size, computed once per change of its inputs
     const key = HEX[k].key(), e = G.cache[`L|${k}`];
     if (e && e.key === key) return e;

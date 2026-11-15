@@ -233,5 +233,27 @@ console.log("=== TESTY MODUŁU DZIALKA ===");
   check("brak odpowiedzi w 8 s -> 'brak odpowiedzi' (info)", t.length === 1 && t[0].word === "brak odpowiedzi", JSON.stringify(t));
 }
 
+// 9. Działka wybrana kliknięciem: rdzeń daje sel.kind "parcel" i sel.parcel (web/app/21a-parcels.js),
+//    moduł nie pyta ULDK drugi raz i nie rysuje drugiego obrysu
+{
+  const { core, calls } = setup({ text: "", L8: layers({ nisar: -16, water: 0.3 }) });
+  const parcel = { id: "306401_1.0051.AR_17.72/2", number: "72/2", obreb: "Poznań", gmina: "Poznań (miasto)",
+    unit: "306401_1", obrebNo: "0051", ring: bigRing, areaM2: 1000 };
+  const mid = at(3.5, 3.5);
+  const sel = core.select({ kind: "parcel", lat: mid[0], lng: mid[1], ring: bigRing, parcel, area: "Poznań", cells: [1, 2, 3] });
+  await core.settle();
+  const items = core.items(sel);
+  const prog = items.find((it) => it.id === "dzialka:prog"), rw = items.find((it) => it.id === "dzialka:rwdz");
+  check("sel.parcel: bez zapytania do ULDK", !calls.some((u) => String(u).startsWith("https://uldk")), calls.join(" "));
+  check("sel.parcel: wiersz progu i rejestru", prog && rw && prog.lvl === "risk", JSON.stringify(items.map((i) => [i.id, i.lvl])));
+  check("sel.parcel: nagłówek z numerem, gminą i obrębem", prog && /^Działka 72\/2, Poznań \(miasto\), obręb Poznań, [\d\s]+ m²\./.test(prog.v), prog && prog.v);
+  check("sel.parcel: rejestr dla obrębu 0051 (2 × rozbudowa)", rw && /2 × rozbudowa/.test(rw.v), rw && rw.v);
+  check("sel.parcel: obrys rysuje rdzeń, nie moduł", core.outlines.length === 0);
+  check("sel.parcel: brak naruszeń kontraktu", core.problems(items).length === 0, core.problems(items).join("; "));
+  check("sel.parcel: bez 'undefined' i 'NaN'", !/undefined|NaN/.test(words(items)), words(items));
+  check("pure.fromCore: kształt modułu (obręb jako numer do pliku rejestru)",
+    (() => { const m = core.SARNIK.modules.dzialka.pure.fromCore(parcel); return m.region === "Poznań" && m.commune === "Poznań (miasto)" && core.SARNIK.modules.dzialka.pure.districtKey(m) === "306401_1_0051"; })());
+}
+
 console.log(failed ? `\n${failed} BŁĘDÓW` : "\nWszystko OK");
 process.exit(failed ? 1 : 0);
