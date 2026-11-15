@@ -61,6 +61,10 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .lenses button { border-radius: 20px; color: var(--ink); }
 .lenses button[aria-pressed="true"] { color: var(--card); }
 .lenses button:hover { background: var(--glass-press); }
+/* touch screens: 44 px targets for the round buttons and the drawing tools (the views list is css/21-pasek-widokow.css) */
+@media (pointer: coarse) {
+  .tool, .iconbtn, .zoom button, .lenses .lens-toggle, .lenses .lens-menu button { min-width: 44px; min-height: 44px; }
+}
 .drawhint { border-radius: 26px; }
 
 /* ---------- right: round glass buttons ---------- */
