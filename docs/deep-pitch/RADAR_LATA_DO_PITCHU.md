@@ -27,10 +27,10 @@ Dwie liczby pomocnicze, gdy ktoś zapyta „skąd wiecie, że to nie szum”:
 
 | Radar | Lata | Ile | Co z niego bierzemy | Co to wnosi |
 |---|---|---|---|---|
-| **Sentinel-1** (ESA, pasmo C) | 2015–2026, każde lato | 240 przelotów | mapę zabudowy co rok i rok, w którym zabudowa się pojawiła | jedyne źródło tego, co powstało po 2020 r. (1839 ha); lata 2021–2026 na mapie i w karcie; mówi prognozie, który teren jest jeszcze wolny |
+| **Sentinel-1** (ESA, pasmo C) | 2015–2026, każde lato | 240 przelotów | mapę zabudowy co rok i rok, w którym zabudowa się pojawiła | jedyne źródło tego, co powstało po 2020 r. (1839 ha nowej i gęstszej zabudowy); lata 2021–2026 na mapie i w karcie; mówi prognozie, który teren jest jeszcze wolny |
 | **Sentinel-1** | jesień 2025 i jesień 2026 | po 12 przelotów | zmianę rok do roku | „Nowe budowy obok”: ślad nowych ścian, 4 razy częściej na działkach z decyzją o budowie |
 | **EGMS** (pomiary z Sentinel-1) | 2016–2020 | – | ruch gruntu w mm na rok | „Czy grunt się rusza”; tego nie da się zmierzyć niczym innym |
-| **NISAR** (NASA i ISRO, pasmo L) | czerwiec–październik 2026 | 19 przelotów i 8 par koherencji | domyślny obraz mapy, animację 10 przelotów, potwierdzenie zabudowy z lat 2025–2026, wiersz „Co NISAR widział tego lata” | widzi zabudowę 22 razy częściej tam, gdzie Sentinel-1 datuje nowe osiedla; pokazuje, jak pola zmieniają się w ciągu lata |
+| **NISAR** (NASA i ISRO, pasmo L) | czerwiec–październik 2026 | 19 przelotów i 8 par koherencji | domyślny obraz mapy, animację 10 przelotów, potwierdzenie zabudowy z lat 2025–2026, wiersz „Co NISAR widział tego lata” | widzi zabudowę 22 razy częściej tam, gdzie Sentinel-1 datuje ją na lata 2021–2024; pokazuje, jak pola zmieniają się w ciągu lata |
 | **ALOS-2** (JAXA, pasmo L) | 2015–2021 | jedna mozaika na rok | obraz na osi czasu radaru i niezależne sprawdzenie | drugi satelita widzi tę samą zmianę zabudowy 20 razy częściej |
 | **TanDEM-X** (model terenu z radaru) | – | – | wysokość, nachylenie, zagłębienia | wiersz „Woda” i dwie z dziewięciu cech prognozy |
 
@@ -73,7 +73,7 @@ Można dodać jedno zdanie o radarze:
 **Krok „NISAR: nowy radar NASA i ISRO”.** Dziś mówi o echu w strefach podtopień („dlaczego, jeszcze nie wiemy”).
 Mocniejsze i sprawdzone jest to:
 
-> NISAR widzi przez chmury i nocą. Tam, gdzie starszy radar datuje nowe osiedla na ostatnie lata, NISAR
+> NISAR widzi przez chmury i nocą. Tam, gdzie starszy radar datuje zabudowę na ostatnie lata, NISAR
 > widzi zabudowę 22 razy częściej niż na pustym terenie. Dlatego to on potwierdza u nas budowy z lat 2025 i 2026.
 
 **Krok „Piszemy też, co się nie potwierdziło”.** Dziś: „Prognoza a radar 2026: przewaga ok. 1,3 raza”.
@@ -87,7 +87,8 @@ Aktualna, uczciwa wersja:
 - SARnik uses 265 radar passes over 12 years: Sentinel-1 every summer from 2015 to 2026, NISAR in 2026 and
   ALOS PALSAR from 2007–2010.
 - The optical built-up map ends in 2020. Radar is the only source in the app that shows what was built after
-  it: 1,839 ha around Poznań, 393 ha in the city.
+  it: 1,839 ha of new and denser building around Poznań, 393 ha in the city (1,379 ha on land the optical map
+  still had as open in 2020; 460 ha is denser building in cells it already counted as partly built).
 - Where the optical map shows new building in 2015–2020, radar dates it to those years 46 times more often
   than elsewhere (95% interval 40–53). ALOS-2 sees the same change 20 times more often, and NISAR confirms
   the building Sentinel-1 dates to 2021–2024 22 times more often.
