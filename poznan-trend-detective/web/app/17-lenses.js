@@ -11,6 +11,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     return `<span class="sar-tag" role="img" aria-label="${t}" title="${t}">${SAR_ICON(lvl === "part")}</span>`;
   }
   const LENS_SAR = { score: "part", history: "no", build: "yes", water: "part", ground: "yes", trees: "no", radar: "yes" };
+  const lensSar = (k) => (k === "trees" && sar && sar.zips && sar.zips.dist ? "part" : LENS_SAR[k]); // OPERA (Sentinel-1) in the trees view
   const FIND_SAR = { lband: "yes", radar: "yes", wet: "yes", ground: "yes", modelRadar: "part" };
 
   /* ================= lenses (v3): one plain question per map view ================= */
@@ -21,7 +22,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       { k: "build", layers: ["built", "sarchange"] },
       { k: "water", layers: sar && sar.nisar ? ["built", "flood", "nisarwet"] : ["built", "flood", "sarwet"] },
       { k: "ground", layers: ["built", "egms"] },
-      { k: "trees", layers: ["built", "forest"] },
+      { k: "trees", layers: sar && sar.zips && sar.zips.dist ? ["built", "forest", "dist"] : ["built", "forest"] },
       { k: "radar", layers: sar && sar.nisar ? ["alos"] : ["s1rgb"] },
     ];
     return sar ? all : all.filter((l) => l.k === "score" || l.k === "trees" || l.k === "history");
@@ -83,7 +84,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const box = $("#lenses"), u = U();
     if (!box) return;
     keepFocus(box, () => {
-      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${LENS_SAR[l.k] === "no" ? "" : ` (${LENS_SAR[l.k] === "yes" ? u.sarYes : u.sarPart})`}">${LENS_SAR[l.k] === "no" ? "" : SAR_ICON(LENS_SAR[l.k] === "part")}${u.lens[l.k]}</button>`).join("");
+      box.innerHTML = LENSES().map((l) => `<button type="button" data-lens="${l.k}" aria-pressed="${state.lens === l.k}" title="${u.lensTip[l.k]}${lensSar(l.k) === "no" ? "" : ` (${lensSar(l.k) === "yes" ? u.sarYes : u.sarPart})`}">${lensSar(l.k) === "no" ? "" : SAR_ICON(lensSar(l.k) === "part")}${u.lens[l.k]}</button>`).join("");
     });
     box.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => pickLens(b.dataset.lens)));
     // narrow screens: the bar scrolls sideways; a fade on the right edge shows that more views follow

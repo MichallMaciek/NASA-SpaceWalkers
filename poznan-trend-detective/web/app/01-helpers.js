@@ -40,9 +40,11 @@
 
   // light / dark: the viewer's choice wins over the system setting and is remembered
   try { const th = localStorage.getItem("ptd-theme"); if (th) document.documentElement.setAttribute("data-theme", th); } catch (e) { /* ignore */ }
-  let lang = (navigator.language || "pl").toLowerCase().startsWith("en") ? "en" : "pl";
-  try { lang = localStorage.getItem("ptd-lang") || lang; } catch (e) { /* storage blocked */ }
-  if (lang !== "pl" && lang !== "en") lang = "pl";
+  // Polish for Polish browsers, English for everyone else (Space Apps judges included).
+  // ?lang=en or ?lang=pl in a link wins and is remembered, so the About page opens in the same language.
+  let lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
+  try { const s = localStorage.getItem("ptd-lang"); if (s === "pl" || s === "en") lang = s; } catch (e) { /* storage blocked */ }
+  { const q = new URLSearchParams(location.search).get("lang"); if (q === "pl" || q === "en") { lang = q; try { localStorage.setItem("ptd-lang", q); } catch (e) { /* ignore */ } } }
   // Texts for loading failures. They live here, not in i18n.js, and this early in the file, because they are shown when
   // the data did not load or when something the rest of this file relies on is missing.
   const BOOT = {
@@ -82,6 +84,8 @@
     built: ["#FBE7B5", "#F6C25B", "#F2A31B", "#EE6B2D", "#E0332F"],
     price: ["#DCE6FD", "#9DB8F7", "#5B86F0", "#2F62E9", "#1B3FA8"],
     loss: ["#F6C25B", "#E5602A", "#B8261E"],
+    coh: ["#F2C35B", "#E7DCC0", "#8EA8C8", "#2F4F7F"],         // NISAR coherence: changing (warm) -> stable (deep blue)
+    dist: ["#E58BC4", "#B0157A"],                             // OPERA radar disturbance (low, high): magenta, apart from the orange Landsat forest loss
     radar: ["#3B3F45", "#7B8087", "#C9B98F", "#F2C14E", "#FFF1B8"],
     terrain: ["#BFE6E2", "#7FD0C9", "#2FB3AA", "#17A2A0", "#0E6F6D"],
     // radar (v2)
