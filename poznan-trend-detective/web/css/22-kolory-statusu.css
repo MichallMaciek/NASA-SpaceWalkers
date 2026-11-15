@@ -1,0 +1,55 @@
+/* SARnik styles, part 22: status colours (15 Nov 2026). The place card rows get a coloured dot and a coloured status
+   word (green "W normie", orange "Do sprawdzenia", red "Uwaga", a grey ring for "Informacja"); the start card explains
+   the same three colours, lists the example places as quiet rows with their score in a coloured circle, and drops the
+   boxed panel and the emoji. Loaded after part 21; rules: web/css/README.md */
+:root { --st-ok: #24703F; --st-warn: #9A5B00; --st-risk: #B3221E; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --st-ok: #6FCF8E; --st-warn: #F2B24C; --st-risk: #FF6B6B; }
+}
+:root[data-theme="dark"] { --st-ok: #6FCF8E; --st-warn: #F2B24C; --st-risk: #FF6B6B; }
+
+/* ---------- place card rows: dot on the left, status word on the right, both in the row's colour ---------- */
+.pc-item::before {
+  content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; margin-right: -4px;
+  background: var(--st-ok);
+}
+.pc-item.con-item::before { background: var(--st-risk); }
+.pc-item.con-item.warn-item::before { background: var(--st-warn); }
+.pc-item.con-item.info-item::before { background: transparent; box-shadow: inset 0 0 0 1.6px var(--ink-3); }
+.pc-item > div { flex: 1; }
+.pc-item::after { color: var(--st-ok); font-weight: 500; }
+.pc-item.con-item::after { color: var(--st-risk); font-weight: 700; background: none; padding-left: 16px; }
+.pc-item.con-item.warn-item::after { color: var(--st-warn); font-weight: 600; background: none; padding-left: 16px; }
+.pc-item.con-item.info-item::after { color: var(--ink-2); font-weight: 400; background: none; padding-left: 16px; }
+
+/* ---------- start card ---------- */
+.sidecard .st-lead { font-size: 14px; line-height: 1.45; color: var(--ink-2); margin: 6px 0 0; max-width: 46ch; }
+.st-key { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink); }
+.st-key li { display: inline-flex; align-items: center; gap: 7px; }
+.st-key li::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--st-ok); }
+.st-key .st-warn::before { background: var(--st-warn); }
+.st-key .st-risk::before { background: var(--st-risk); }
+
+.sidecard .featured-spots { background: none; border: 0; border-radius: 0; padding: 0; margin: 18px 0 0; }
+.sidecard .featured-head { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500; color: var(--ink-2); margin: 0 0 4px; }
+.sidecard .featured-grid { grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--hair); }
+.sidecard .f-spot {
+  background: none; border: 0; border-bottom: 1px solid var(--hair); border-radius: 0;
+  padding: 9px 6px 9px 2px; gap: 14px; min-height: 56px;
+}
+.sidecard .f-spot:hover { background: var(--glass-press); border-color: var(--hair); }
+.sidecard .f-spot:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.sidecard .f-text b { font-size: 15px; font-weight: 500; }
+.sidecard .f-text small { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+/* the score of the example in a circle of its tier colour; an empty ring until the scores are computed */
+.sidecard .f-badge {
+  order: -1; width: 38px; height: 38px; min-width: 0; padding: 0; border-radius: 50%;
+  display: inline-grid; place-items: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.sidecard .f-badge.f-wait { background: none; box-shadow: inset 0 0 0 1.5px var(--hair); }
+
+.sidecard .nisar-banner { margin: 16px 0 0; }
+.sidecard .nisar-banner-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; }
+.sidecard .nisar-pill { letter-spacing: 0; font-size: 12px; font-weight: 600; text-transform: none; }
+
+.sidecard.min .st-key { display: none; }
