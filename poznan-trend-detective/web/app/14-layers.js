@@ -195,74 +195,80 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       for (let i = 0; i < n; i++) {
         if (!st[i]) continue;
         // Water bodies (rivers, lakes, reservoirs):
-        // Leave transparent so the natural blue river/water shows without any orange or green overlay!
-        const wFrac = wat && wat[i] ? waterOf(wat[i]) : 0;
-        if (wFrac >= 0.08) continue;
+        // Leave transparent so the natural blue river/water shows cleanly without any orange or green overlay!
+        if (wat && wat[i] > 2) continue;
 
-        // Base score for standard, solid habitable land in the agglomeration:
-        // A typical normal plot starts at a balanced neutral 70 ("Standardowa w normie")
-        let s = 70;
+        // Base score for typical, stable agglomeration land (neutral ~72)
+        let s = 72;
 
         const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0;
-        const built = b25 ? b25[i] : 0;
+        const b = b25 ? b25[i] : 0;
         const elev = d && d[i] ? d[i] / 2 + demOff : 70;
 
-        // 1. Greenery balance:
-        // Optimal tree canopy in the neighbourhood (Sołacz, Strzeszyn, Puszczykowo) gives fresh green (+8 to +14)
-        if (treeFrac >= 0.20 && treeFrac <= 0.65) {
-          s += Math.round(treeFrac * 22);
-        } else if (treeFrac > 0.65) {
-          s += 5; // dense continuous forest: safe nature (+5)
-        } else if (built > 110 && treeFrac < 0.04) {
-          s -= 16; // heavily sealed urban core / heat island prone (-16 -> drops to warm yellow/amber)
+        // 1. Continuous built-up density curve:
+        // - Suburban garden / quiet single-family (b: 8..45) gets peak livability bonus (+6 to +14 pts)
+        // - Balanced residential estates (b: 46..75) is pleasant (+1 to +5 pts)
+        // - Dense tenement downtown (b: 76..110) has less greenery/more noise (-3 to -8 pts)
+        // - Very dense / industrial / rail yards (b > 110) drops (-10 to -22 pts) into warm ochre/sand
+        if (b >= 8 && b <= 45) {
+          s += Math.round(6 + (45 - Math.abs(b - 25)) * 0.22);
+        } else if (b > 45 && b <= 75) {
+          s += Math.round(4 - (b - 45) * 0.12);
+        } else if (b > 75 && b <= 110) {
+          s -= Math.round(3 + (b - 75) * 0.16);
+        } else if (b > 110) {
+          s -= Math.min(22, Math.round(9 + (b - 110) * 0.14));
         }
 
-        // 2. River corridor & flood evaluation:
+        // 2. Continuous tree canopy & garden greenery:
+        // Gardens and park margins provide fresh shade, clean air, and scenic value
+        s += Math.min(14, Math.round(treeFrac * 20));
+
+        // 3. Topographic relief & elevation advantage:
+        // Elevated moraine plateaus (Winogrady, Morasko, Osiedle Batorego, Grunwald 80-110m) have better air
+        s += clamp(Math.round((elev - 68) * 0.14), -4, 6);
+
+        // 4. River corridor & flood evaluation:
         // The river bed itself is skipped above.
-        // On dry land: unpaved low-lying floodplain meadow (active water retention) gets a REAL hazard penalty (-38 -> drops to RED!)
-        // Managed, elevated urban riverfront (Garbary, Chwaliszewo, Wildeckie tarasy) is safe and close to Wartostrada (+2).
+        // Elevated riverside urban land (Chwaliszewo, Garbary, Szeląg, Rataje) enjoys Wartostrada recreation (+3 pts).
+        // Low unbuilt retention meadows (<54m and unpaved b < 10) get flood warning penalty (-26 pts).
         const [la, lo] = mercToLatLng(trC + ((i % w) + 0.5) * trA, trF + (Math.floor(i / w) + 0.5) * trE);
         if (inFlood(la, lo)) {
-          if (elev < 55 && built < 20) {
-            s -= 38; // real low-lying floodplain meadow -> RED (score 32)
-          } else if (built >= 20 || elev >= 56) {
-            s += 2; // managed, elevated riverside urban fabric -> neutral/safe 72
+          if (elev < 54 && b < 10) {
+            s -= 26; // low unbuilt retention polder meadow -> warm warning
+          } else if (b >= 20 || elev >= 55) {
+            s += 3; // elevated riverside urban fabric & Wartostrada amenity -> green/safe
           } else {
-            s -= 16; // borderline terrace -> 54 (amber)
+            s -= 8; // intermediate low ground
           }
         }
 
-        // 3. Geotechnical stability (InSAR / EGMS vertical motion) - radar differentiator!
+        // 5. InSAR Geotechnical stability (EGMS vertical motion) - true radar differentiator:
         if (eg && eg[i]) {
           const v = egmsOf(eg[i]);
-          if (v <= -2.5) s -= Math.min(42, Math.round(Math.abs(v) * 12)); // ground sinking > 2.5 mm/yr -> RED!
-          else if (v <= -1.2) s -= 18; // moderate settlement -> AMBER/WARN
-          else if (v >= -0.5 && v <= 0.8) s += 3; // solid stable bedrock (+3)
+          if (v <= -2.0) s -= Math.min(42, Math.round(Math.abs(v) * 11)); // sinking ground -> RED!
+          else if (v <= -1.0) s -= 16; // moderate settlement -> AMBER/WARN
+          else if (v >= -0.5 && v <= 0.6) s += 2; // solid stable bedrock (+2)
         }
 
-        // 4. Active construction disturbance (SAR 2026 walls)
+        // 6. Active radar construction disturbance (SAR 2026 walls):
         if (sc && sc[i]) {
           const ch = changeOf(sc[i]);
-          if (ch >= 3.5) s -= 16;
-          else if (ch >= 2.0) s -= 8;
+          if (ch >= 3.0) s -= 15;
+          else if (ch >= 1.8) s -= 7;
         }
 
-        // 5. Tree loss / deforestation
-        if (lf && lf[i] > 80) {
-          s -= 18;
-        }
+        // 7. Tree loss / clearing:
+        if (lf && lf[i] > 60) s -= 16;
 
-        // 6. Development pressure (AI forecast on open fields)
-        if (p30 && p30[i] > 40 && built < 20) {
-          s -= Math.round((p30[i] / 255) * 14);
-        }
+        // 8. Agricultural plot under high urban sprawl expansion:
+        if (p30 && p30[i] > 60 && b < 12) s -= Math.round((p30[i] / 255) * 12);
 
         s = clamp(s, 15, 95);
         const t = (s - 15) / 80, j = ((t * 255) | 0) * 3;
-        // Adaptive opacity: neutral areas (65-75) are translucent (alpha ~85) so the satellite/street map is clearly visible;
-        // extreme alerts (RED risks or high GREEN prime spots) stand out with higher opacity (alpha ~140-190).
-        const dev = Math.abs(s - 70) / 35;
-        const alpha = Math.round(clamp(85 + dev * 95, 80, 190));
+        // Crisp, vivid opacity: high contrast so quality differences are clearly visible from afar!
+        const dev = Math.abs(s - 72) / 30;
+        const alpha = Math.round(clamp(130 + dev * 65, 125, 195));
         put(i, [lut[j], lut[j + 1], lut[j + 2]], alpha);
       }
     }

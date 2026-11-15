@@ -337,31 +337,38 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null, wat = sar ? L8.sar_water : null;
     for (let i = 0; i < n; i++) {
       if (!st[i]) continue;
-      const wFrac = wat && wat[i] ? waterOf(wat[i]) : 0;
-      if (wFrac >= 0.08) continue; // lakes and rivers: transparent, not a plot
-      let s = 70; // baseline for solid standard land in the agglomeration (neutral 70)
-      const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, built = b25 ? b25[i] : 0, elev = d && d[i] ? d[i] / 2 + demOff : 70;
-      if (treeFrac >= 0.20 && treeFrac <= 0.65) s += Math.round(treeFrac * 22);
-      else if (treeFrac > 0.65) s += 5;
-      else if (built > 110 && treeFrac < 0.04) s -= 16;
+      if (wat && wat[i] > 2) continue; // lakes and rivers: transparent, not a plot
+      let s = 72; // baseline for solid standard land in the agglomeration (neutral ~72)
+      const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, b = b25 ? b25[i] : 0, elev = d && d[i] ? d[i] / 2 + demOff : 70;
+      if (b >= 8 && b <= 45) {
+        s += Math.round(6 + (45 - Math.abs(b - 25)) * 0.22);
+      } else if (b > 45 && b <= 75) {
+        s += Math.round(4 - (b - 45) * 0.12);
+      } else if (b > 75 && b <= 110) {
+        s -= Math.round(3 + (b - 75) * 0.16);
+      } else if (b > 110) {
+        s -= Math.min(22, Math.round(9 + (b - 110) * 0.14));
+      }
+      s += Math.min(14, Math.round(treeFrac * 20));
+      s += clamp(Math.round((elev - 68) * 0.14), -4, 6);
       if (fl[i]) {
-        if (elev < 55 && built < 20) s -= 38; // unbuilt low-lying floodplain meadow -> RED (32)
-        else if (built >= 20 || elev >= 56) s += 2; // elevated urban fabric -> safe/neutral 72
-        else s -= 16;
+        if (elev < 54 && b < 10) s -= 26; // low unbuilt retention polder meadow
+        else if (b >= 20 || elev >= 55) s += 3; // elevated riverside urban fabric & Wartostrada
+        else s -= 8;
       }
       if (eg && eg[i]) {
         const v = egmsOf(eg[i]);
-        if (v <= -2.5) s -= Math.min(42, Math.round(Math.abs(v) * 12));
-        else if (v <= -1.2) s -= 18;
-        else if (v >= -0.5 && v <= 0.8) s += 3;
+        if (v <= -2.0) s -= Math.min(42, Math.round(Math.abs(v) * 11));
+        else if (v <= -1.0) s -= 16;
+        else if (v >= -0.5 && v <= 0.6) s += 2;
       }
       if (sc && sc[i]) {
         const ch = changeOf(sc[i]);
-        if (ch >= 3.5) s -= 16;
-        else if (ch >= 2.0) s -= 8;
+        if (ch >= 3.0) s -= 15;
+        else if (ch >= 1.8) s -= 7;
       }
-      if (lf && lf[i] > 80) s -= 18;
-      if (p30 && p30[i] > 40 && built < 20) s -= Math.round((p30[i] / 255) * 14);
+      if (lf && lf[i] > 60) s -= 16;
+      if (p30 && p30[i] > 60 && b < 12) s -= Math.round((p30[i] / 255) * 12);
       out[i] = clamp(s, 15, 95);
     }
     return out;
