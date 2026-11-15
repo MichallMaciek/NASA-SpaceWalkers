@@ -26,6 +26,11 @@ pierwszy raz widzi tam zabudowę, od 2015 do 2026 r.
 - **Co się nie potwierdziło:** test na decyzjach o budowie z 2026 r. (2,1 raza, ale przedział 0,3–4,8),
   więc wiersz w karcie jest informacją, bez ostrzeżeń. ALOS PALSAR z lat 2007–2010 nie nadaje się do
   datowania, więc zapis zaczyna się w 2015 r.
+- **Rejestr pozwoleń GUNB (321 obrębów):** gdzie jest więcej pozwoleń na nowe budynki, radar widzi więcej
+  nowej zabudowy, także przy tym samym stopniu zabudowy (0,30; przedział 0,155–0,425). Test nie odróżnia
+  jednak budowy po 2020 r. od wcześniejszej, więc nie zmienia poziomu wiersza.
+- **Gdzie aplikacja z tego korzysta:** wiersz w karcie (PR #22) oraz mapa, udział zabudowy i prognoza
+  dla lat 2021–2026 (PR #24). Opis w sekcji „Wiersz w karcie miejsca i reszta aplikacji”.
 - **Prognoza:** model „co może powstać obok” sprawdziliśmy na tym, co radar widział po 2020 r.
   Trafia w okolicę, ale nie w konkretne działki (sekcja niżej).
 
@@ -117,6 +122,7 @@ Kryteria zapisaliśmy w kodzie (`CRITERIA`) przed liczeniem. Przedziały 95% z b
 | 9 | `tempo_po_2020` | nowa zabudowa na rok po 2020 r. wobec wzrostu optycznego 2015–2020 | 306 wobec 580 ha rocznie, 0,53 | – | między 1/3 a 3 | **tak** |
 | 10 | `alos1_dolaczenie` | czy ALOS PALSAR 2007–2010 może datować lata razem z Sentinel-1 | 24,7% starej zabudowy dostaje rok po 2010 r. | – | najwyżej 5% (i drugi warunek) | **nie** |
 | 11 | `zmiana_po_2020` | bramka poziomu `warn` w karcie: testy 3 i 4 naraz | test 4 nie przechodzi | – | 3 i 4 zaliczone | **nie** |
+| 12 | `pozwolenia_gunb` | 321 obrębów: nowa zabudowa z radaru 2021–2026 a działki z nową budową w rejestrze GUNB, po odjęciu wpływu zabudowy z 2020 r. | korelacja cząstkowa rang 0,30 | 0,155–0,425 | dolna granica > 0,15 | tak, o włos; nie wchodzi do bramki (sekcja niżej) |
 
 Co z tego wynika:
 
@@ -179,6 +185,97 @@ Co z tego wynika:
   Aplikacja ma już wiersz prognozy, a dwa wiersze z dwiema liczbami myliłyby kupującego. Żeby go włączyć:
   `sarnik_radar_prognoza.py --web`, `FORECAST_ROW = True` w `sarnik_radar_lata.py` i wyłączenie starego wiersza.
 
+### Test na rejestrze pozwoleń GUNB (`pozwolenia_gunb`), 15.11.2026
+
+**Po co.** Test na decyzjach z 2026 r. jest za mały (23 trafione komórki). Rejestr GUNB (RWDZ) ma
+decyzje i zgłoszenia od 2016 r. dla miasta i powiatu poznańskiego. To dużo więcej danych i niezależne źródło.
+
+**Co sprawdzamy.** Jednostką jest obręb ewidencyjny. Dla każdego obrębu liczymy dwie rzeczy:
+
+- radar: ile hektarów radar datuje jako pierwszy raz zabudowane w latach 2021–2026, na km² obrębu;
+- rejestr: ile działek ma co najmniej jedną sprawę „nowa budowa”, a ostatnią sprawę w latach 2021–2026, na km².
+
+Potem sprawdzamy, czy obręby z większą liczbą takich działek mają też więcej nowej zabudowy z radaru.
+Miara to korelacja rang (Spearmana). Na obrzeżach miasta jest i więcej pozwoleń, i więcej nowej zabudowy,
+niezależnie od tego, czy radar coś wykrywa. Dlatego test liczymy po usunięciu wpływu udziału zabudowy
+w 2020 r. (korelacja cząstkowa rang). Przedział 95% liczymy bootstrapem po gminach (pierwsze sześć cyfr
+TERYT, 18 gmin), bo sąsiednie obręby nie są niezależne.
+
+**Kryterium (zapisane w kodzie przed liczeniem):** dolna granica przedziału 95%
+korelacji cząstkowej > 0,15.
+
+**Dane.** Granice obrębów z usługi GUGiK ULDK (`pipeline/sarnik_radar_lata_obreby.py`). Rejestr ma 601
+kodów obrębów. ULDK zna 339 z nich. Pozostałe 262 kody to błędy wpisu w rejestrze (np. zły rodzaj gminy).
+Mają tylko 2,5% działek z rejestru i 1,7% działek z nową budową z lat 2021–2026. Do testu weszło
+321 obrębów: 18 gmin, 2151 km², 30 185 działek z nową budową i ostatnią sprawą z lat 2021–2026.
+Minimum: 50 komórek w obszarze badań i co najmniej 90% obrębu w obszarze badań (odpadł 1 obręb).
+
+**Jedna poprawka po pierwszym przeliczeniu.** ULDK podaje część obrębów pod dwoma kodami, z tą samą
+granicą (np. `302107_2.0008` i `302107_3.0008`). Rejestr zapisuje działki raz pod jednym, raz pod drugim kodem.
+W pierwszej wersji jeden z „bliźniaków” tracił swoje komórki i odpadał, a drugi miał tylko część działek.
+Poprawka: obręby o wspólnym terenie łączymy w jeden (16 takich grup), a ich działki sumujemy
+(ten sam numer działki liczymy raz). Nic więcej się nie zmieniło. Ten błąd znaleźliśmy, sprawdzając
+pokrycie mapy **po** zobaczeniu pierwszego wyniku. **Pierwsza wersja nie przechodziła:** korelacja
+cząstkowa 0,20 (0,08–0,33), 322 obręby. Obie wersje są w `meta.json` (`first_look`).
+
+**Wynik.**
+
+| Co | Korelacja rang | Cząstkowa (bez wpływu zabudowy 2020) | Przedział 95% cząstkowej |
+|---|---|---|---|
+| **test:** radar 2021–2026 a działki z ostatnią sprawą 2021–2026 | 0,71 | **0,30** | **0,155–0,425** |
+| kontrola czasu: radar 2021–2026 a działki z ostatnią sprawą 2016–2018 | 0,72 | 0,27 | 0,12–0,39 |
+| różnica test − kontrola czasu | – | 0,03 | −0,05 do 0,13 |
+| okres odwrotny: radar 2016–2020 a działki 2016–2020 (bez wpływu zabudowy 2015) | 0,75 | 0,29 | 0,17–0,39 |
+| dla porównania: mapa optyczna 2015 → 2020 a te same działki 2016–2020 | 0,76 | 0,25 | 0,005–0,46 |
+
+Ten sam test z dopasowaniem kwadratowym do udziału zabudowy (tylko raport): 0,30 (0,148–0,429).
+
+Ćwiartki obrębów według gęstości działek z nową budową (2021–2026):
+
+| Grupa | Obręby | Działki na km² | Zabudowa 2020 (średnio) | Nowa zabudowa z radaru 2021–2026, ha/km² | Przedział 95% |
+|---|---|---|---|---|---|
+| 1 (najmniej) | 81 | 0–3,3 | 0,8% | 0,07 | 0,04–0,12 |
+| 2 | 80 | 3,4–11,1 | 1,9% | 0,31 | 0,17–0,50 |
+| 3 | 80 | 11,6–22,9 | 5,6% | 0,98 | 0,66–1,17 |
+| 4 (najwięcej) | 80 | 22,9–122 | 11,3% | 2,54 | 2,03–3,03 |
+
+Tabela ćwiartek nie usuwa wpływu zabudowy z 2020 r.: gęstsze grupy są też bardziej zabudowane.
+
+**Co przeszło, co nie.**
+
+- `pozwolenia_gunb` **przechodzi, ale ledwo**: dolna granica 0,155 przy progu 0,15. Przeszedł dopiero
+  po poprawce zrobionej po zobaczeniu pierwszego wyniku (który nie przechodził). Wariant kwadratowy
+  ma dolną granicę 0,148, czyli tuż pod progiem.
+- Reguła `zmiana_po_2020` **zostaje taka, jak była** (testy 3 i 4 naraz), więc nadal nie przechodzi.
+  Rozważaliśmy dopisanie do niej tego testu. Nie dopisaliśmy: wynik przechodzi o 0,005, dopiero po
+  poprawce zrobionej po nieudanym pierwszym przeliczeniu, a kontrola czasu (niżej) pokazuje, że test nie
+  odróżnia budowy po 2020 r. od wcześniejszej. W `meta.json` jest to zapisane w polu `register_not_used`.
+
+**Kontrola czasu nie odróżnia „radar widzi, co zbudowano po 2020 r.” od „to rosnąca okolica”.**
+Radar z lat 2021–2026 idzie w parze ze starymi pozwoleniami (ostatnia sprawa 2016–2018) prawie tak
+samo mocno (0,27) jak z nowymi (0,30). Różnica 0,03 ma przedział od −0,05 do 0,13. Test pokazuje więc,
+że radar widzi więcej nowej zabudowy tam, gdzie się buduje. Nie pokazuje, że trafia w lata budowy.
+
+**Sam rejestr słabo mierzy budowę na poziomie obrębu.** Nawet mapa optyczna (prawda dla 2015–2020)
+daje z rejestrem tylko 0,25, z przedziałem od 0,005. Radar w tym samym okresie daje 0,29. Radar wypada
+więc nie gorzej niż mapa optyczna. Ten test nie może dać dużo mocniejszego wyniku, bo rejestr jest szumny.
+
+**Granice.**
+
+- Poziom obrębu, nie działki ani komórki. Obręb ma średnio ok. 7 km².
+- „Ostatni rok” działki to rok jej **ostatniej sprawy dowolnego rodzaju** (nowa budowa, rozbudowa,
+  nadbudowa, odbudowa, rozbiórka), z daty decyzji, a gdy jej brak, z daty wniosku. To nie musi być rok
+  pozwolenia na nową budowę. Działka z pozwoleniem z 2017 r. i rozbudową w 2023 r. liczy się do 2021–2026.
+- Pozwolenie to nie budynek. Część nie zostanie zbudowana, część dopiero się buduje (zwłaszcza 2025–2026).
+- Obręby bez żadnej sprawy w rejestrze nie mają pliku, więc nie weszły do testu (mało ich, prawie cały
+  obszar badań jest pokryty).
+- 18 gmin to mało skupień do bootstrapu. Przedział może być za wąski albo za szeroki.
+
+**Co aplikacja może powiedzieć.** Uczciwie: „Tam, gdzie rejestr pokazuje więcej pozwoleń na nowe
+budynki, radar widzi po 2020 r. więcej nowej zabudowy, także przy tym samym stopniu zabudowy”. Nie
+możemy napisać, że radar potwierdza konkretną budowę ani jej rok. Wiersz karty zostaje więc informacją,
+bez ostrzeżeń.
+
 ### ALOS PALSAR 2007–2010: wybrany wariant (a)
 
 ALOS PALSAR na naszym modelu (z sąsiedztwem) odtwarza mapę optyczną z AUC ok. 0,93 (2007, 2008, 2010).
@@ -205,22 +302,38 @@ Skrypty (w `poznan-trend-detective/`), w kolejności uruchamiania:
 | `pipeline/sarnik_radar_lata_nisar.py` | cechy NISAR 2026 z pobranych plików GCOV i GUNW | ok. 40 s |
 | `pipeline/sarnik_radar_lata_alos.py` | sceny ALOS PALSAR 2007, 2008 i 2010 na siatce aplikacji | ok. 10 s |
 | `pipeline/sarnik_radar_lata.py` | klasyfikacja, rok pierwszej zabudowy, wszystkie testy, pliki modułu | ok. 3 min |
+| `pipeline/sarnik_radar_lata_obreby.py` | granice obrębów z usługi GUGiK ULDK do testu na rejestrze GUNB; bez nich test jest pomijany | ok. 50 min, raz |
 | `pipeline/sarnik_radar_prognoza.py` | prognoza sprawdzona radarem i liczona od stanu z 2026 r. | ok. 25 s |
 
 Dwa przebiegi `sarnik_radar_lata.py` dały identyczną warstwę (0 różnych komórek).
 
-## Wiersz w karcie miejsca
+## Wiersz w karcie miejsca i reszta aplikacji
 
-Moduł `web/sarnik/radar_lata.js` (test: `tests/sarnik/radar_lata.test.mjs`, 113 sprawdzeń) dodaje wiersz
-„Zabudowa wokół wg radaru, rok po roku” w grupie „Z radaru SAR”. Przykład dla Naramowic w Poznaniu:
+**Wiersz modułu (PR #22).** Moduł `web/sarnik/radar_lata.js` (test: `tests/sarnik/radar_lata.test.mjs`,
+126 sprawdzeń) dodaje wiersz „Zabudowa wokół wg radaru, rok po roku” w grupie „Z radaru SAR”.
+Przykład dla Naramowic w Poznaniu:
 
-> Radar widzi w 2026 r. zabudowę na 76% terenu w promieniu 1 km (w 2015 r.: 66%). Po 2020 r., gdzie kończy
-> się mapa optyczna, przybyło ok. 21 ha (najwięcej w 2023 r.), więcej niż w 95% miejsc wokół Poznania.
+> Po 2020 r., gdzie kończy się mapa optyczna, radar widzi w promieniu 1 km ok. 21 ha nowej zabudowy
+> (najwięcej w 2023 r.), więcej niż w 95% miejsc wokół Poznania. Od 2015 r. łącznie ok. 29 ha.
 
+- Wiersz mówi tylko o zmianie w hektarach. Udział zabudowy podaje wiersz „Zabudowa” w karcie; druga,
+  inaczej liczona liczba myliłaby kupującego.
 - Poziom wiersza to zawsze `info`, dopóki `checks.zmiana_po_2020.passed` jest `false`.
 - Moduł włącza się wpisem `"radar_lata"` w `web/sarnik/manifest.js`.
-- Warstwę `first_year.png` można też narysować na mapie i przesuwać osią czasu 2015–2026: komórka jest
-  zabudowana w roku R, gdy jej wartość jest od 15 do R − 2000. Tego moduł nie robi, bo mapę rysuje `app.js`.
+
+**Mapa, karta i prognoza (PR #24, zmienia `app.js`).** Mapa optyczna kończy się na 2020 r., a aplikacja
+mieszała ją dla lat 2021–2025 z prognozą modelu na 2025 r. i pokazywała wynik jak pomiar.
+Gdy jest warstwa `first_year.png`:
+
+- **Mapa, widok „Historia”:** lata 2021–2026 pokazują nową zabudowę z radaru osobnym kolorem,
+  a podkład zostaje na 2020 r.
+- **Udział zabudowy i wykres historii w karcie:** lata 2021–2026 to mapa z 2020 r. plus zabudowa, którą
+  radar datuje na te lata. Naramowice w 2026 r.: 72% zamiast 69%. Dopiewo: 31% zamiast 34%, bo radar
+  widzi tam mniej budów, niż zakładał model.
+- **Wiersz „Co może powstać obok”:** szansa jest liczona tylko na terenie, który radar nadal widzi jako
+  wolny. Gdy radar widzi zabudowę na terenie liczonym dotąd jako wolny, wiersz to mówi
+  („Radar widzi już zabudowę po 2020 r. na 21 ha terenu, który prognoza liczyła jako wolny”).
+- **Bez warstwy radarowej** mapa i karta działają jak przed zmianą.
 
 ## Czego to nie mówi
 
