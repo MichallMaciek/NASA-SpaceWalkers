@@ -8,7 +8,28 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const u = U(), blocks = [];
     const ramp_ = (stops, lo, hi) => `<div class="ramp" style="background:${gradient(stops)}"></div><div class="ticks"><span>${lo}</span><span>${hi}</span></div>`;
     // a layer that failed to load is left out of the colour keys below and gets its own block at the end
-    const L_ = layerFailed.size ? Object.fromEntries(Object.entries(state.lyr).map(([k, v]) => [k, layerFailed.has(k) ? { ...v, on: false } : v])) : state.lyr;
+    const L0 = layerFailed.size ? Object.fromEntries(Object.entries(state.lyr).map(([k, v]) => [k, layerFailed.has(k) ? { ...v, on: false } : v])) : state.lyr;
+    // hexagon mode (part 13a): those layers get their class keys first, and are left out of the heat-map keys below
+    let lastHex = -1;
+    const hexBlock = (k, title, extra = "") => { lastHex = blocks.length; blocks.push(`<div class="lt">${title}</div>${hexLegend(k)}${extra}`); };
+    if (state.hex) {
+      const lg = state.expert ? u.lg : { ...u.lg, ...u.lgPlain }, z = (sar && sar.zips) || {};
+      if (L0.score && L0.score.on) hexBlock("score", u.lgScore, u.lgScoreNote ? `<div class="lrow lnote">${u.lgScoreNote}</div>` : "");
+      if (L0.forest.on) hexBlock("forest", u.hex.forestTitle);
+      if (sar) {
+        if (L0.sarchange.on) hexBlock("sarchange", lg.sarchange);
+        if (L0.nisarwet.on && sar.nisar) hexBlock("nisarwet", lg.nisarwet);
+        if (L0.sarwet.on) hexBlock("sarwet", lg.sarwet);
+        if (L0.sarwater.on) hexBlock("sarwater", lg.sarwater);
+        if (L0.egms.on) hexBlock("egms", lg.egms);
+        if (L0.dist && L0.dist.on && z.dist) hexBlock("dist", u.lg.dist, `<div class="lrow lnote">${u.lg.distNote}</div>`);
+      }
+      if (L0.flood.on) hexBlock("flood", u.lg.flood, `<div class="lrow lnote">${u.lg.floodNote}</div>`);
+      if (L0.built.on) hexBlock("built", u.lg.built);
+      // the hexagon size once, under the last hexagon block (it changes with the zoom)
+      if (lastHex >= 0) blocks[lastHex] += `<div class="lrow lnote">${esc(u.hex.size(hexSizeFor(hexZoom())))}</div>`;
+    }
+    const L_ = state.hex ? Object.fromEntries(Object.entries(L0).map(([k, v]) => [k, HEX_KEYS.includes(k) ? { ...v, on: false } : v])) : L0;
     if (sar) {
       const lg = state.expert ? u.lg : { ...u.lg, ...u.lgPlain };
       const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
@@ -49,7 +70,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const boot = BOOT[lang] || BOOT.pl;
     layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");
-    $("#legend").hidden = !blocks.length; // no layer on: no legend
     $("#legend").querySelectorAll("[data-retry-layer]").forEach((b) => b.addEventListener("click", () => ensure(b.dataset.retryLayer).then(redraw)));
     // the side card above it shrinks so the legend is never covered
     document.documentElement.style.setProperty("--legend-h", `${blocks.length ? $("#legend").offsetHeight + 8 : 0}px`);

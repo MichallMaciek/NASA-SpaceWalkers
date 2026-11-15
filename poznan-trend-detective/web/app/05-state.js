@@ -33,6 +33,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     sel: null, // {kind: 'parcel'|'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}; parcel: sel.parcel {id, number, obreb, gmina, ring, areaM2}; point: sel.r (km)
     findingsOpen: (() => { try { const v = localStorage.getItem("ptd-fold"); if (v) return v === "open"; } catch (e) { /* ignore */ } return innerWidth >= 760; })(), finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
+    // the rating and quantity layers as the smooth heat map (false, the default) or as hexagons (true); the pill above the zoom buttons
+    hex: (() => { try { return localStorage.getItem("ptd-hex") === "1"; } catch (e) { return false; } })(),
     lens: null, // no view and no layer at the start: a clean map; the view buttons switch them on
     ryear: 2026, // radar views: the year on the radar time line
   };

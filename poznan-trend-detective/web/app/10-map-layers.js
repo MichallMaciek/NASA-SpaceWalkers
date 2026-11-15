@@ -35,7 +35,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   function overlay(k) {
     if (!overlays[k]) {
       const c = document.createElement("canvas"); c.width = land.width; c.height = land.height;
-      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land", zIndex: LAND_KEYS.indexOf(k) * 10 }) };
+      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land", zIndex: LAND_KEYS.indexOf(k) * 10, sharp: PICTURE_KEYS.includes(k) }) };
     }
     return overlays[k];
   }
@@ -50,7 +50,18 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       if (this._zoomAnimated) L.DomUtil.addClass(el, "leaflet-zoom-animated");
       el.onselectstart = L.Util.falseFn; el.onmousemove = L.Util.falseFn;
     },
+    // Radar pictures and terrain height (option sharp) are scaled sharp once a canvas pixel is bigger than a screen pixel
+    // (class .crisp, nearest neighbour), so they are not blurred; zoomed out further the smooth scaling averages pixels.
+    // The heat-map layers keep the smooth scaling.
+    getEvents() { const ev = L.ImageOverlay.prototype.getEvents.call(this); ev.zoomend = this.sharpen; return ev; },
+    onAdd(m) { L.ImageOverlay.prototype.onAdd.call(this, m); this.sharpen(); },
+    sharpen() { // map units per canvas pixel against map units per screen pixel (EPSG:3857, 256 px tiles)
+      if (!this._map || !this._image || !this.options.sharp) return;
+      const perPx = (land.transform3857[0] * land.width) / this._image.width, perScreen = (2 * Math.PI * 6378137) / (256 * 2 ** this._map.getZoom());
+      this._image.classList.toggle("crisp", perPx >= perScreen);
+    },
   });
+  const PICTURE_KEYS = ["dem", "alos", "s1rgb", "radar"]; // photographs, not ratings: never hexagons, always sharp
 
   // MODIS footprints in their true sinusoidal shape, clipped to the 18 municipalities
   const PixelLayer = L.GridLayer.extend({

@@ -31,6 +31,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     // phones: the legend is a small key under the map views; a tap opens and closes it (styles.css, max-width 760px)
     $("#legend").addEventListener("click", (e) => { if (innerWidth <= 760 && !e.target.closest("button")) $("#legend").classList.toggle("open"); });
     $("#theme-btn").addEventListener("click", () => setTheme(dark() ? "light" : "dark"));
+    $("#mode-hex").addEventListener("click", () => setHexMode(true));
+    $("#mode-heat").addEventListener("click", () => setHexMode(false));
+    setHexMode(state.hex);
     $("#drawer-close").addEventListener("click", () => openDrawer(false));
     $("#zoom-in").addEventListener("click", () => map.zoomIn());
     $("#zoom-out").addEventListener("click", () => map.zoomOut());
