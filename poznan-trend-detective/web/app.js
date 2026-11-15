@@ -1643,9 +1643,12 @@
       }
     }
     if (state.lyr.built.on && ready("built") && c) {
-      const { e0, e1, t } = epochPair(state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
+      // after the optical map (2020) and up to today, with the radar layer: the 2020 value, not a blend toward the model's 2025
+      const fy = radarFirst(), rad = fy && state.year > LAST_OBS() && state.year <= NOW_YEAR;
+      const { e0, e1, t } = epochPair(rad ? LAST_OBS() : state.year), a = L8[`built_${e0}`][c.i], b = L8[`built_${e1}`][c.i];
       const v = (a + (b - a) * t) / 255;
       lines.push(`${u.L.built}: ${num(v * 100, 0)}%`);
+      if (rad && fy[c.i] > LAST_OBS() - 2000 && fy[c.i] <= state.year - 2000) lines.push(u.lg.radarNew(2000 + fy[c.i], 2000 + fy[c.i]));
     }
     if (state.lyr.forest.on && ready("forest") && c) {
       const y = L8.forest_loss[c.i];
