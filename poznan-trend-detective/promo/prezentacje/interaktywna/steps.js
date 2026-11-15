@@ -90,8 +90,8 @@ window.STEPS = [
 
   { kind: "shot", img: "app", layout: "full", view: [10, 640, 1000, 440], focus: [16, 766, 268, 172],
     title: "NISAR: nowy radar NASA i ISRO",
-    sub: "Pasmo L widzi przez chmury, nocą i przez korony drzew. Tam, gdzie Sentinel-1 datuje nową zabudowę na lata 2021–2024, NISAR widzi ją 22 razy częściej niż na pustym terenie (przedział 20–24).",
-    note: "A to NISAR, nowy radar NASA i ISRO. Potwierdza nowe budowy: widzi zabudowę 22 razy częściej tam, gdzie starszy radar datuje nowe osiedla." },
+    sub: "Pasmo L widzi przez chmury, nocą i przez korony drzew. Tam, gdzie Sentinel-1 datuje zabudowę na lata 2021–2024, NISAR widzi ją 22 razy częściej niż na pustym terenie (przedział 20–24).",
+    note: "A to NISAR, nowy radar NASA i ISRO. Potwierdza to, co widzi starszy radar: tam, gdzie Sentinel-1 datuje zabudowę na ostatnie lata, NISAR widzi ją 22 razy częściej." },
 
   { kind: "text", lines: ["Piszemy też, co się nie potwierdziło.", "Zmiana NISAR w jednym sezonie nie wskazuje budów: zagłuszają ją pola. Wilgotność gleby z NISAR nie odróżnia terenów podtopień. Prognoza trafia w okolicę, nie w działkę."], small: 1,
     note: "I mówimy uczciwie, co się nie potwierdziło: zmiana NISAR w jednym sezonie nie wskazuje budów, a prognoza trafia w okolicę, nie w działkę." },
