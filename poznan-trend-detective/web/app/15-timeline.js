@@ -68,7 +68,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     $("#tl-kind").textContent = state.lens === "water"
       ? (lang === "pl" ? "Woda i podtopienia (PIG-PIB) · zmiana echa NISAR od czerwca do sierpnia 2026 (deszcz, żniwa, uprawa)" : "Flood areas & water (PIG-PIB) · NISAR echo change June → August 2026 (rain, harvest, tillage)")
       : state.lens === "build"
-      ? (lang === "pl" ? "Place budowy SAR · zmiany ścian i geometrii w 2026 r." : "SAR construction sites · active wall & geometry changes in 2026")
+      ? (lang === "pl" ? "Ślady budów w radarze (Sentinel-1) · jesień 2025 → jesień 2026, sygnał do sprawdzenia" : "Signs of construction in radar (Sentinel-1) · autumn 2025 → autumn 2026, leads to check")
       : state.lens === "ground"
       ? (lang === "pl" ? "Osiadanie podłoża (EGMS radar) · przemieszczenia pionowe w mm/rok" : "Ground subsidence (EGMS radar) · vertical displacement in mm/yr")
       : state.lens === "score"
