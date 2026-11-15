@@ -87,6 +87,7 @@
     wet: ["#CFE3F5", "#8CBDE8", "#3F8FD6", "#155FA8"],
     water: ["#9ED0F5", "#4AA3E8", "#1C73C9", "#0B4A8C"],
     sink: ["#F7C3B0", "#EB7E5B", "#CC3B24", "#8C1A10"],
+    score: ["#E0332F", "#EE6B2D", "#F2A31B", "#F6C25B", "#7DBB8A", "#2F8A4F"],
   };
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rampCache = new Map();
@@ -417,7 +418,7 @@
       egms: { on: false, op: 0.95, min: 2 },
       alos: { on: false, op: 0.85, y: 2021 },
       nisarwet: { on: false, op: 0.9, min: 2 },
-      built: { on: true, op: 0.85 },
+      built: { on: false, op: 0.85 },
       forest: { on: false, op: 0.85 },
       price: { on: false, op: 0.55 },
       activity: { on: false, op: 0.9, min: 3 },
@@ -426,12 +427,13 @@
       radar: { on: false, op: 0.85, lo: -18, hi: -4 },
       nisar: { on: false, op: 0.85, i: 0 },
       wuia: { on: false, op: 0.85 },
+      score: { on: true, op: 0.85 },
       night: { on: false, op: 0.8 }, day: { on: false, op: 0.8 }, ndvi: { on: false, op: 0.8 }, nightyear: { on: false, op: 0.8 },
     },
     sel: null, // {kind: 'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}
     findingsOpen: (() => { try { const v = localStorage.getItem("ptd-fold"); if (v) return v === "open"; } catch (e) { /* ignore */ } return innerWidth >= 760; })(), finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
-    lens: "radar",
+    lens: "score",
     ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];
@@ -553,13 +555,13 @@
     document.body.appendChild(s);
   });
 
-  const LAND_KEYS =["dem", "alos", "s1rgb", "radar", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "built"]; // draw order, bottom to top
+  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "built", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score"]; // draw order, bottom to top
   const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
   // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
   const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);
   const lbandNames = (y) => (y === 2026 ? ["nisar_hh_med", "nisar_hv_med"] : [`alos_hh_${y}`, `alos_hv_${y}`]);
-  // radar time line (v3): in the radar views the timeline walks through the years that have radar data
-  const RADAR_LENSES = ["radar", "build", "water", "ground"];
+  // radar time line (v3): only raw satellite microwave views use the specialized radar archive timeline
+  const RADAR_LENSES = ["radar"];
   const RY = () => (sar ? sar.alos.years.concat([2026]) : []);
   const radarTL = () => !!sar && RADAR_LENSES.includes(state.lens);
   // NISAR passes of summer 2026 (data/sarnik/anim, pipeline/sar_animacja.py): in the radar view the 2026 step opens into the
@@ -614,6 +616,7 @@
     egms: () => ["sar_egms", "study"],
     alos: () => [...lbandNames(state.lyr.alos.y), "study"],
     nisarwet: () => ["nisar_wetdry", "study"],
+    score: () => ["study", "prob_2030", "forest2000_frac", "built_2025", "dem", ...(sar ? ["sar_egms", "sar_change"] : [])],
   };
   const ready = (k) => ((SAR_KEYS.includes(k) && !sar) || (k === "nisarwet" && !(sar && sar.nisar)) ? false : !NEEDS[k] || NEEDS[k]().every((n) => L8[n]));
   const SAR_PLACE = () => (sar ? ["sar_change", "sar_dratio", "sar_wet", "sar_water", "sar_egms", "sar_series",
@@ -661,7 +664,7 @@
   function overlay(k) {
     if (!overlays[k]) {
       const c = document.createElement("canvas"); c.width = land.width; c.height = land.height;
-      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land" }) };
+      overlays[k] = { canvas: c, ctx: c.getContext("2d"), img: null, layer: new CanvasOverlay(c, land.bounds, { opacity: state.lyr[k].op, interactive: false, pane: "land", zIndex: LAND_KEYS.indexOf(k) * 10 }) };
     }
     return overlays[k];
   }
@@ -672,6 +675,7 @@
       const el = (this._image = this._url);
       L.DomUtil.addClass(el, "leaflet-image-layer");
       L.DomUtil.addClass(el, "land-canvas");
+      if (this.options.zIndex != null) el.style.zIndex = this.options.zIndex;
       if (this._zoomAnimated) L.DomUtil.addClass(el, "leaflet-zoom-animated");
       el.onselectstart = L.Util.falseFn; el.onmousemove = L.Util.falseFn;
     },
@@ -1156,6 +1160,28 @@
         const t = clamp((Math.abs(v) - s.min) / 8, 0, 1), L = v < 0 ? sub : upl, j = ((t * 255) | 0) * 3;
         put(i, [L[j], L[j + 1], L[j + 2]], 170 + t * 80);
       }
+    } else if (k === "score") {
+      const p30 = L8.prob_2030, ff = L8.forest2000_frac, b25 = L8.built_2025;
+      const eg = L8.sar_egms, sc = L8.sar_change, lut = lutFor(RAMPS.score);
+      for (let i = 0; i < n; i++) {
+        if (!st[i]) continue;
+        let s = 65;
+        if (ff && ff[i]) s += (ff[i] / 255) * 25;
+        if (p30 && p30[i] > 15) s -= (p30[i] / 255) * 22;
+        if (b25 && b25[i] > 120) s -= 8;
+        if (eg && eg[i]) {
+          const v = egmsOf(eg[i]);
+          if (v <= -2) s -= Math.min(30, Math.abs(v) * 6);
+          else if (v >= -0.5 && v <= 1) s += 5;
+        }
+        if (sc && sc[i]) {
+          const ch = changeOf(sc[i]);
+          if (ch >= 3) s -= 15;
+        }
+        s = clamp(s, 5, 95);
+        const t = (s - 5) / 90, j = ((t * 255) | 0) * 3;
+        put(i, [lut[j], lut[j + 1], lut[j + 2]], 185);
+      }
     }
     o.ctx.putImageData(o.img, 0, 0);
   }
@@ -1383,6 +1409,7 @@
     if (L_.nisar.on) blocks.push(`<div class="lt">${u.lg.nisar(NISAR_DATES[L_.nisar.i] || "")}</div><div class="lrow">${u.lg.nisarNote}</div>`);
     ["night", "day", "ndvi"].forEach((k) => { if (L_[k].on) { const P = PIXEL[k]; blocks.push(`<div class="lt">${u.L[k]}</div>${ramp_([...P.neg].reverse().concat([css("--ns")], P.pos), sgn(-P.max, P.max < 1 ? 2 : 1), sgn(P.max, P.max < 1 ? 2 : 1))}<div class="lrow"><span class="sw" style="background:${css("--ns")}"></span>${T().notSig}</div>`); } });
     if (L_.nightyear.on) blocks.push(`<div class="lt">${u.lg.nightyear(heatYear())}</div>${ramp_(RAMPS.heat, "10 °C", "20 °C")}`);
+    if (L_.score && L_.score.on) blocks.push(`<div class="lt">${u.lgScore || "Ocena działki"}</div>${ramp_(RAMPS.score, u.lgScoreRisk || "Ryzyko", u.lgScoreGood || "Zalety")}`);
     const boot = BOOT[lang] || BOOT.pl;
     layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");
@@ -1398,20 +1425,21 @@
     const t = lvl === "yes" ? U().sarYes : U().sarPart;
     return `<span class="sar-tag" role="img" aria-label="${t}" title="${t}">${SAR_ICON(lvl === "part")}</span>`;
   }
-  const LENS_SAR = { radar: "yes", build: "yes", water: "part", ground: "yes", trees: "no", history: "no" };
+  const LENS_SAR = { score: "part", history: "no", build: "yes", water: "part", ground: "yes", trees: "no", radar: "yes" };
   const FIND_SAR = { lband: "yes", radar: "yes", wet: "yes", ground: "yes", modelRadar: "part" };
 
   /* ================= lenses (v3): one plain question per map view ================= */
   const LENSES = () => {
     const all = [
-      { k: "radar", layers: sar && sar.nisar ? ["alos"] : ["s1rgb"] }, // L-band: ALOS-2 2015-2021, then NISAR 2026
-      { k: "build", layers: ["sarchange"] },
-      { k: "water", layers: sar && sar.nisar ? ["nisarwet", "flood"] : ["sarwet", "flood"] },
-      { k: "ground", layers: ["egms"] },
-      { k: "trees", layers: ["forest"] },
+      { k: "score", layers: ["score"] },
       { k: "history", layers: ["built"] },
+      { k: "build", layers: ["built", "sarchange"] },
+      { k: "water", layers: sar && sar.nisar ? ["built", "flood", "nisarwet"] : ["built", "flood", "sarwet"] },
+      { k: "ground", layers: ["built", "egms"] },
+      { k: "trees", layers: ["built", "forest"] },
+      { k: "radar", layers: sar && sar.nisar ? ["alos"] : ["s1rgb"] },
     ];
-    return sar ? all : all.filter((l) => l.k === "trees" || l.k === "history");
+    return sar ? all : all.filter((l) => l.k === "score" || l.k === "trees" || l.k === "history");
   };
   // past radar years show the L-band archive (ALOS-2); 2026 shows each view's own radar product
   const lensLayers = (l) => (sar && RADAR_LENSES.includes(l.k) && state.ryear < 2026 ? ["alos"] : l.layers);
@@ -1589,7 +1617,7 @@
       cb.closest(".lyr").classList.toggle("off", !cb.checked);
       if (cb.checked) await ensure(k);
       // a lens stays highlighted only while the map shows exactly its layers
-      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => ["wuia", "flood", "nisar"].includes(key) || state.lyr[key].on === lensLayers(l).includes(key)));
+      const match = LENSES().find((l) => Object.keys(state.lyr).every((key) => ["wuia", "nisar"].includes(key) || state.lyr[key].on === lensLayers(l).includes(key)));
       state.lens = match ? match.k : null;
       renderLenses(); renderTimeline();
       body.querySelectorAll(".lens-item").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === state.lens)));
@@ -2277,17 +2305,183 @@
     items.forEach((it) => { if (!it.sar) it.sar = SARK[it.t] || "no"; });
     return items.concat(skItems(sel)); // rows from extension modules (empty without modules)
   }
+  function computeProsAndCons(sel, items) {
+    const u = U(), pros = [], cons = [];
+    const wf = waterFacts(sel);
+    const s = sar && L8.sar_change ? sarStats(sel.cells) : null;
+    const rk = riskOf(sel.cells);
+    const ff = mean(sel.cells.map((i) => (L8.forest2000_frac ? L8.forest2000_frac[i] : 0))) / 2.55; // 0..100%
+    const lost = forestLost(sel.cells, 2024);
+
+    // 1. CONS / ALARMS (Najbardziej niepokojące fakty na pierwszy rzut oka)
+    if (wf.floodShare > 0) {
+      cons.push({
+        lvl: "risk",
+        t: lang === "pl" ? "Wysokie ryzyko podtopień (woda gruntowa)" : "High groundwater flood risk",
+        d: lang === "pl" ? "Działka leży w strefie zagrożonej podtopieniami wg PIG-PIB. Ryzyko zalewania piwnic i fundamentów na wiosnę." : "Plot is in a groundwater flood zone (PIG-PIB). Risk of basement and foundation flooding in spring."
+      });
+    } else if (wf.hollow) {
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? `Zagłębienie terenu (−${num(wf.depth, 1)} m)` : `Terrain depression (−${num(wf.depth, 1)} m)`,
+        d: lang === "pl" ? "Teren leży niżej niż okolica – woda opadowa po ulewach spływa i może tworzyć zastoiska." : "Ground sits lower than surroundings – stormwater drains here after downpours."
+      });
+    }
+
+    if (s && (s.egMed <= -3 || s.egMin <= -5)) {
+      cons.push({
+        lvl: "risk",
+        t: lang === "pl" ? `Osiadanie gruntu (${sgn(s.egMin || s.egMed, 0)} mm/rok)` : `Ground sinking (${sgn(s.egMin || s.egMed, 0)} mm/yr)`,
+        d: lang === "pl" ? "Satelitarny radar interferometryczny (InSAR) wykrywa opadanie podłoża. Ryzyko pękania murów." : "Interferometric radar (InSAR) detects ground subsidence. Risk of wall cracks."
+      });
+    }
+
+    if (s && s.walls > 0.02) {
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? "Ślad nowych murów w radarze (SAR 2026)" : "New walls detected by radar (SAR 2026)",
+        d: lang === "pl" ? `Radar Sentinel-1 widzi nowe konstrukcje obok (${num(s.walls * 100, 0)}% terenu). Aktywny plac budowy tuż obok.` : `Sentinel-1 radar detects new structures next door (${num(s.walls * 100, 0)}% of land). Active building site.`
+      });
+    }
+
+    if (rk && rk.level >= 4) {
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? `Wysokie ryzyko gęstej zabudowy sąsiedztwa (${num(rk.chance * 100, 0)}%)` : `High risk of nearby development (${num(rk.chance * 100, 0)}%)`,
+        d: lang === "pl" ? "Model AI przewiduje, że wolny teren obok ma ponadprzeciętną szansę zabudowy w 5 lat. Możliwa utrata widoku." : "AI model forecasts very high chance of nearby open land being built up within 5 years."
+      });
+    }
+
+    if (lost >= 1.5) {
+      cons.push({
+        lvl: "warn",
+        t: lang === "pl" ? `Ubytek drzew w okolicy (−${num(lost, 1)} ha)` : `Tree loss in area (−${num(lost, 1)} ha)`,
+        d: lang === "pl" ? "Zdjęcia Landsat pokazują postępującą wycinkę lasu/zadrzewień od 2001 r." : "Landsat imagery shows progressive forest clearing since 2001."
+      });
+    }
+
+    if (sel.sq.length) {
+      const r = testSeries(heatSeries("day", sel.sq), HEAT_YEARS), pc = percentile(rankPool.day, r.perDec);
+      if (r.p < 0.05 && pc >= 70) {
+        cons.push({
+          lvl: "warn",
+          t: lang === "pl" ? `Miejska wyspa ciepła (+${num(r.perDec, 1)} °C/dekadę)` : `Urban heat island (+${num(r.perDec, 1)} °C/dec)`,
+          d: lang === "pl" ? "Powierzchnia dachów i gruntu nagrzewa się latem znacznie szybciej niż reszta aglomeracji." : "Surfaces warm up significantly faster during summer than surrounding area."
+        });
+      }
+    }
+
+    items.filter((it) => it.module && (it.lvl === "warn" || it.lvl === "risk")).forEach((it) => {
+      cons.push({ lvl: it.lvl, t: esc(it.t), d: esc(it.v) });
+    });
+
+    // 2. PROS (Zalety na zielono)
+    if (ff >= 15) {
+      pros.push({
+        t: lang === "pl" ? `Bliskość zieleni i lasu (ok. ${num(ff, 0)}% otoczenia)` : `Close to forest & greenery (~${num(ff, 0)}%)`,
+        d: lang === "pl" ? "Duży udział koron drzew i roślinności. Czyste powietrze i naturalny mikroklimat." : "High tree canopy and vegetation share. Fresh air and natural microclimate."
+      });
+    }
+    if (wf.floodShare === 0 && !wf.hollow) {
+      pros.push({
+        t: lang === "pl" ? "Bezpiecznie od podtopień" : "Safe from flooding",
+        d: lang === "pl" ? "Brak stref podtopień PIG-PIB i brak niecek terenowych. Woda opadowa swobodnie odpływa." : "No PIG-PIB flood zones or hollows. Stormwater drains naturally."
+      });
+    }
+    if (!s || (s.egMed >= -1.5 && s.egMin >= -3)) {
+      pros.push({
+        t: lang === "pl" ? "Stabilne podłoże (brak osiadania)" : "Stable ground (no sinking)",
+        d: lang === "pl" ? "Radar satelitarny nie rejestruje niebezpiecznych ruchów pionowych gruntu." : "Satellite radar records no hazardous ground motion."
+      });
+    }
+    if (!s || (s.walls <= 0.01 && s.up <= 0.04)) {
+      pros.push({
+        t: lang === "pl" ? "Spokój w radarze (brak uciążliwych budów)" : "Quiet radar signature (no intrusive building)",
+        d: lang === "pl" ? "Brak gwałtownych pojaśnień i nowych hal przemysłowych w ostatnim roku." : "No abrupt brightening or industrial sheds constructed in the past year."
+      });
+    }
+    if (rk && rk.level <= 2 && rk.level > 0) {
+      pros.push({
+        t: lang === "pl" ? "Umiarkowana presja deweloperska" : "Low development pressure",
+        d: lang === "pl" ? "Niska szansa na chaotyczną lub nagłą gęstą zabudowę sąsiedztwa w 5 lat." : "Low probability of abrupt dense development nearby within 5 years."
+      });
+    }
+
+    // Overall Score (0-100)
+    let score = 70;
+    if (ff >= 20) score += 15;
+    else if (ff >= 10) score += 8;
+    if (wf.floodShare === 0 && !wf.hollow) score += 10;
+    if (!s || (s.egMed >= -1 && s.egMin >= -2)) score += 5;
+    if (wf.floodShare > 0) score -= 35;
+    if (wf.hollow) score -= 15;
+    if (s && s.egMed <= -3) score -= 25;
+    if (s && s.walls > 0.02) score -= 12;
+    if (rk && rk.level >= 4) score -= 14;
+    if (lost >= 2) score -= 10;
+    score = clamp(Math.round(score), 10, 98);
+
+    let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
+    if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }
+    else if (score < 65) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana"; }
+    else if (score < 80) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (w normie)"; }
+
+    // NISAR 2026 Ground Reality
+    let nisarStatus = u.nisarField || "Teren otwarty zachowujący naturalny cykl rolniczy.";
+    const isBuiltNow = sel.cells.some((i) => L8.built_2025 && L8.built_2025[i] > 120);
+    if (isBuiltNow) {
+      nisarStatus = u.nisarBuilt || "Wykryto zabudowę (sprawdzona trafność 95%). Stan wyjściowy pod prognozę.";
+    } else if (s && s.walls > 0.02) {
+      nisarStatus = u.nisarWalls || "Wykryto nowe konstrukcje / fizyczne ściany w sezonie 2026.";
+    } else if (rk && rk.level >= 4) {
+      nisarStatus = u.nisarPending || "Pole ze stłumionym rytmem wegetacji (cecha 1,5% gruntów oczekujących na inwestycję).";
+    }
+
+    return { score, tierClass, tierLabel, pros, cons, nisarStatus };
+  }
+
   function plainHTML(sel) {
-    const p = U().plain, items = plainChecks(sel), flags = items.filter((it) => !it.pending && (it.lvl === "warn" || it.lvl === "risk")).length;
-    // module rows: title, status word and source are plain text from the module, so they are escaped here
-    const word = (it) => (it.word ? esc(it.word) : it.pending ? p.checking : p.lvl[it.lvl]);
-    const txt = (it, s) => (it.module ? esc(s) : s);
-    const mark = { ok: "ok", info: "info", warn: "warn", risk: "risk", price: "info" };
-    return `<div class="verdict ${flags ? "has-flags" : "all-ok"}"><div class="vd-n">${flags ? p.flags(flags) : p.noFlags}</div><div class="vd-s">${flags ? p.flagsSub : p.noFlagsSub}</div></div>
-      ${[[p.grpSar, items.filter((it) => it.sar !== "no"), true], [p.grpOther, items.filter((it) => it.sar === "no"), false]].filter(([, list]) => list.length).map(([h, list, isSar]) => `
-      <h3 class="pl-h${isSar ? " is-sar" : ""}">${isSar ? SAR_ICON() : ""}${h}</h3>
-      <ul class="plain">${list.map((it) => `<li class="pl pl-${mark[it.lvl]}${it.pending ? " pl-pending" : ""}"><span class="pl-dot" aria-hidden="true"></span><div>
-        <div class="pl-t"><span>${txt(it, it.t)}${it.sar === "part" ? sarMark("part") : ""}</span><span class="pl-l">${word(it)}</span></div><div class="pl-v">${it.v}</div>${it.src ? `<div class="pl-src">${txt(it, it.src)}</div>` : ""}</div></li>`).join("")}</ul>`).join("")}`;
+    const u = U(), p = u.plain, items = plainChecks(sel);
+    const { score, tierClass, tierLabel, pros, cons, nisarStatus } = computeProsAndCons(sel, items);
+
+    const nisarBanner = `
+      <div class="nisar-banner">
+        <div class="nisar-banner-head">
+          <span class="nisar-pill">${SAR_ICON()} NISAR · 2026</span>
+          <span class="nisar-orbit">Pasmo L (20 m) · Orbita 158</span>
+        </div>
+        <p class="nisar-quote">${u.nisarQuote || "„NISAR pokazuje co kilka dni, przez chmury, co stoi i co się dzieje na ziemi wokół działki w 2026 r., a od tego stanu startuje prognoza.”"}</p>
+        <div class="nisar-state"><b>${u.nisarGround || "Stan wg NISAR 2026:"}</b> ${nisarStatus}</div>
+      </div>`;
+
+    const scoreCard = `
+      <div class="spot-score-card">
+        <div class="score-badge ${tierClass}">${score}</div>
+        <div class="score-info">
+          <div class="score-title">${u.scoreTitle || "Ogólna ocena działki"}: ${score}/100</div>
+          <div class="score-sub">${tierLabel}</div>
+        </div>
+      </div>`;
+
+    const consHTML = `
+      <div class="pc-section">
+        <div class="pc-head cons-head">⚠️ ${u.conHeader || "Wady i punkty do sprawdzenia"} (${cons.length})</div>
+        ${cons.length ? `<ul class="pc-list">${cons.map((c) => `
+          <li class="pc-item con-item ${c.lvl === "warn" ? "warn-item" : ""}">
+            <div><b>${c.t}</b><br><small>${c.d}</small></div>
+          </li>`).join("")}</ul>` : `<div class="pc-empty">✅ ${u.noCons || "Brak krytycznych ostrzeżeń na tym terenie."}</div>`}
+      </div>`;
+
+    const prosHTML = `
+      <div class="pc-section">
+        <div class="pc-head pros-head">🌿 ${u.proHeader || "Zalety i atuty lokalizacji"} (${pros.length})</div>
+        ${pros.length ? `<ul class="pc-list">${pros.map((p) => `
+          <li class="pc-item pro-item">
+            <div><b>${p.t}</b><br><small>${p.d}</small></div>
+          </li>`).join("")}</ul>` : ""}
+      </div>`;
+
+    return nisarBanner + scoreCard + consHTML + prosHTML;
   }
   function riskHTML(rk, sel) {
     const u = U(), s = rk.score;
@@ -2504,9 +2698,19 @@
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
     const focused = card.contains(document.activeElement) ? focusKey(document.activeElement) : null;
+    const nisarHero = `
+      <div class="nisar-banner">
+        <div class="nisar-banner-head">
+          <span class="nisar-pill">${SAR_ICON()} NISAR · 2026</span>
+          <span class="nisar-orbit">Pasmo L (20 m) · Orbita 158</span>
+        </div>
+        <p class="nisar-quote">${u.nisarQuote || "„NISAR pokazuje co kilka dni, przez chmury, co stoi i co się dzieje na ziemi wokół działki w 2026 r., a od tego stanu startuje prognoza.”"}</p>
+        <div class="nisar-state">💡 ${u.nisarHint || "Kliknij dowolny punkt lub działkę na mapie, aby natychmiast zobaczyć jej ocenę (0–100), zalety (na zielono) i wady (na czerwono)."}</div>
+      </div>`;
     card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold" aria-expanded="${state.findingsOpen}">${state.findingsOpen ? u.hide : u.show}</button></div>
-      <p class="sub">${u.caseIntro}${sar && sar.nisar ? ` ${u.nisarLine}` : ""}</p>
+      ${nisarHero}
+      <p class="sub">${u.caseIntro}</p>
       ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
       <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
