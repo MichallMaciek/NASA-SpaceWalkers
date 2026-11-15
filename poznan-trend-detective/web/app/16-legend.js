@@ -7,16 +7,19 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   function renderLegend() {
     const u = U(), blocks = [];
     const ramp_ = (stops, lo, hi) => `<div class="ramp" style="background:${gradient(stops)}"></div><div class="ticks"><span>${lo}</span><span>${hi}</span></div>`;
+    let lastHex = -1;
+    // a hexagon layer (part 13a): its classes with their thresholds, and "no data" for layers that measure part of the land
+    const hexBlock = (k, title, extra = "") => { lastHex = blocks.length; blocks.push(`<div class="lt">${title}</div>${hexLegend(k)}${extra}`); };
     // a layer that failed to load is left out of the colour keys below and gets its own block at the end
     const L_ = layerFailed.size ? Object.fromEntries(Object.entries(state.lyr).map(([k, v]) => [k, layerFailed.has(k) ? { ...v, on: false } : v])) : state.lyr;
     if (sar) {
       const lg = state.expert ? u.lg : { ...u.lg, ...u.lgPlain };
       const sw = (c, t) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`;
-      if (L_.sarchange.on) blocks.push(`<div class="lt">${lg.sarchange}</div>${sw(RAMPS.up[1], lg.wallsNow)}${sw(RAMPS.upSoft[2], lg.brighterNow)}${sw(RAMPS.down[2], lg.darkerNow)}`);
-      if (L_.nisarwet.on && sar.nisar) blocks.push(`<div class="lt">${lg.nisarwet}</div>${sw(RAMPS.wet[2], lg.wetter)}${sw(RAMPS.brown[2], lg.drier)}`);
-      if (L_.sarwet.on) blocks.push(`<div class="lt">${lg.sarwet}</div>${ramp_(RAMPS.wet, lg.weak, lg.strong)}`);
-      if (L_.sarwater.on) blocks.push(`<div class="lt">${lg.sarwater}</div>${ramp_(RAMPS.water, `${L_.sarwater.min}%`, "100%")}`);
-      if (L_.egms.on) blocks.push(`<div class="lt">${lg.egms}</div>${sw(RAMPS.sink[2], lg.sinks)}${sw(RAMPS.cool[2], lg.rises)}`);
+      if (L_.sarchange.on) hexBlock("sarchange", lg.sarchange);
+      if (L_.nisarwet.on && sar.nisar) hexBlock("nisarwet", lg.nisarwet);
+      if (L_.sarwet.on) hexBlock("sarwet", lg.sarwet);
+      if (L_.sarwater.on) hexBlock("sarwater", lg.sarwater);
+      if (L_.egms.on) hexBlock("egms", lg.egms);
       if (L_.s1rgb.on || L_.alos.on) {
         const kk = L_.alos.on && !L_.s1rgb.on ? (L_.alos.y === 2026 ? "nisar" : "alos") : "s1rgb";
         const pf = L_.alos.on && passOn() ? anim.frames[pass] : null; // a single NISAR pass: its date, and grey for an HH-only pass
@@ -25,10 +28,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
           (pf ? `<div class="lrow">${u.lg.passNote}</div>` : ""));
       }
     }
-    if (L_.built.on) blocks.push(`<div class="lt">${u.lg.built}</div>${ramp_(RAMPS.built, u.lg.low, u.lg.high)}${radarFirst() && state.year > LAST_OBS() ? `<div class="lrow"><span class="sw" style="background:${css("--c-radar")}"></span>${u.lg.radarNew(LAST_OBS() + 1, Math.min(state.year, rlLast))}</div>` : ""}${isFuture() ? `<div class="lrow"><span class="sw" style="background:${css("--pred")}"></span>${u.lg.projected}</div>` : ""}`);
-    if (L_.forest.on) blocks.push(`<div class="lt">${u.lg.forest}</div>${ramp_(RAMPS.loss, "2001", String(Math.min(state.year, 2024)))}<div class="lrow"><span class="sw" style="background:${css("--c-forest")};opacity:.5"></span>${u.lg.forestLeft}</div>`);
+    if (L_.forest.on) hexBlock("forest", u.lg.forest); // the view's subject before the built-up background
+    if (L_.built.on) hexBlock("built", u.lg.built);
     if (L_.price.on) blocks.push(`<div class="lt">${u.lg.price(clamp(state.year, 2010, 2025))}</div>${ramp_(RAMPS.price, "3 500 zł", "12 500 zł")}`);
-    if (L_.flood.on) blocks.push(`<div class="lt">${u.lg.flood}</div><div class="lrow"><span class="sw" style="background:#3B8FE0"></span>${u.lg.floodNote}</div>`);
+    if (L_.flood.on) hexBlock("flood", u.lg.flood, `<div class="lrow lnote">${u.lg.floodNote}</div>`);
     if (L_.wuia.on) blocks.push(`<div class="lt">${u.L.wuia}</div>` + [["#E5602A", u.lg.wuiaNew], ["#7357E8", u.lg.wuiaExt], ["#F2A31B", u.lg.wuiaOther]].map(([c, t]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${t}</div>`).join(""));
     if (L_.activity.on) blocks.push(`<div class="lt">${u.lg.activity}</div><div class="lrow"><span class="sw" style="background:${css("--c-terrain")}"></span>${u.lg.brighter}</div><div class="lrow"><span class="sw" style="background:#7A6FB0"></span>${u.lg.darker}</div>`);
     if (L_.dem.on) blocks.push(`<div class="lt">${u.lg.dem}</div>${ramp_(RAMPS.terrain, `${L_.dem.lo} m`, `${L_.dem.hi} m`)}`);
@@ -36,7 +39,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (L_.nisar.on) blocks.push(`<div class="lt">${u.lg.nisar(NISAR_DATES[L_.nisar.i] || "")}</div><div class="lrow">${u.lg.nisarNote}</div>`);
     ["night", "day", "ndvi"].forEach((k) => { if (L_[k].on) { const P = PIXEL[k]; blocks.push(`<div class="lt">${u.L[k]}</div>${ramp_([...P.neg].reverse().concat([css("--ns")], P.pos), sgn(-P.max, P.max < 1 ? 2 : 1), sgn(P.max, P.max < 1 ? 2 : 1))}<div class="lrow"><span class="sw" style="background:${css("--ns")}"></span>${T().notSig}</div>`); } });
     if (L_.nightyear.on) blocks.push(`<div class="lt">${u.lg.nightyear(heatYear())}</div>${ramp_(RAMPS.heat, "10 °C", "20 °C")}`);
-    if (L_.score && L_.score.on) blocks.push(`<div class="lt">${u.lgScore || "Ocena działki"}</div>${ramp_(RAMPS.score, u.lgScoreRisk || "Ryzyko", u.lgScoreGood || "Zalety")}`);
+    if (L_.score && L_.score.on) hexBlock("score", u.lgScore);
+    // the hexagon size once, under the last hexagon block (it changes with the zoom)
+    if (lastHex >= 0) blocks[lastHex] += `<div class="lrow lnote">${esc(u.hex.size(hexSizeFor(hexZoom())))}</div>`;
     const boot = BOOT[lang] || BOOT.pl;
     layerFailed.forEach((k) => { if (state.lyr[k] && state.lyr[k].on) blocks.push(`<div class="lt">${u.L[k] || k}</div><div class="lrow">${boot.layerFail}</div><button type="button" class="linkish" data-retry-layer="${k}">${boot.retry}</button>`); });
     $("#legend").innerHTML = blocks.map((b) => `<div class="lblock">${b}</div>`).join("");

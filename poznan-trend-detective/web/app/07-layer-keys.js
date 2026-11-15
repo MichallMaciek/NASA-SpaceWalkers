@@ -3,7 +3,7 @@
 // they share one scope, so a top-level name declared in one part is visible in every other part. Rules: web/app/README.md
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
-  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "built", "forest", "activity", "sarwater", "sarwet", "nisarwet", "sarchange", "egms", "score"]; // draw order, bottom to top
+  const LAND_KEYS = ["dem", "alos", "s1rgb", "radar", "activity"]; // raster pictures, draw order bottom to top; the rest are hexagons (HEX_KEYS, part 13a)
   const SAR_KEYS = ["s1rgb", "sarchange", "sarwet", "sarwater", "egms", "alos", "nisarwet"];
   // L-band time line: ALOS-2 yearly mosaics, then NISAR 2026 (median of its passes)
   const LBAND_YEARS = () => (sar ? sar.alos.years.concat(sar.nisar ? [2026] : []) : []);

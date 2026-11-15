@@ -239,7 +239,7 @@ window.I18N.pl.ui = {
   lg: {
     built: "Intensywność zabudowy", low: "niska", high: "wysoka", projected: "Prognozowana zabudowa",
     radarNew: (a, b) => `nowa zabudowa wg radaru (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
-    forest: "Wycinka lasów (rok)", forestLeft: "Las z 2000 r., który stoi",
+    forest: "Las i wycinka", forestLeft: "Las z 2000 r., który stoi",
     price: (y) => `Cena za m² (GUS), ${y}`, activity: "Aktywność terenu, radar 2017–2024",
     brighter: "Jaśniej: nowe dachy, stal, beton", darker: "Ciemniej: wycinka, woda, rozbiórka",
     dem: "Wysokość terenu (TanDEM-X)", radar: (y) => `Jasność odbicia, Sentinel-1, lato ${y}`,
@@ -291,7 +291,7 @@ window.I18N.en.ui = {
   lg: {
     built: "Built-up intensity", low: "low", high: "high", projected: "Projected building",
     radarNew: (a, b) => `new building seen by radar (Sentinel-1, NISAR), ${a === b ? a : `${a}–${b}`}`,
-    forest: "Forest loss (year)", forestLeft: "Forest of 2000 still standing",
+    forest: "Forest and felling", forestLeft: "Forest of 2000 still standing",
     price: (y) => `Price per m² (GUS), ${y}`, activity: "Ground activity, radar 2017–2024",
     brighter: "Brighter: new roofs, steel, concrete", darker: "Darker: clearing, water, demolition",
     dem: "Terrain height (TanDEM-X)", radar: (y) => `Radar brightness, Sentinel-1, summer ${y}`,

@@ -1,4 +1,4 @@
-// SARnik core, part 4 of 32: built-up epochs: radar first year, smoothing, projection, heat ranks, grids, risk pool.
+// SARnik core, part 4 of 32: built-up epochs: radar first year, epochs, heat ranks, grids, risk pool.
 // The parts in web/app/ are plain scripts loaded in order by index.html. Together they are the former web/app.js:
 // they share one scope, so a top-level name declared in one part is visible in every other part. Rules: web/app/README.md
 "use strict";
@@ -29,39 +29,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   const LAST_OBS = () => land.epochs[land.epochs.length - 1];         // 2020
   const builtNames = () => EPOCHS().map((y) => `built_${y}`);
   const THR = () => Math.round(land.threshold * 255);
-
-  function smoothed(year) { // 3x3 box blur of built-up share, for the heat-map look of the prototype
-    if (smooth[year]) return smooth[year];
-    const a = L8[`built_${year}`], w = land.width, h = land.height, out = new Float32Array(w * h);
-    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
-      let s = 0, n = 0;
-      for (let dr = -1; dr <= 1; dr++) { const rr = r + dr; if (rr < 0 || rr >= h) continue;
-        for (let dc = -1; dc <= 1; dc++) { const cc = c + dc; if (cc < 0 || cc >= w) continue; s += a[rr * w + cc]; n++; } }
-      out[r * w + c] = s / n / 255;
-    }
-    smooth[year] = out;
-    return out;
-  }
-
-  // cumulative projected-new-building mask up to a projection year, filtered by the minimum chance, 3x3 smoothed
-  let projCache = {}, projChance = null; // one entry per projection year (3.4 MB each), reset when the chance slider moves
-  function projSmoothed(year) {
-    if (projChance !== state.minChance) { projCache = {}; projChance = state.minChance; }
-    const key = year;
-    if (projCache[key]) return projCache[key];
-    const n = land.width * land.height, w = land.width, thr = THR(), tmin = state.minChance / 100, raw = new Uint8Array(n);
-    land.projected.filter((y) => y <= year).forEach((y) => {
-      const b = L8[`built_${y}`], prev = y === land.projected[0] ? L8[`built_${LAST_OBS()}`] : L8[`built_${y - 5}`], p = L8[`prob_${y}`];
-      for (let i = 0; i < n; i++) if (b[i] >= thr && prev[i] < thr && (p[i] / 255) ** 2 >= tmin) raw[i] = 1;
-    });
-    const out = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      let s2 = 0, c2 = 0;
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const j = i + dr * w + dc; if (j >= 0 && j < n) { s2 += raw[j]; c2++; } }
-      out[i] = s2 / c2;
-    }
-    return (projCache[key] = out);
-  }
 
   // distributions for percentile ranks
   const rankPool = {};

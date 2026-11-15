@@ -73,25 +73,21 @@
   const fmtP = (p) => (p < 0.001 ? "p < 0" + dsep() + "001" : "p = " + num(p, 3));
   const fmtInt = (n) => Math.round(n).toLocaleString(lang === "pl" ? "pl-PL" : "en-GB");
 
+  // colour ramps of the raster layers, heat maps and card rows; the hexagon layers have their classes in part 13a
   const RAMPS = {
     warm: ["#F3D3C0", "#E4875F", "#C4442A", "#8C2416"],
     cool: ["#C9DCF2", "#6AA0DC", "#2A78D6", "#184F95"],
     green: ["#CFE6D3", "#7DBB8A", "#2F8A4F", "#1D5C33"],
     brown: ["#EADBC6", "#C49A62", "#8F6230", "#5E3D1A"],
     heat: ["#2A4D7A", "#6AA0DC", "#F3D3C0", "#E4875F", "#C4442A", "#8C2416"],
-    built: ["#FBE7B5", "#F6C25B", "#F2A31B", "#EE6B2D", "#E0332F"],
     price: ["#DCE6FD", "#9DB8F7", "#5B86F0", "#2F62E9", "#1B3FA8"],
-    loss: ["#F6C25B", "#E5602A", "#B8261E"],
     radar: ["#3B3F45", "#7B8087", "#C9B98F", "#F2C14E", "#FFF1B8"],
     terrain: ["#BFE6E2", "#7FD0C9", "#2FB3AA", "#17A2A0", "#0E6F6D"],
     // radar (v2)
     up: ["#F07A3A", "#E2551C", "#C2300F", "#8F1A08"],        // new walls: brighter with double bounce
-    upSoft: ["#F6DDB0", "#F2C987", "#EDB566", "#E5A04A"],    // brighter without double bounce: fields, earthworks
-    down: ["#C9C3F2", "#8E80E3", "#5B47C9", "#33238F"],      // darker: harvest, felling, water
     wet: ["#CFE3F5", "#8CBDE8", "#3F8FD6", "#155FA8"],
     water: ["#9ED0F5", "#4AA3E8", "#1C73C9", "#0B4A8C"],
     sink: ["#F7C3B0", "#EB7E5B", "#CC3B24", "#8C1A10"],
-    score: ["#E0332F", "#EE6B2D", "#F2A31B", "#F6C25B", "#7DBB8A", "#2F8A4F"],
   };
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rampCache = new Map();
@@ -105,21 +101,6 @@
       rampCache.set(key, c);
     }
     return c;
-  }
-  // 256-step colour lookup tables for the hot per-pixel loops (no string keys, no allocations)
-  const lutCache = new Map();
-  function lutFor(stops) {
-    let lut = lutCache.get(stops);
-    if (!lut) {
-      lut = new Uint8Array(256 * 3);
-      const s = stops.map(hexRgb);
-      for (let k = 0; k < 256; k++) {
-        const x = (k / 255) * (s.length - 1), i = Math.min(s.length - 2, Math.floor(x)), f = x - i;
-        for (let c = 0; c < 3; c++) lut[k * 3 + c] = Math.round(s[i][c] + (s[i + 1][c] - s[i][c]) * f);
-      }
-      lutCache.set(stops, lut);
-    }
-    return lut;
   }
   const ramp = (stops, t) => { const c = rampRgb(stops, t); return `rgb(${c[0]},${c[1]},${c[2]})`; };
   const gradient = (stops) => `linear-gradient(90deg, ${stops.join(", ")})`;

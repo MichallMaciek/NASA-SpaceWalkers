@@ -4,7 +4,7 @@
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ================= map ================= */
-  let map, borderLayer, labelLayer, choroLayer, pinMarker, nisarLayer, selLayer, baseGL, labelGL, floodLayer;
+  let map, borderLayer, labelLayer, choroLayer, pinMarker, nisarLayer, selLayer, baseGL, labelGL;
   let wuiaLayer = null; // building permits and applications of the Poznań planning office (GEOPOZ), added by Szymon
   let wuiaPending = null;
   // 2.6 MB of decisions: fetched the first time the layer is switched on, so a visit that never shows it does not pay for it
@@ -41,6 +41,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   const dark = () => { const t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
 
+  // The raster pictures (radar images, terrain height, radar activity) on a canvas stretched over the grid. Once a canvas
+  // pixel is bigger than a screen pixel it is scaled sharp (nearest neighbour, class .crisp): the browser's smooth scaling
+  // blended neighbouring colours and the transparent edge into a blur. Zoomed out further the smooth scaling stays, as it
+  // then averages pixels instead of skipping them.
   const CanvasOverlay = L.ImageOverlay.extend({
     _initImage() {
       const el = (this._image = this._url);
@@ -49,6 +53,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       if (this.options.zIndex != null) el.style.zIndex = this.options.zIndex;
       if (this._zoomAnimated) L.DomUtil.addClass(el, "leaflet-zoom-animated");
       el.onselectstart = L.Util.falseFn; el.onmousemove = L.Util.falseFn;
+    },
+    getEvents() { const ev = L.ImageOverlay.prototype.getEvents.call(this); ev.zoomend = this.sharpen; return ev; },
+    onAdd(m) { L.ImageOverlay.prototype.onAdd.call(this, m); this.sharpen(); },
+    sharpen() { // map units per canvas pixel against map units per screen pixel (EPSG:3857, 256 px tiles)
+      if (!this._map || !this._image) return;
+      const perPx = (land.transform3857[0] * land.width) / this._image.width, perScreen = (2 * Math.PI * 6378137) / (256 * 2 ** this._map.getZoom());
+      this._image.classList.toggle("crisp", perPx >= perScreen);
     },
   });
 

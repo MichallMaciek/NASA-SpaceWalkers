@@ -7,10 +7,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // Sharp radar pictures (build_hires.py): the same grey-level products on a grid `hires.scale` times finer (about 24 m on
   // the ground), cut to `hires.window` (Poznań city and about 1 km around it, in cells of the 120 m grid). Only the drawing uses
   // them; every number in the card still comes from the 120 m products. Outside the window the 120 m picture is drawn.
+  // (radar change and NISAR wet/dry are hexagons now, part 13a; only the radar pictures use the sharp grid)
   const HIRES_SRC = {
     alos: () => lbandNames(state.lyr.alos.y),
-    sarchange: () => ["sar_change", "sar_dratio"],
-    nisarwet: () => ["nisar_wetdry"],
   };
   const HIRES_ZOOM = 12; // from this zoom a 120 m cell is wider than about 4 screen pixels, so the sharp picture starts to show
   const hiresWindow = () => hires.window || [0, 0, land.width, land.height];
@@ -40,7 +39,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (hires && hiresWanted() && Object.keys(HIRES_SRC).some((k) => state.lyr[k].on && ready(k) &&
       HIRES_SRC[k]().some((nm) => hires.layers.includes(nm) && !L8[`hr_${nm}`] && !hiresFailed.has(nm)))) redraw();
   };
-  const rgba32 = (r, g, b, a) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0; // canvas memory is little-endian
   // The whole grid is drawn on the fine canvas: 120 m cells as blocks, and inside the window the sharp pixels instead.
   // Table lookups and one 32-bit write per pixel keep this near 30 ms; nothing is redrawn when nothing changed.
   function renderLandHi(k, arrs) {
@@ -51,37 +49,13 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (!o.imgHi) { o.imgHi = o.ctx.createImageData(W2, H2); o.hi32 = new Uint32Array(o.imgHi.data.buffer); }
     const out = o.hi32, [wc, wr, ww, wh] = hiresWindow(), FW = ww * S;
     const C0 = L8[names[0]], C1 = names[1] ? L8[names[1]] : null, F0 = arrs[0], F1 = arrs[1] || null;
-    let px2; // (first byte, second byte) -> packed colour, 0 = transparent; the same rule for coarse cells and sharp pixels
-    if (k === "alos") {
-      const [c0, c1, x0, x1, r0, r1] = RGB_STRETCH[s.y === 2026 ? "nisar" : "alos"];
-      const sc = (v, a, b) => clamp(((v - a) / (b - a)) * 255, 0, 255) | 0;
-      const R = new Uint8Array(256), G = new Uint8Array(256), B = new Uint8Array(511);
-      for (let v = 1; v < 256; v++) { R[v] = sc(dbOf(v), c0, c1); G[v] = sc(dbOf(v), x0, x1); }
-      for (let d = -255; d <= 255; d++) B[d + 255] = sc(d / 6, r0, r1); // co minus cross in dB = (byte difference) / 6
-      px2 = (a, b) => (a && b ? ((235 << 24) | (B[a - b + 255] << 16) | (G[b] << 8) | R[a]) >>> 0 : 0);
-    } else if (k === "sarchange") {
-      const wall = lutFor(RAMPS.up), soft = lutFor(RAMPS.upSoft), dn = lutFor(RAMPS.down);
-      const dThr = Math.ceil(((sar.s1.wall_db || 1.5) + 10) * 12.75); // ratio byte from which the change is a wall (double bounce)
-      const lutW = new Uint32Array(256), lutS = new Uint32Array(256);
-      for (let v = 1; v < 256; v++) {
-        const d = changeOf(v);
-        if (Math.abs(d) < s.min) continue;
-        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), j = ((t * 255) | 0) * 3;
-        const col = (L, a) => rgba32(L[j], L[j + 1], L[j + 2], a | 0);
-        if (d < 0) lutW[v] = lutS[v] = col(dn, 130 + t * 60);
-        else { lutW[v] = col(wall, 190 + t * 60); lutS[v] = col(soft, 130 + t * 60); }
-      }
-      px2 = (a, d) => (a ? (d >= dThr ? lutW : lutS)[a] : 0);
-    } else {
-      const wet = lutFor(RAMPS.wet), dry = lutFor(RAMPS.brown), lut = new Uint32Array(256);
-      for (let v = 1; v < 256; v++) {
-        const d = changeOf(v);
-        if (Math.abs(d) < s.min) continue;
-        const t = clamp((Math.abs(d) - s.min) / 6, 0, 1), L = d > 0 ? wet : dry, j = ((t * 255) | 0) * 3;
-        lut[v] = rgba32(L[j], L[j + 1], L[j + 2], (140 + t * 100) | 0);
-      }
-      px2 = (a) => lut[a];
-    }
+    // (co-pol byte, cross-pol byte) -> packed colour, 0 = transparent; the same rule for coarse cells and sharp pixels
+    const [c0, c1, x0, x1, r0, r1] = RGB_STRETCH[s.y === 2026 ? "nisar" : "alos"];
+    const sc = (v, a, b) => clamp(((v - a) / (b - a)) * 255, 0, 255) | 0;
+    const R = new Uint8Array(256), G = new Uint8Array(256), B = new Uint8Array(511);
+    for (let v = 1; v < 256; v++) { R[v] = sc(dbOf(v), c0, c1); G[v] = sc(dbOf(v), x0, x1); }
+    for (let d = -255; d <= 255; d++) B[d + 255] = sc(d / 6, r0, r1); // co minus cross in dB = (byte difference) / 6
+    const px2 = (a, b) => (a && b ? ((235 << 24) | (B[a - b + 255] << 16) | (G[b] << 8) | R[a]) >>> 0 : 0);
     const row = new Uint32Array(W2);
     for (let r = 0; r < h; r++) {
       const cr = r * w, inWin = r >= wr && r < wr + wh;

@@ -22,6 +22,7 @@ taka sama jak wcześniej. `index.html` ładuje je po kolei.
 | `15-nisar-banner.css` | baner NISAR 2026 w karcie |
 | `16-score.css` | karta oceny miejsca |
 | `17-pros-cons.css` | wady i zalety |
+| `18-hex.css` | heksy na mapie: próbki w legendzie, schodki klas, obwódka podtopień |
 
 Zasady:
 - **Poprawka istniejącego elementu:** w części, w której jest jego reguła.

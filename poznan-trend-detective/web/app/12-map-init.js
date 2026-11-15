@@ -45,7 +45,6 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     nisarLayer = L.tileLayer("", { maxZoom: 19, maxNativeZoom: 13, opacity: state.lyr.nisar.op, pane: "land", attribution: "NISAR GCOV: NASA-ISRO via NASA GIBS" });
     selLayer = L.layerGroup().addTo(map);
     Object.keys(SK.modules).forEach(skOverlay); // modules that registered before the map existed
-    floodLayer = L.geoJSON(flood, { interactive: false, pane: "land", style: () => ({ color: "#1F6FBF", weight: 1, opacity: 0.8, fillColor: "#3B8FE0", fillOpacity: state.lyr.flood.op }) });
     // fit the 18 municipalities first, without animation, and only then add the base map: it then asks for the tiles of
     // the opening view only (an animated fit made it fetch the tiles of the provisional view as well)
     map.fitBounds(borderLayer.getBounds(), { ...fitPad(), animate: false });

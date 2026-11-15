@@ -12,7 +12,7 @@ startu, gdy nie wczytał się Leaflet albo teksty (patrz niżej).
 | `01-helpers.js` | pomocniki: `DATA_V`, `fetchJSON`, rampy kolorów, statystyka (Theil-Sen, Mann-Kendall), komunikat błędu startu |
 | `02-geometry.js` | geometria siatek: odwzorowania, komórki, gminy, poligony podtopień |
 | `03-gray-layers.js` | warstwy szarości PNG: dekodowanie i wczytywanie (`loadGray`) |
-| `04-built-up.js` | zabudowa w epokach: pierwszy rok z radaru, wygładzanie, prognoza, rangi upału, siatki, pula ryzyka |
+| `04-built-up.js` | zabudowa w epokach: pierwszy rok z radaru, epoki, rangi upału, siatki, pula ryzyka |
 | `05-state.js` | stan: jeden obiekt `state`, daty NISAR, uchwyty `hires` i `sar` |
 | `06-sarnik-ext.js` | moduły SARnik: `window.SARNIK`, `ctx`, ładowanie modułów (`docs/planwyd/KONTRAKT.md`) |
 | `07-layer-keys.js` | klucze warstw, lata pasma L, które widoki mają radarową oś czasu |
@@ -21,8 +21,9 @@ startu, gdy nie wczytał się Leaflet albo teksty (patrz niżej).
 | `10-map-layers.js` | mapa: uchwyty warstw Leaflet, decyzje budowlane (WUiA), nakładki, warstwy canvas i pikselowe |
 | `11-base-map.js` | podkład (wektorowe kafle OpenFreeMap), motyw jasny/ciemny, płynne przybliżanie kółkiem |
 | `12-map-init.js` | start mapy (`initMap`), nazwy miejscowości, zmiana podkładu, rozciągnięcie kolorów radaru |
-| `13-layers-hires.js` | warstwy danych, cz. 1: ostre obrazy radarowe (hires) |
-| `14-layers.js` | warstwy danych, cz. 2: `renderLand`, kartogram, `redraw`, `ensure` |
+| `13-layers-hires.js` | warstwy danych, cz. 1: ostre obrazy radarowe (hires), tylko zdjęcia radarowe |
+| `13a-hex-layers.js` | warstwy danych, cz. 1a: heksy dla warstw ocennych i ilościowych (ocena, zabudowa, las, woda, EGMS, zmiana radaru): siatka, klasy, kafle, dymek, legenda |
+| `14-layers.js` | warstwy danych, cz. 2: `renderLand` (rastry: zdjęcia radarowe, wysokość terenu), kartogram, `redraw`, `ensure` |
 | `15-timeline.js` | oś czasu: lata, oś radarowa, odtwarzanie |
 | `16-legend.js` | legenda |
 | `17-lenses.js` | znak „z radaru” i widoki mapy (soczewki) |
