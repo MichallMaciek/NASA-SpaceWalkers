@@ -464,7 +464,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // the pill above the zoom buttons: hexagons or the heat map (the raster drawing of part 14) for the same layers
   function setHexMode(on) {
     state.hex = !!on;
-    try { localStorage.setItem("ptd-hex", on ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem("ptd-hex2", on ? "1" : "0"); } catch (e) { /* storage blocked */ }
     $("#mode-hex").setAttribute("aria-pressed", String(state.hex)); $("#mode-heat").setAttribute("aria-pressed", String(!state.hex));
     renderLegend(); redraw();
   }
