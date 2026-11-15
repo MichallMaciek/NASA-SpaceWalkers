@@ -4,20 +4,28 @@
 "use strict";
 if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01: Leaflet or the texts did not load
   /* ---- "technical inspection" of the land, like a car check before buying ---- */
-  function localRelief(cells) { // metres above (+) or below (−) the mean terrain within ~500 m
+  function localRelief(cells) { // metres above (+) or below (−) the mean ground within ~500 m
+    // The height model is a surface model: it follows tree tops and roofs. Measured against all cells, a field beside a
+    // forest or a square between tenement houses reads as a hollow several metres deep, and a forest as "elevated".
+    // So only ground cells count (no forest in 2000, at most 30% built-up), on both sides of the comparison; a cell that
+    // is not ground itself, or has fewer than 8 ground cells around it, gets no verdict (`known` is false).
     const w = land.width, h = land.height, r = Math.round(500 / land.cell_m_ground), d = L8.dem;
+    const ff = L8.forest2000_frac, bu = L8[`built_${LAST_OBS()}`];
+    const ground = (j) => !(ff && ff[j] > 5) && !(bu && bu[j] > 76); // 5/255 = 2% forest, 76/255 = 30% built-up
     const stride = Math.max(1, Math.ceil(cells.length / 4000)); // sample across the whole area, not its northern strip
-    const vals = cells.filter((_, k) => k % stride === 0).map((i) => {
+    const vals = [];
+    cells.filter((_, k) => k % stride === 0).forEach((i) => {
+      if (!ground(i)) return;
       const row = Math.floor(i / w), col = i % w;
       let s = 0, n = 0;
       for (let dr = -r; dr <= r; dr += 2) for (let dc = -r; dc <= r; dc += 2) {
         const rr = row + dr, cc = col + dc;
-        if (rr < 0 || cc < 0 || rr >= h || cc >= w || dr * dr + dc * dc > r * r) continue;
+        if (rr < 0 || cc < 0 || rr >= h || cc >= w || dr * dr + dc * dc > r * r || !ground(rr * w + cc)) continue;
         s += d[rr * w + cc]; n++;
       }
-      return (d[i] - s / n) / 2;
+      if (n >= 8) vals.push((d[i] - s / n) / 2);
     });
-    return { mean: mean(vals), lowShare: vals.filter((v) => v <= -1.5).length / vals.length };
+    return { known: vals.length > 0, mean: vals.length ? mean(vals) : 0, lowShare: vals.length ? vals.filter((v) => v <= -1.5).length / vals.length : 0 };
   }
   function inspectionHTML(sel, rk) {
     const u = U(), c = u.chk, items = [];
@@ -50,7 +58,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     items.push({ lvl: floodShare > (own ? 0 : 0.05) ? "risk" : "ok", t: c.flood, link: false,
       v: own ? (floodShare ? c.floodIn : c.floodOut) : (floodShare > 0.005 ? c.floodArea(num(floodShare * 100, 0)) : c.floodOut) });
     const hollow = own ? rel.mean <= -1.5 : rel.lowShare > 0.3;
-    items.push({ lvl: hollow ? "warn" : "ok", t: c.water, link: true,
+    items.push(!rel.known ? { lvl: "info", t: c.water, link: true, v: c.waterTrees } : { lvl: hollow ? "warn" : "ok", t: c.water, link: true,
       v: own ? (hollow ? c.waterLow(num(Math.abs(rel.mean), 1)) : c.waterOk(sgn(rel.mean, 1))) : (hollow ? c.waterAreaLow(num(rel.lowShare * 100, 0)) : c.waterAreaOk(num(rel.lowShare * 100, 0))) });
     // 6. radar: is something being built right now?
     if (sar && L8.sar_change) {
