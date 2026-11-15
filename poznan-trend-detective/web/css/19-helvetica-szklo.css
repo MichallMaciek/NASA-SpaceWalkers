@@ -49,6 +49,10 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .search input::placeholder { color: var(--ink-2); }
 .search .ico { order: 3; width: 18px; height: 18px; color: var(--ink); opacity: .8; margin-left: 10px; }
 .search:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+/* the glass (backdrop-filter) makes every bar its own stacking context: the search box, with its suggestions and the
+   "nothing found" row, must sit above the views bar that follows it in .topbar */
+.topbar .search { z-index: 3; }
+.topbar .tools, .topbar .lenses { z-index: 1; }
 .tools { border-radius: 26px; padding: 0 6px; }
 .tool { border-radius: 50%; }
 .tool:hover:not(:disabled) { background: var(--glass-press); }
