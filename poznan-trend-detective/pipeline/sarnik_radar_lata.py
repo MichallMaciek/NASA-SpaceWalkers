@@ -28,6 +28,9 @@ Method, in short:
      two years must also be confirmed by NISAR alone.
   5. Tests of the change, each criterion declared in CRITERIA before anything is computed; intervals from a block
      bootstrap (neighbouring cells are not independent).
+  6. Optional register test (pozwolenia_gunb), run only when data/raw/radar/obreby.geojson exists
+     (pipeline/sarnik_radar_lata_obreby.py): radar new built-up 2021-2026 against GUNB RWDZ parcels with a new
+     building, by cadastral district; design fixed in PERMITS, interval from a bootstrap over municipalities.
 
 Outputs: data/raw/radar/built_years.npz (years, prob, first_year), web/data/sarnik/radar_lata/first_year.png and
 meta.json. Run with an isolated interpreter (the inputs are downloaded files):
@@ -79,6 +82,11 @@ CRITERIA = {
                       "2015-2021 AND the change ratio (ALOS-2 rise on cells Sentinel-1 dates 2016-2020 vs cells it "
                       "never calls built) has a lower bound above 2",
     "zmiana_po_2020": "pass only if metoda_2015_2020 and decyzje_2026 both pass",
+    "pozwolenia_gunb": "pass if the lower bound of the 95% municipality-clustered bootstrap interval of the PARTIAL "
+                       "rank correlation (controlling for the 2020 built-up share) between radar new built-up "
+                       "2021-2026 and register parcels with a new building and last case 2021-2026, both per km2 of "
+                       "district, is above 0.15",
+
     "krzyzowo_lata": "pass if the block-held-out AUC is at least 0.90 both ways (train 2015 test 2020 and the reverse)",
     "stabilnosc_lat": "pass if no year-to-year change of the radar built-up share (mean probability, study area) "
                       "is larger than 3 times the optical yearly growth 2015-2020",
@@ -91,6 +99,48 @@ CRITERIA = {
                         "the optical map in both 2005 and 2020 get a first year after 2010, and (ii) cells the optical "
                         "map turned built 2010->2015 are dated 2011-2015 with a ratio lower bound above 2 against "
                         "cells it kept open",
+}
+
+# ---------------------------------------------------------------- register test, whole analysis fixed before computing
+# Written into the code before the test was computed for the first time (15 Nov 2026, ~03:30). Nothing below may be
+# tuned after seeing the result; any change after a first look must be recorded in PERMITS["changes_after_first_look"].
+PERMITS = {
+    "unit": "cadastral district (obręb) with at least one case in GUNB RWDZ (web/data/sarnik/dzialka, 601 files); "
+            "outline from GUGiK ULDK (data/raw/radar/obreby.geojson, pipeline/sarnik_radar_lata_obreby.py)",
+    "cells": "120 m grid cells whose centre lies inside the outline (rasterio, all_touched=False)",
+    "min_study_cells": 50,          # about 0.27 km2 on the ground; fewer cells: density too coarse, district dropped
+    "min_study_share": 0.90,        # share of the district's cells inside the study area; else the two measures
+                                    # would cover different ground (permits: whole district, radar: study part)
+    "radar": "hectares with radar first year 2021-2026 per km2 of the district's study cells",
+    "register": "parcels with >= 1 'new building' case whose last-case year (year of the parcel's last case of any "
+                "kind: new building, extension or demolition) is 2021-2026, per km2 of the district (all its cells)",
+    "covariate": "2020 built-up share of the district: mean optical (GHSL) built-up fraction of 2020 over its study cells",
+    "statistic": "Spearman rank correlation across districts; partial rank correlation = Pearson correlation of the "
+                 "residuals of rank(radar) and rank(register) after a linear fit on rank(covariate)",
+    "interval": "95% percentile interval, 2000 bootstrap draws of municipalities (first six TERYT digits) with "
+                "replacement, all districts of a drawn municipality kept together; seed SEED",
+    "reported_only": {
+        "partial_rho_quadratic": "same, residuals after a quadratic fit on rank(covariate) (the fringe effect may be "
+                                 "hump-shaped in the built-up share)",
+        "dose_response": "districts split into four equal-count groups by register density 2021-2026: pooled radar "
+                         "new ha 2021-2026 per km2 in each, clustered-bootstrap interval, group membership fixed",
+        "timing_control": "same partial correlation with parcels whose last-case year is 2016-2018 (radar still "
+                          "2021-2026); plus the difference main minus timing with its interval",
+        "reverse_period": "radar first built 2016-2020 vs parcels with a new building and last-case year 2016-2020, "
+                          "partial on the 2015 built-up share (the state at the start of that period)",
+        "register_vs_optical": "optical (GHSL) new built-up 2015->2020 (ha per km2, cells not built in 2015 and built "
+                               "in 2020) vs the same 2016-2020 parcels, partial on the 2015 share: how well the "
+                               "register itself tracks real building at district level",
+    },
+    "pass": "lower bound of the 95% interval of the partial rank correlation (main) above 0.15 (fixed by the lead)",
+    "changes_after_first_look": [
+        "15 Nov 2026 ~04:35, after the first computation: ULDK serves the same ground under two cadastral unit codes "
+        "(e.g. 302107_2.0008 and 302107_3.0008, identical outlines; 302114_3.0001 = 302114_4.0001 + 302114_5.0001) "
+        "and the register files parcels under both. The first version rasterised all outlines into one layer (the "
+        "later code overwrote the earlier), so one twin lost its cells and was dropped while the other kept only its "
+        "own parcels. Fix: outlines that share cells are merged into one unit and their parcels are joined (same "
+        "parcel number counted once). Nothing else changed: thresholds, measures, statistic and criterion are as "
+        "declared. The first-version result is kept in the entry (first_look)."],
 }
 
 
@@ -618,7 +668,23 @@ def main():
         "optical_ha_per_year_2015_2020_city": r(float((on(built[2020] & city).sum() - on(built[2015] & city).sum()) * cell_ha / 5), 1),
         "passed": bool(1 / 3 <= rate_radar / rate_opt_ha <= 3)}
 
-    # (e) the gate for the app's warning level
+    # (f) building-permit register by district (only when the district outlines have been fetched)
+    if (RADAR / "obreby.geojson").exists():
+        checks["pozwolenia_gunb"] = permit_check(FY, study, B, cell_ha, TR, H, W)
+        fl = permit_check(FY, study, B, cell_ha, TR, H, W, merge_overlaps=False)   # first version, for the record
+        checks["pozwolenia_gunb"]["first_look"] = {
+            "what": "first computation, before overlapping outlines were merged (see design.changes_after_first_look)",
+            **{kk: fl[kk] for kk in ("districts", "rho", "partial_rho", "ci95", "passed")},
+            "timing_control_partial_rho": fl["timing_control"]["partial_rho"],
+            "timing_control_partial_ci95": fl["timing_control"]["partial_ci95"]}
+        pg = checks["pozwolenia_gunb"]
+        print("permit register", {kk: pg[kk] for kk in ("districts", "rho", "partial_rho", "ci95", "passed")})
+
+    # (e) the gate for the app's warning level. The rule is the one declared at the start: the method test and the
+    # 2026 decisions test must both pass. On 15 Nov 2026 (~03:30) the lead considered widening it with the permit
+    # register test (pozwolenia_gunb) and decided against it after seeing that test: it passes its own criterion only
+    # after a bug fix made once a failing first result was known, by a margin of 0.005, and its timing control shows
+    # that it cannot tell building after 2020 from building before. The register test is reported, not used here.
     zp = bool(checks["metoda_2015_2020"]["passed"] and checks["decyzje_2026"]["passed"])
     checks["zmiana_po_2020"] = {
         "what": "radar dates new built-up after 2020 well enough to rank places: metoda_2015_2020 and decyzje_2026 both pass",
@@ -628,6 +694,17 @@ def main():
         "cells": checks["decyzje_2026"]["cells"], "ratio": checks["decyzje_2026"]["ratio"], "ci95": checks["decyzje_2026"]["ci95"],
         "components": {"metoda_2015_2020": checks["metoda_2015_2020"]["passed"], "decyzje_2026": checks["decyzje_2026"]["passed"]},
         "passed": zp}
+    if "pozwolenia_gunb" in checks:
+        pg = checks["pozwolenia_gunb"]
+        checks["zmiana_po_2020"]["register_not_used"] = {
+            "passed_own_criterion": pg["passed"], "partial_rho": pg["partial_rho"], "ci95": pg["ci95"],
+            "first_look_ci95": pg["first_look"]["ci95"], "first_look_passed": pg["first_look"]["passed"],
+            "why_pl": "Test na rejestrze pozwoleń GUNB jest podany osobno i nie wchodzi do tej reguły. Zalicza własne "
+                      "kryterium dopiero po poprawce zrobionej po nieudanym pierwszym przeliczeniu, o 0,005, a jego "
+                      "kontrola czasu pokazuje, że nie odróżnia budowy po 2020 r. od wcześniejszej.",
+            "why_en": "The GUNB permit-register test is reported separately and is not part of this rule. It meets its "
+                      "own criterion only after a fix made once a failing first computation was known, by 0.005, and "
+                      "its timing control shows it cannot tell building after 2020 from earlier building."}
 
     # 1 km neighbourhood: new hectares after 2020 within a 1 km radius of every study cell
     rad = 1000 / land["cell_m_ground"]
@@ -695,7 +772,7 @@ def main():
     with open(OUT / "meta.json", "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
     for kk in ("krzyzowo_lata", "metoda_2015_2020", "decyzje_2026", "prognoza_2025", "alos2_zgodnosc", "nisar_2026",
-               "stabilnosc_lat", "tempo_po_2020", "zmiana_po_2020", "alos1_dolaczenie"):
+               "stabilnosc_lat", "tempo_po_2020", "pozwolenia_gunb", "zmiana_po_2020", "alos1_dolaczenie"):
         c = checks.get(kk)
         if c:
             print(f"{kk:18s} passed={c['passed']} ratio={c.get('ratio')} auc={c.get('auc')} ci95={c.get('ci95')} "
@@ -704,6 +781,198 @@ def main():
     print("near 1 km quantiles", meta["near_1km"])
     print("built share", built_share)
     print(f"done in {time.time() - t0:.0f} s; sizes:", {p.name: p.stat().st_size for p in OUT.iterdir()})
+
+
+def _ranks(v):
+    from scipy.stats import rankdata
+    return rankdata(v).astype(np.float64)
+
+
+def _corr(a, b):
+    a, b = a - a.mean(), b - b.mean()
+    d = np.sqrt((a * a).sum() * (b * b).sum())
+    return float((a * b).sum() / d) if d > 0 else np.nan
+
+
+def _resid(v, z, deg):
+    Z = np.vander(z, deg + 1)
+    coef, *_ = np.linalg.lstsq(Z, v, rcond=None)
+    return v - Z @ coef
+
+
+def spearman(x, y):
+    return _corr(_ranks(x), _ranks(y))
+
+
+def partial_spearman(x, y, z, deg=1):
+    """Rank correlation of x and y after removing a polynomial (degree deg) in rank(z) from rank(x) and rank(y)."""
+    rz = _ranks(z)
+    rz = (rz - rz.mean()) / (rz.std() or 1.0)
+    return _corr(_resid(_ranks(x), rz, deg), _resid(_ranks(y), rz, deg))
+
+
+def permit_check(FY, study, B, cell_ha, TR, H, W, merge_overlaps=True):
+    """Check pozwolenia_gunb (district level, GUNB RWDZ register). Design fixed in PERMITS / CRITERIA above."""
+    import rasterio.features
+    from rasterio.warp import transform_geom
+    P = PERMITS
+    gj = json.load(open(RADAR / "obreby.geojson", encoding="utf-8"))
+    feats = sorted(gj["features"], key=lambda f: f["properties"]["teryt"])
+    # cells of each outline (centre inside), one rasterisation per outline so that overlaps are visible
+    cells = [np.flatnonzero(rasterio.features.rasterize(
+        [(transform_geom("EPSG:4326", "EPSG:3857", f["geometry"]), 1)], out_shape=(H, W), transform=TR,
+        all_touched=False, fill=0, dtype="uint8").ravel()) for f in feats]
+    # merge outlines that share cells into one unit (union-find); see PERMITS["changes_after_first_look"]
+    parent = list(range(len(feats)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    owner = np.full(H * W, -1, np.int64)
+    if merge_overlaps:
+        for i, c in enumerate(cells):
+            for j in np.unique(owner[c][owner[c] >= 0]).tolist():
+                a, b = find(i), find(j)
+                parent[max(a, b)] = min(a, b)
+            owner[c] = i
+    roots = sorted({find(i) for i in range(len(feats))})
+    gid = {rt: g for g, rt in enumerate(roots)}
+    groups = [[i for i in range(len(feats)) if find(i) == rt] for rt in roots]
+    lab = np.zeros(H * W, np.int64)
+    for i, c in enumerate(cells):          # first-look version: later outlines overwrite earlier ones
+        lab[c] = gid[find(i)] + 1
+    n = len(groups) + 1
+    l = lab
+    all_cells = np.bincount(l, minlength=n)
+    st = study.ravel()
+    fyv = FY.ravel()
+    study_cells = np.bincount(l, weights=st.astype(np.float64), minlength=n)
+    new_21_26 = np.bincount(l, weights=(st & (fyv >= 2021) & (fyv <= 2026)).astype(np.float64), minlength=n)
+    new_16_20 = np.bincount(l, weights=(st & (fyv >= 2016) & (fyv <= 2020)).astype(np.float64), minlength=n)
+    b20 = np.bincount(l, weights=np.where(st, B[2020].ravel(), 0), minlength=n)
+    b15 = np.bincount(l, weights=np.where(st, B[2015].ravel(), 0), minlength=n)
+    thr = json.load(open(LAND / "land.json"))["threshold"]
+    opt_new = np.bincount(l, weights=(st & (B[2015].ravel() < thr) & (B[2020].ravel() >= thr)).astype(np.float64), minlength=n)
+
+    # register: parcels per unit (aggregated files, no personal data). In a merged unit the same parcel number under
+    # two codes is the same parcel: counted once, "new building" if any record has one, last year = the latest.
+    def parcels(members):
+        rec = {}
+        for i in members:
+            p = WEB_DATA / "sarnik" / "dzialka" / f"{feats[i]['properties']['file']}.json"
+            for line in json.loads(p.read_text(encoding="utf-8"))["rows"].splitlines():
+                parts = line.split(",")
+                if len(parts) < 5:
+                    continue
+                new = int(parts[1] or 0) > 0
+                last = 2000 + int(parts[4]) if parts[4] else 0
+                o = rec.get(parts[0], (False, 0))
+                rec[parts[0]] = (o[0] or new, max(o[1], last))
+        c = {"21_26": 0, "16_18": 0, "16_20": 0, "parcels": len(rec)}
+        for new, last in rec.values():
+            if new:
+                c["21_26"] += 2021 <= last <= 2026
+                c["16_18"] += 2016 <= last <= 2018
+                c["16_20"] += 2016 <= last <= 2020
+        return c
+    reg = [parcels(g) for g in groups]
+
+    sc, ac = study_cells[1:], all_cells[1:]
+    keep = (sc >= P["min_study_cells"]) & (sc >= P["min_study_share"] * np.maximum(ac, 1))
+    k = np.flatnonzero(keep)
+    km2_s = sc[k] * cell_ha / 100
+    km2_a = ac[k] * cell_ha / 100
+    radar = new_21_26[1:][k] * cell_ha / km2_s                     # ha per km2
+    radar_old = new_16_20[1:][k] * cell_ha / km2_s
+    optical = opt_new[1:][k] * cell_ha / km2_s
+    share20 = b20[1:][k] / sc[k]
+    share15 = b15[1:][k] / sc[k]
+    reg_main = np.array([reg[i]["21_26"] for i in k]) / km2_a
+    reg_old = np.array([reg[i]["16_18"] for i in k]) / km2_a
+    reg_rev = np.array([reg[i]["16_20"] for i in k]) / km2_a
+    unit = np.array([feats[groups[i][0]]["properties"]["teryt"][:6] for i in k])
+    nd = len(k)
+
+    # clustered bootstrap: draw municipalities with replacement
+    uu, inv = np.unique(unit, return_inverse=True)
+    members = [np.flatnonzero(inv == j) for j in range(len(uu))]
+    rng = np.random.default_rng(SEED)
+    draws = [np.concatenate([members[j] for j in rng.integers(0, len(uu), len(uu))]) for _ in range(BOOT)]
+
+    def ci(stat):
+        v = np.array([stat(d) for d in draws])
+        v = v[np.isfinite(v)]
+        return [r(np.percentile(v, 2.5), 3), r(np.percentile(v, 97.5), 3)], v
+
+    def full(stat):
+        return stat(np.arange(nd))
+
+    def stat_set(x, y, z):
+        s = lambda d: spearman(x[d], y[d])                         # noqa: E731
+        p1 = lambda d: partial_spearman(x[d], y[d], z[d], 1)        # noqa: E731
+        p2 = lambda d: partial_spearman(x[d], y[d], z[d], 2)        # noqa: E731
+        (c_s, _), (c_p, v_p), (c_q, _) = ci(s), ci(p1), ci(p2)
+        return {"rho": r(full(s), 3), "rho_ci95": c_s, "partial_rho": r(full(p1), 3), "partial_ci95": c_p,
+                "partial_rho_quadratic": r(full(p2), 3), "partial_quadratic_ci95": c_q,
+                "p_boot_partial_le_0": r(float(np.mean(v_p <= 0)), 4)}, (p1, v_p)
+
+    main_s, (p_main, v_main) = stat_set(radar, reg_main, share20)
+    tim_s, (p_tim, v_tim) = stat_set(radar, reg_old, share20)
+    rev_s, _ = stat_set(radar_old, reg_rev, share15)
+    opt_s, _ = stat_set(optical, reg_rev, share15)
+    diff = np.array([p_main(d) - p_tim(d) for d in draws])
+    diff = diff[np.isfinite(diff)]
+
+    # dose-response: four equal-count groups by register density 2021-2026 (stable order, districts sorted by TERYT)
+    order = np.argsort(reg_main, kind="stable")
+    grp = np.zeros(nd, int)
+    for g, part in enumerate(np.array_split(order, 4)):
+        grp[part] = g
+    dose = []
+    for g in range(4):
+        m = grp == g
+
+        def pooled(d, m=m):
+            d = d[m[d]]
+            return float((radar[d] * km2_s[d]).sum() / km2_s[d].sum()) if d.size else np.nan
+        c, _ = ci(pooled)
+        dose.append({"group": g + 1, "districts": int(m.sum()),
+                     "register_per_km2_range": [r(reg_main[m].min(), 2), r(reg_main[m].max(), 2)],
+                     "register_per_km2_median": r(float(np.median(reg_main[m])), 2),
+                     "built_share_2020_mean": r(float(share20[m].mean()), 3),
+                     "radar_new_ha_per_km2_2021_2026": r(pooled(np.arange(nd)), 3), "ci95": c})
+
+    lo = main_s["partial_ci95"][0]
+    passed = bool(lo is not None and lo > 0.15)
+    return {
+        "what": "Czy radar widzi więcej nowej zabudowy z lat 2021–2026 w obrębach, w których rejestr GUNB ma więcej "
+                "działek z nową budową (ostatnia sprawa 2021–2026), także przy tym samym udziale zabudowy w 2020 r.?",
+        "what_pl": "Czy radar widzi więcej nowej zabudowy z lat 2021–2026 w obrębach, w których rejestr GUNB ma więcej "
+                   "działek z nową budową (ostatnia sprawa 2021–2026), także przy tym samym udziale zabudowy w 2020 r.?",
+        "what_en": "Does radar see more new built-up land in 2021-2026 in districts where the GUNB register has more "
+                   "parcels with a new building (last case 2021-2026), also at the same 2020 built-up share?",
+        "criterion": CRITERIA["pozwolenia_gunb"], "design": P,
+        "districts_with_outline": len(feats), "units_after_merging_overlaps": len(groups),
+        "merged_units": [[feats[i]["properties"]["teryt"] for i in g] for g in groups if len(g) > 1],
+        "districts": nd, "municipalities": int(len(uu)),
+        "dropped_small_or_outside_study": int(len(groups) - nd),
+        "parcels_new_21_26": int(sum(reg[i]["21_26"] for i in k)), "parcels_new_16_18": int(sum(reg[i]["16_18"] for i in k)),
+        "parcels_new_16_20": int(sum(reg[i]["16_20"] for i in k)),
+        "radar_new_ha_2021_2026": r(float((radar * km2_s).sum()), 1), "area_km2": r(float(km2_s.sum()), 1),
+        **{kk: main_s[kk] for kk in ("rho", "rho_ci95", "partial_rho", "partial_rho_quadratic",
+                                     "partial_quadratic_ci95", "p_boot_partial_le_0")},
+        "ci95": main_s["partial_ci95"],
+        "dose_response": dose,
+        "timing_control": {"what": "radar 2021-2026 vs parcels with a new building and last case 2016-2018",
+                           **tim_s, "difference_main_minus_timing": r(full(p_main) - full(p_tim), 3),
+                           "difference_ci95": [r(np.percentile(diff, 2.5), 3), r(np.percentile(diff, 97.5), 3)]},
+        "reverse_period": {"what": "radar first built 2016-2020 vs parcels with a new building and last case "
+                                   "2016-2020, partial on the 2015 built-up share", **rev_s},
+        "register_vs_optical": {"what": "optical new built-up 2015->2020 vs parcels with a new building and last "
+                                        "case 2016-2020, partial on the 2015 built-up share", **opt_s},
+        "passed": passed}
 
 
 def _grid(v, idx, H, W):
