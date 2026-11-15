@@ -6,7 +6,7 @@
 :root {
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --radius: 22px;
-  --glass: rgba(255, 255, 255, .74); /* the map opens on an orthophoto: enough milk to read on dark, busy pixels */
+  --glass: rgba(255, 255, 255, .92); /* own surface colour: text keeps 4.5:1 over any layer (orange score, orthophoto) */
   --glass-solid: rgba(255, 255, 255, .95); /* lists that open over other glass (search suggestions) */
   --glass-line: rgba(255, 255, 255, .78);
   --glass-shadow: 0 10px 30px rgba(20, 20, 20, .10), inset 0 1px 0 rgba(255, 255, 255, .55);
@@ -16,13 +16,13 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+    --glass: rgba(22, 22, 25, .90); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
     --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
     --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
   }
 }
 :root[data-theme="dark"] {
-  --glass: rgba(22, 22, 25, .70); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
+  --glass: rgba(22, 22, 25, .90); --glass-solid: rgba(30, 30, 33, .97); --glass-line: rgba(255, 255, 255, .14);
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
   --glass-press: rgba(255, 255, 255, .08); --hair: rgba(255, 255, 255, .11); --alarm: #FF5A5A;
 }
@@ -49,6 +49,10 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .search input::placeholder { color: var(--ink-2); }
 .search .ico { order: 3; width: 18px; height: 18px; color: var(--ink); opacity: .8; margin-left: 10px; }
 .search:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
+/* the glass (backdrop-filter) makes every bar its own stacking context: the search box, with its suggestions and the
+   "nothing found" row, must sit above the views bar that follows it in .topbar */
+.topbar .search { z-index: 3; }
+.topbar .tools, .topbar .lenses { z-index: 1; }
 .tools { border-radius: 26px; padding: 0 6px; }
 .tool { border-radius: 50%; }
 .tool:hover:not(:disabled) { background: var(--glass-press); }
@@ -57,6 +61,10 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .lenses button { border-radius: 20px; color: var(--ink); }
 .lenses button[aria-pressed="true"] { color: var(--card); }
 .lenses button:hover { background: var(--glass-press); }
+/* touch screens: 44 px targets for the round buttons and the drawing tools (the views list is css/21-pasek-widokow.css) */
+@media (pointer: coarse) {
+  .tool, .iconbtn, .zoom button, .lenses .lens-toggle, .lenses .lens-menu button { min-width: 44px; min-height: 44px; }
+}
 .drawhint { border-radius: 26px; }
 
 /* ---------- right: round glass buttons ---------- */
@@ -82,8 +90,26 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 .sidecard #clear-sel::after { transform: rotate(-45deg); }
 .sidecard #clear-sel:hover { background: var(--glass-press); }
 .sidecard .foot:has(> #clear-sel:only-child) { margin: 0; }
-/* the score container is gone from the design; the radar sentence stays as one quiet line */
-.spot-score-card { display: none; }
+/* the place score 0-100 (the start card and the examples promise it): one big number right under the title, in the
+   colour of its tier, with the tier word; the reasons follow as rows, cons above pros. The radar sentence is a quiet line. */
+.sidecard:has(.spot-score-card) { display: flex; flex-direction: column; }
+.sidecard:has(.spot-score-card) > .collapse-head { order: -3; }
+.sidecard:has(.spot-score-card) > .sub { order: -2; }
+.sidecard .spot-score-card { order: -1; display: flex; align-items: baseline; gap: 12px; background: none; border: 0; padding: 0; margin: 14px 0 2px; }
+.sidecard .score-badge { width: auto; height: auto; border-radius: 0; background: none !important; box-shadow: none; display: block;
+  font-size: 56px; line-height: 1; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.sidecard .score-badge::after { content: "/100"; font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); margin-left: 3px; }
+.sidecard .score-badge.tier-great, .sidecard .score-badge.tier-good { color: #24703F; }
+.sidecard .score-badge.tier-warn { color: #9A5B00; }
+.sidecard .score-badge.tier-risk { color: var(--alarm); }
+:root[data-theme="dark"] .sidecard .score-badge.tier-great, :root[data-theme="dark"] .sidecard .score-badge.tier-good { color: #6FCF8E; }
+:root[data-theme="dark"] .sidecard .score-badge.tier-warn { color: #F2B24C; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sidecard .score-badge.tier-great, :root:not([data-theme="light"]) .sidecard .score-badge.tier-good { color: #6FCF8E; }
+  :root:not([data-theme="light"]) .sidecard .score-badge.tier-warn { color: #F2B24C; }
+}
+.sidecard .score-title { display: none; } /* it repeats the number */
+.sidecard .score-sub { font-size: 15px; font-weight: 500; color: var(--ink); margin: 0; }
 .sidecard .nisar-banner { background: transparent; border: 0; box-shadow: none; padding: 0; margin: 14px 0 0; }
 .sidecard .nisar-banner-head { margin: 0 0 4px; }
 .sidecard .nisar-pill { background: transparent; color: var(--ink-2); padding: 0; font-size: 11px; letter-spacing: .08em; }
@@ -135,7 +161,14 @@ body { font-family: var(--font); font-variation-settings: normal; letter-spacing
 
 /* ---------- start card: quick examples fit the card and sit on the glass ---------- */
 .featured-spots { background: transparent; border-color: var(--hair); border-radius: 16px; }
-.featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.featured-grid { grid-template-columns: 1fr; gap: 6px; } /* four full rows: icon, the whole name, caption, score badge */
+.f-text b { white-space: normal; font-size: 14px; line-height: 1.25; }
+.f-text small { white-space: normal; font-size: 12px; line-height: 1.3; overflow: visible; text-overflow: clip; }
+.f-badge { font-size: 12px; min-width: 32px; }
+.f-badge.f-great { background: #24703F; color: #fff; }  /* white text >= 4.5:1 on every badge */
+.f-badge.f-good { background: #24703F; color: #fff; }
+.f-badge.f-warn { background: #9A5B00; color: #fff; }
+.f-badge.f-risk { background: #B3221E; color: #fff; }
 .f-spot { min-width: 0; background: var(--glass-press); border-color: transparent; border-radius: 12px; }
 .f-spot:hover { background: var(--glass); border-color: var(--hair); box-shadow: none; transform: none; }
 /* the folded start card is only its title and "Show": the radar banner and the quick examples open with it */

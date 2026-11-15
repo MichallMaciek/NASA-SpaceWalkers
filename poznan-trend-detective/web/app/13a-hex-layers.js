@@ -330,41 +330,117 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       },
     });
   }
-  // the plot score of every cell, the same formula as the heat map (part 14); open water is no plot: NaN, left out
+  // The plot score of every cell: one formula for the hexagons and for the heat map (part 14). Open water is no plot: NaN.
+  // Risk first: a hazard puts a ceiling on the score, so no greenery turns a flood area or sinking ground green.
+  //   red    (ceiling 22): official groundwater-flood area (PIG-PIB); ground sinking 5 mm/yr or faster (EGMS);
+  //                        a hollow 4 m or deeper; a hollow (1.5 m) whose ground also sinks 2.5 mm/yr or faster
+  //   orange (ceiling 36): ground sinking 2.5-5 mm/yr; a hollow 2.5 m or deeper
+  //   amber  (ceiling 50): a hollow 1.5 m or deeper; ground sinking 1.2-2.5 mm/yr
+  // Green needs evidence: measured stable ground (EGMS) and ground that does not lie in a hollow. A cell without
+  // measurements stays neutral (64). Why hollows stand for wet ground: on the app's data they are the one sign that
+  // coincides with the official flood areas (2.7 times as common inside them at 1.5 m, 3.7 at 2.5 m, 4.7 at 4 m);
+  // NISAR soil moisture and Sentinel-1 water do not (0.4-0.7 times), so they are not used here.
+  let cellScores_ = null, cellScoresKey = "";
   function cellScores() {
-    const n = land.width * land.height, st = L8.study, out = new Float32Array(n).fill(NaN), fl = floodMask(), demOff = land.dem_offset || 45;
-    const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025, d = L8.dem;
+    const rel = groundRelief();
+    // computed once per set of loaded inputs: the map, the hexagons and the card all read the same array
+    const key = [!!sar, L8.sar_water, L8.sar_egms, L8.sar_change, L8.prob_2030, L8.forest2000_frac, L8.loss_frac, L8.built_2025, rel].map((x) => (x ? 1 : 0)).join("");
+    if (cellScores_ && cellScoresKey === key) return cellScores_;
+    const n = land.width * land.height, st = L8.study, out = new Float32Array(n).fill(NaN), fl = floodMask();
+    const p30 = L8.prob_2030, ff = L8.forest2000_frac, lf = L8.loss_frac, b25 = L8.built_2025;
     const eg = sar ? L8.sar_egms : null, sc = sar ? L8.sar_change : null, wat = sar ? L8.sar_water : null;
     for (let i = 0; i < n; i++) {
       if (!st[i]) continue;
-      const wFrac = wat && wat[i] ? waterOf(wat[i]) : 0;
-      if (wFrac >= 0.08) continue; // lakes and rivers: transparent, not a plot
-      let s = 70; // baseline for solid standard land in the agglomeration (neutral 70)
-      const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, built = b25 ? b25[i] : 0, elev = d && d[i] ? d[i] / 2 + demOff : 70;
-      if (treeFrac >= 0.20 && treeFrac <= 0.65) s += Math.round(treeFrac * 22);
-      else if (treeFrac > 0.65) s += 5;
-      else if (built > 110 && treeFrac < 0.04) s -= 16;
-      if (fl[i]) {
-        if (elev < 55 && built < 20) s -= 38; // unbuilt low-lying floodplain meadow -> RED (32)
-        else if (built >= 20 || elev >= 56) s += 2; // elevated urban fabric -> safe/neutral 72
-        else s -= 16;
-      }
-      if (eg && eg[i]) {
-        const v = egmsOf(eg[i]);
-        if (v <= -2.5) s -= Math.min(42, Math.round(Math.abs(v) * 12));
-        else if (v <= -1.2) s -= 18;
-        else if (v >= -0.5 && v <= 0.8) s += 3;
-      }
-      if (sc && sc[i]) {
-        const ch = changeOf(sc[i]);
-        if (ch >= 3.5) s -= 16;
-        else if (ch >= 2.0) s -= 8;
-      }
+      if (wat && wat[i] && waterOf(wat[i]) >= 0.08) continue; // lakes and rivers: transparent, not a plot
+      const treeFrac = ff && ff[i] ? Math.max(0, ff[i] - (lf ? lf[i] : 0)) / 255 : 0, built = b25 ? b25[i] : 0;
+      const v = eg && eg[i] ? egmsOf(eg[i]) : NaN; // mm/yr, NaN = not measured
+      const r = rel ? rel[i] : NaN;                // m against the ground around, NaN = no verdict
+      let s = 64; // nothing known: neutral
+      if (v >= -0.5 && v <= 0.8) s += 9;  // evidence: measured and stable
+      if (r > -0.5) s += 7;               // evidence: not lower than the ground around
+      if (treeFrac >= 0.20 && treeFrac <= 0.65) s += Math.round(treeFrac * 10); // trees nearby help a little
+      else if (built > 110 && treeFrac < 0.04) s -= 8;                           // a sealed core without trees costs a little
+      if (sc && sc[i]) { const ch = changeOf(sc[i]); if (ch >= 3.5) s -= 16; else if (ch >= 2.0) s -= 8; }
       if (lf && lf[i] > 80) s -= 18;
       if (p30 && p30[i] > 40 && built < 20) s -= Math.round((p30[i] / 255) * 14);
-      out[i] = clamp(s, 15, 95);
+      let cap = 95; // hazards: the ceiling
+      if (fl[i] || v <= -5 || r <= -4 || (r <= -1.5 && v <= -2.5)) cap = 22;
+      else if (v <= -2.5 || r <= -2.5) cap = 36;
+      else if (r <= -1.5 || v <= -1.2) cap = 50;
+      out[i] = clamp(Math.min(s, cap), 15, 95);
     }
-    return out;
+    cellScoresKey = key;
+    return (cellScores_ = out);
+  }
+  // What the place itself lies in, for the card's texts: the same layers and thresholds as the score.
+  // A point is its own cell. A parcel or a drawn area is judged by its worse fifth (the value a fifth of its cells reach).
+  // floodNear is the share of the whole selection inside the flood areas. null = layers not loaded.
+  function placeHazards(sel) {
+    if (!sel || !sel.cells || !sel.cells.length || !L8.study || !L8.dem || !flood) return null;
+    const fl = floodMask(), rel = groundRelief(), eg = sar ? L8.sar_egms : null;
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null, cells = own ? [own.i] : sel.cells;
+    let nf = 0, near = 0;
+    const rs = [], vs = [];
+    cells.forEach((i) => { if (fl[i]) nf++; if (rel && rel[i] === rel[i]) rs.push(rel[i]); if (eg && eg[i]) vs.push(egmsOf(eg[i])); });
+    sel.cells.forEach((i) => { if (fl[i]) near++; });
+    rs.sort((a, b) => a - b); vs.sort((a, b) => a - b);
+    const fifth = (a) => (a.length ? a[Math.floor((a.length - 1) * 0.2)] : NaN);
+    return { flood: own ? nf > 0 : nf / cells.length >= 0.2, floodNear: near / sel.cells.length,
+      relief: fifth(rs), reliefKnown: rs.length > 0, sink: fifth(vs), measured: vs.length > 0 };
+  }
+  // The card's number for a selection, from the map's own scores, so the card and the map cannot disagree.
+  // A point: half its own cell, half the mean of its circle (the place first, the neighbourhood second).
+  // A parcel or a drawn area: the mean of its cells.
+  // Either way the number stays under the ceiling of the hazard the place itself lies in (red 22, orange 36, amber 50):
+  // a point is judged by its own cell, a parcel or an area by a fifth of its cells.
+  // null = no verdict (layers not loaded, or the point is open water).
+  function selectionScore(sel) {
+    if (!sel || !sel.cells || !sel.cells.length || !L8.study || !L8.dem || !flood) return null;
+    const S = cellScores();
+    let sum = 0, n = 0, red = 0, orange = 0, amber = 0;
+    sel.cells.forEach((i) => { const v = S[i]; if (v !== v) return; n++; sum += v; if (v <= 22) red++; else if (v <= 36) orange++; else if (v <= 50) amber++; });
+    if (!n) return null;
+    const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null, o = own ? S[own.i] : NaN;
+    if (own && o !== o) return null;
+    const fifth = (k) => k / n >= 0.2;
+    let cap = 95;
+    if (own ? o <= 22 : fifth(red)) cap = 22;
+    else if (own ? o <= 36 : fifth(red + orange)) cap = 36;
+    else if (own ? o <= 50 : fifth(red + orange + amber)) cap = 50;
+    return Math.round(clamp(Math.min(own ? (o + sum / n) / 2 : sum / n, cap), 15, 95));
+  }
+  // Metres above (+) or below (-) the mean ground in a 15 x 15 cell window (about 1 km across); NaN = no verdict.
+  // The height model follows tree tops and roofs, so only ground cells count on both sides (no forest in 2000, at most
+  // 30% built-up); a cell needs 30 ground cells around it. Summed-area tables keep it to one pass; computed once.
+  let groundRel_ = null;
+  function groundRelief() {
+    if (groundRel_) return groundRel_;
+    const d = L8.dem, ff = L8.forest2000_frac, bu = L8[`built_${LAST_OBS()}`];
+    if (!d || !ff || !bu) return null;
+    const w = land.width, h = land.height, R = 7, W = w + 1;
+    const ground = (j) => d[j] > 0 && ff[j] <= 5 && bu[j] <= 76;
+    const cn = new Float64Array(W * (h + 1)), sm = new Float64Array(W * (h + 1));
+    for (let y = 0; y < h; y++) {
+      let rc = 0, rs = 0;
+      for (let x = 0; x < w; x++) {
+        const j = y * w + x;
+        if (ground(j)) { rc++; rs += d[j]; }
+        cn[(y + 1) * W + x + 1] = cn[y * W + x + 1] + rc; sm[(y + 1) * W + x + 1] = sm[y * W + x + 1] + rs;
+      }
+    }
+    const out = new Float32Array(w * h).fill(NaN);
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - R), y1 = Math.min(h, y + R + 1);
+      for (let x = 0; x < w; x++) {
+        const j = y * w + x;
+        if (!ground(j)) continue;
+        const x0 = Math.max(0, x - R), x1 = Math.min(w, x + R + 1);
+        const box = (a) => a[y1 * W + x1] - a[y0 * W + x1] - a[y1 * W + x0] + a[y0 * W + x0];
+        const k = box(cn);
+        if (k >= 30) out[j] = (d[j] - box(sm) / k) / 2; // the DEM layer counts in half metres
+      }
+    }
+    return (groundRel_ = out);
   }
   // groundwater-flood polygons (PIG-PIB) burnt once into the 120 m grid: 1 where most of the cell lies inside
   let floodCells = null;
@@ -388,7 +464,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // the pill above the zoom buttons: hexagons or the heat map (the raster drawing of part 14) for the same layers
   function setHexMode(on) {
     state.hex = !!on;
-    try { localStorage.setItem("ptd-hex", on ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem("ptd-hex2", on ? "1" : "0"); } catch (e) { /* storage blocked */ }
     $("#mode-hex").setAttribute("aria-pressed", String(state.hex)); $("#mode-heat").setAttribute("aria-pressed", String(!state.hex));
     renderLegend(); redraw();
   }

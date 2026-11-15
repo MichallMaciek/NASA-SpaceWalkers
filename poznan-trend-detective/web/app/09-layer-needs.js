@@ -25,7 +25,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     egms: () => ["sar_egms", "study"],
     alos: () => [...lbandNames(state.lyr.alos.y), "study"],
     nisarwet: () => ["nisar_wetdry", "study"],
-    score: () => ["study", "prob_2030", "forest2000_frac", "loss_frac", "built_2025", "dem", ...(sar ? ["sar_egms", "sar_change", "sar_water"] : [])],
+    score: () => ["study", "prob_2030", "forest2000_frac", "loss_frac", "built_2025", `built_${LAST_OBS()}`, "dem", ...(sar ? ["sar_egms", "sar_change", "sar_water"] : [])],
     nisarcoh: () => ["nisar_coh", "study"],
     nisarsm: () => [state.lyr.nisarsm.d === "0625" ? "nisar_sm_0625" : "nisar_sm_0824", "study"],
     dist: () => ["dist_forest", "study"],

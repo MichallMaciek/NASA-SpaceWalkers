@@ -3,3 +3,14 @@
 .drawhint.note kbd { display: none; }
 /* waiting for the land register after a click */
 #map.picking, #map.picking .leaflet-interactive { cursor: progress; }
+/* a click on the map: a dot at the click point at once, while the land register answers */
+.parcel-pick-dot { animation: parcel-pick 0.9s ease-in-out infinite; }
+@keyframes parcel-pick { 50% { opacity: 0.35; } }
+/* base map tiles loading: a thin bar along the top edge of the map */
+#map.tiles-loading::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 1000; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--area), transparent) no-repeat; background-size: 40% 100%; animation: tiles-bar 1.2s linear infinite; }
+@keyframes tiles-bar { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .parcel-pick-dot { animation: none; }
+  #map.tiles-loading::after { animation: none; background: var(--area); opacity: 0.5; }
+}

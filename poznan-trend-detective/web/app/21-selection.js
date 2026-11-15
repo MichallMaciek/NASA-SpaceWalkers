@@ -74,6 +74,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   }
   async function finishSelection(sel) {
     sel.failed = false;
+    const q = $("#q"); // a place picked another way (map, drawing, link): the search box no longer names an old address
+    if (q && q.value && q.value !== sel.addr && q.value !== sel.label) q.value = "";
     renderCardLoading();
     // a layer failed (flaky network, missing file): renderCardLoading then says so and offers a retry
     try { await Promise.all([loadGrids(), loadRadarYears(), ...PLACE_LAYERS().map(loadGray)]); } catch (e) { console.error(e); sel.failed = true; if (state.sel === sel) renderCardLoading(); return; }

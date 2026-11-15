@@ -458,9 +458,9 @@
     tierNeutral: "Standardowa lokalizacja (w normie)",
     tierWarn: "Umiarkowana (sprawdź ostrzeżenia)",
     tierRisk: "Podwyższone ryzyko (istotne wady)",
-    lgScore: "Ocena działki (zielony = zalety, czerwony = wady)",
-    lgScoreGood: "atuty / zieleń",
-    lgScoreRisk: "ryzyko / wady",
+    lgScore: "Ocena działki (czerwony = duże ryzyko, zielony = sprawdzony grunt)",
+    lgScoreGood: "sprawdzone, bez wad",
+    lgScoreRisk: "duże ryzyko",
     // hexagons on the map (app/13a-hex-layers.js): legend classes and tooltip lines; r is a range such as "5–15%"
     modeHex: "Mapa w heksach (średnie z siatki 120 m)", modeHeat: "Mapa ciepła (płynne przejścia)",
     hex: {
@@ -500,7 +500,7 @@
       distCap: "wysoka pewność (udział lasu w heksie)",
       hovDist: (h, a) => `Zaburzenia lasu (OPERA): ${h}% lasu z wysoką pewnością, ${a}% łącznie`,
     },
-    lgScoreNote: "Szary/jasny = standardowa działka w normie. Zielony = atuty i zieleń. Czerwony = realne ryzyka (podtopienia, osiadanie InSAR).",
+    lgScoreNote: "Czerwony: strefa podtopień (PIG-PIB), grunt osiadający o 5 mm na rok lub szybciej albo głębokie zagłębienie terenu. Pomarańczowy i żółty: wolniejsze osiadanie albo płytsze zagłębienie. Zielony: radar mierzy stabilny grunt i teren nie leży w zagłębieniu. Szary: brak pomiarów, nie znamy tu ani wad, ani zalet.",
     featuredHead: "Szybkie przykłady – zobacz kontrasty w terenie:",
     fMorasko: "Oaza zieleni",
     fWarta: "Strefa podtopień",
@@ -549,9 +549,9 @@
     tierNeutral: "Standard location (normal range)",
     tierWarn: "Moderate (check warnings)",
     tierRisk: "Elevated risk (critical issues)",
-    lgScore: "Plot score (green = pros, red = cons)",
-    lgScoreGood: "amenities / green",
-    lgScoreRisk: "risk / issues",
+    lgScore: "Plot score (red = high risk, green = checked ground)",
+    lgScoreGood: "checked, no flaws",
+    lgScoreRisk: "high risk",
     modeHex: "Hexagon map (means of the 120 m grid)", modeHeat: "Heat map (smooth blend)",
     hex: {
       forestTitle: "Forest and felling",
@@ -590,7 +590,7 @@
       distCap: "high confidence (share of the forest in the hexagon)",
       hovDist: (h, a) => `Forest disturbance (OPERA): ${h}% of the forest with high confidence, ${a}% in all`,
     },
-    lgScoreNote: "Grey/light = standard normal plot. Green = amenities and greenery. Red = real hazards (flooding, InSAR sinking).",
+    lgScoreNote: "Red: a flood area (PIG-PIB), ground sinking 5 mm a year or faster, or a deep hollow. Orange and yellow: slower sinking or a shallower hollow. Green: radar measures stable ground and the land does not lie in a hollow. Grey: no measurements, so neither flaws nor strengths are known here.",
     featuredHead: "Quick demo spots – see real contrasts:",
     fMorasko: "Green sanctuary",
     fWarta: "Groundwater flood area",
@@ -680,5 +680,17 @@
     noParcel: "no plot found here",
     radiusAround: (r) => `${r} around the point`,
     parcelNotFound: "The plot from the link was not found.",
+  });
+})();
+
+/* ===== start card (web/app/29-findings.js): the three colours of the place card and the examples heading ===== */
+(() => {
+  Object.assign(window.I18N.pl.ui, {
+    featuredHead: "Przykładowe miejsca",
+    stKey: { label: "Kolory na karcie miejsca", ok: "W normie", warn: "Do sprawdzenia", risk: "Uwaga" },
+  });
+  Object.assign(window.I18N.en.ui, {
+    featuredHead: "Places to try",
+    stKey: { label: "Colours on the place card", ok: "Fine", warn: "Worth checking", risk: "Warning" },
   });
 })();

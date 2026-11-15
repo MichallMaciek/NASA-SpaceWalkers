@@ -1,6 +1,8 @@
 """Browser test of plots on the map: clean start, hover highlight, click to pick a plot, circle tool, links, drawing.
 
-ULDK (GUGiK) is replaced by page.route with a fake grid of small plots, so the test does not depend on the service.
+ULDK (GUGiK) is replaced by page.route with a fake grid of small plots, and the KIEG WMS bitmap of plot boundaries by
+a fake PNG with a grid of lines (or a non-image answer, so the hover falls back to ULDK), so the test does not depend on
+either service.
 Run against a local server of web/ (python3 -m http.server -d poznan-trend-detective/web 8771):
 
     python3 poznan-trend-detective/tests/e2e_dzialki.py http://localhost:8771
@@ -11,7 +13,9 @@ Needs Playwright for Python (pip install playwright) and Google Chrome (channel 
 import math
 import os
 import re
+import struct
 import sys
+import zlib
 from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import sync_playwright
@@ -52,6 +56,27 @@ def uldk_handler(calls):
     return handle
 
 
+def grid_png(w, h, step=40):
+    """A transparent RGBA PNG with 1 px opaque blue lines every `step` pixels (like KIEG's plot boundaries)."""
+    on, off = bytes((40, 120, 255, 255)), bytes(4)
+    plain = b"".join(on if x % step == 0 else off for x in range(w))
+    rows = b"".join(b"\0" + (on * w if y % step == 0 else plain) for y in range(h))
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows, 1)) + chunk(b"IEND", b"")
+
+
+def kieg_handler(kieg):
+    def handle(route):
+        kieg["calls"] += 1
+        if not kieg["ok"]:  # not an image (like a ServiceException): no bitmap, the hover asks ULDK
+            route.fulfill(status=200, headers={"Access-Control-Allow-Origin": "*", "Content-Type": "text/plain"}, body="no")
+            return
+        q = {k.upper(): v for k, v in parse_qs(urlparse(route.request.url).query).items()}
+        body = grid_png(int(q["WIDTH"][0]), int(q["HEIGHT"][0]))
+        route.fulfill(status=200, headers={"Access-Control-Allow-Origin": "*", "Content-Type": "image/png"}, body=body)
+    return handle
+
+
 def open_page(browser, lang, mobile, hash_=""):
     ctx = browser.new_context(viewport={"width": 390, "height": 844} if mobile else {"width": 1440, "height": 900},
                               is_mobile=mobile, has_touch=mobile, locale="pl-PL" if lang == "pl" else "en-GB")
@@ -60,6 +85,8 @@ def open_page(browser, lang, mobile, hash_=""):
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.route("https://uldk.gugik.gov.pl/**", uldk_handler(calls))
+    page.kieg = {"ok": False, "calls": 0}
+    page.route("https://integracja.gugik.gov.pl/**", kieg_handler(page.kieg))
     page.goto(f"{BASE}/?lang={lang}{hash_}")
     page.wait_for_function("typeof map !== 'undefined' && map && document.querySelectorAll('#lenses button').length > 0", timeout=30000)
     page.wait_for_timeout(800)
@@ -128,6 +155,26 @@ def desktop(browser, lang):
     rows = page.evaluate("document.querySelectorAll('#sidecard li, #sidecard .row, #sidecard .chk').length")
     check(f"{tag} mała działka: karta nie jest pusta ({rows} wierszy)", rows > 0 and "outside" not in page.evaluate("document.querySelector('#sidecard').className"), rows)
     visible_text_ok(page, f"{tag} karta działki")
+
+    # the KIEG bitmap of plot boundaries (fake: lines every 40 px): the highlight at once, no ULDK request on hover
+    page.kieg["ok"] = True
+    k0 = page.kieg["calls"]
+    set_view(page, 52.3950, 16.9100, 17)
+    page.wait_for_function("!!pbm.bm && !pbm.busy", timeout=10000)
+    n = len(calls)
+    page.mouse.move(1010, 470)
+    page.wait_for_timeout(50)
+    box = page.evaluate("""(() => { if (!hov.layer || !hov.p || !hov.p.region) return null;
+      const b = hov.layer.getBounds(), a = map.latLngToContainerPoint(b.getNorthWest()), c = map.latLngToContainerPoint(b.getSouthEast());
+      return [c.x - a.x, c.y - a.y, hov.p.ring.length]; })()""")
+    check(f"{tag} bitmapa KIEG: podświetlenie od razu, z bitmapy", box is not None and 30 < box[0] < 50 and 30 < box[1] < 50, box)
+    for k in range(12):
+        page.mouse.move(600 + 41 * k, 300 + 27 * k)
+        page.wait_for_timeout(60)
+    page.wait_for_timeout(700)
+    check(f"{tag} bitmapa KIEG: najechanie bez zapytań ULDK", len(calls) == n, calls[n:])
+    check(f"{tag} bitmapa KIEG: jedno pobranie na widok", page.kieg["calls"] - k0 == 1, page.kieg["calls"] - k0)
+    page.kieg["ok"] = False
 
     # no plot (a "road" in the fake register): 1 km circle with a short note
     j = 13 * math.ceil(16.9030 / D_LNG / 13)

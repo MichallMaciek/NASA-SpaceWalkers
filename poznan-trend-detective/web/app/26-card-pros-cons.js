@@ -17,6 +17,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const own = sel.kind === "point" ? landCell(sel.lat, sel.lng) : null;
     const isWater = !!(own && L8.sar_water && waterOf(L8.sar_water[own.i]) >= 0.20);
     const isForestReserve = ff >= 70 && bu < 20;
+    // the place's own hazards, from the same layers and thresholds as the score on the map (part 13a); null = not loaded
+    const hz = placeHazards(sel);
+    const here = sel.kind === "point" ? (lang === "pl" ? "To miejsce" : "This spot") : (lang === "pl" ? "Co najmniej piąta część tego terenu" : "At least a fifth of this land");
 
     // 1. CONS / ALARMS (Najbardziej niepokojące fakty na pierwszy rzut oka)
     if (isWater) {
@@ -25,6 +28,28 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         t: lang === "pl" ? "Teren wód powierzchniowych" : "Surface water body",
         d: lang === "pl" ? "Punkt znajduje się w korycie rzeki lub czaszy zbiornika wodnego (radar SAR). Brak możliwości lokalizacji działki lądowej." : "Point is inside a river channel or open water body (SAR radar). Not a buildable land parcel."
       });
+    } else if (hz) {
+      if (hz.flood) {
+        cons.push({
+          lvl: "risk",
+          t: lang === "pl" ? "Strefa podtopień (PIG-PIB)" : "Groundwater-flood area (PIG-PIB)",
+          d: lang === "pl" ? `${here} leży w strefie zagrożonej podtopieniami według mapy PIG-PIB. Woda gruntowa może podchodzić pod fundamenty i piwnice: zapytaj o poziom wód i izolację.` : `${here} lies in a groundwater-flood area on the PIG-PIB map. Groundwater can rise to foundations and basements: ask about the water table and insulation.`
+        });
+      } else if (hz.floodNear > 0) {
+        cons.push({
+          lvl: "info",
+          t: lang === "pl" ? `Strefa podtopień w okolicy (${num(Math.max(1, hz.floodNear * 100), 0)}% terenu wokół)` : `Flood area nearby (${num(Math.max(1, hz.floodNear * 100), 0)}% of the land around)`,
+          d: lang === "pl" ? "Samo miejsce leży poza strefą podtopień PIG-PIB, ale strefa zaczyna się niedaleko. Sprawdź jej granicę w widoku wody." : "The spot itself is outside the PIG-PIB flood area, but the area begins close by. Check its edge in the water view."
+        });
+      }
+      if (!hz.flood && hz.relief <= -1.5) {
+        const deep = hz.relief <= -4, mid = hz.relief <= -2.5, times = deep ? 5 : mid ? 4 : 3, dm = num(-hz.relief, 1);
+        cons.push({
+          lvl: deep ? "risk" : "warn",
+          t: lang === "pl" ? `${deep ? "Głębokie zagłębienie" : "Zagłębienie"} terenu (−${dm} m)` : `${deep ? "Deep hollow" : "Hollow"} in the terrain (−${dm} m)`,
+          d: lang === "pl" ? `Grunt leży tu ok. ${dm} m niżej niż grunt w promieniu pół kilometra. W tak głębokich zagłębieniach strefy podtopień są ok. ${times} razy częstsze niż gdzie indziej; po ulewach może się tu zbierać woda.` : `The ground here lies about ${dm} m lower than the ground within half a kilometre. In hollows this deep flood areas are about ${times} times as common as elsewhere; water can gather here after downpours.`
+        });
+      }
     } else if (wf.floodShare > 0) {
       if (bu >= 20 || wf.reliefMean >= 0.5) {
         cons.push({
@@ -47,7 +72,15 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
 
-    if (s && s.egMed <= -3) {
+    if (hz && hz.sink <= -1.2) {
+      const fast = hz.sink <= -5, mid = hz.sink <= -2.5, mm = sgn(hz.sink, 0);
+      cons.push({
+        lvl: fast ? "risk" : "warn",
+        t: lang === "pl" ? `${mid ? "Grunt osiada" : "Lekkie osiadanie gruntu"} (${mm} mm/rok)` : `${mid ? "The ground is sinking" : "Slight ground sinking"} (${mm} mm/yr)`,
+        d: lang === "pl" ? (fast ? "Radar (InSAR, pomiary EGMS 2016–2020) mierzy tu szybkie osiadanie gruntu. Ryzyko pękania murów: zleć badanie gruntu przed zakupem." : "Radar (InSAR, pomiary EGMS 2016–2020) mierzy tu osiadanie gruntu. Sprawdź fundamenty i ściany istniejących budynków.")
+          : (fast ? "Radar (InSAR, EGMS measurements 2016–2020) measures fast ground sinking here. Risk of cracked walls: order a ground survey before buying." : "Radar (InSAR, EGMS measurements 2016–2020) measures ground sinking here. Check the foundations and walls of the buildings that stand.")
+      });
+    } else if (!hz && s && s.egMed <= -3) {
       cons.push({
         lvl: "risk",
         t: lang === "pl" ? `Osiadanie gruntu (${sgn(s.egMin || s.egMed, 0)} mm/rok)` : `Ground sinking (${sgn(s.egMin || s.egMed, 0)} mm/yr)`,
@@ -106,7 +139,7 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     });
 
     // 2. PROS (Zalety na zielono - co jest bezpieczne i stabilne)
-    if (!isWater && wf.floodShare > 0 && (bu >= 20 || wf.reliefMean >= 0.5)) {
+    if (!isWater && (hz ? !hz.flood && hz.floodNear > 0 : wf.floodShare > 0 && (bu >= 20 || wf.reliefMean >= 0.5))) {
       pros.push({
         t: lang === "pl" ? "Atrakcyjne sąsiedztwo nadrzeczne" : "Attractive riverside proximity",
         d: lang === "pl" ? "Bliskość nadrzecznego korytarza rekreacyjnego (Wartostrada, tereny spacerowe) i naturalna cyrkulacja powietrza." : "Proximity to the riverside recreation corridor (Wartostrada, walking trails) and fresh air flow."
@@ -125,7 +158,17 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       });
     }
 
-    if (!isWater && wf.floodShare === 0 && !wf.hollow) {
+    if (!isWater && hz) {
+      if (!hz.flood && !(hz.relief <= -1.5)) {
+        pros.push(hz.reliefKnown ? {
+          t: lang === "pl" ? "Poza strefą podtopień i poza zagłębieniem" : "Outside the flood area and not in a hollow",
+          d: lang === "pl" ? "Miejsce leży poza strefami podtopień PIG-PIB, a grunt nie jest tu niżej niż w okolicy." : "The place is outside the PIG-PIB flood areas and the ground here is not lower than around it."
+        } : {
+          t: lang === "pl" ? "Poza strefą podtopień (PIG-PIB)" : "Outside the flood area (PIG-PIB)",
+          d: lang === "pl" ? "Miejsce leży poza strefami podtopień PIG-PIB. Rzeźby terenu tu nie oceniamy: rosną drzewa albo gęsto stoją budynki, a model wysokości mierzy ich wierzchołki." : "The place is outside the PIG-PIB flood areas. The lie of the land is not judged here: trees or dense buildings stand on it and the height model measures their tops."
+        });
+      }
+    } else if (!isWater && wf.floodShare === 0 && !wf.hollow) {
       if (wf.reliefMean >= 1.0) {
         pros.push({
           t: lang === "pl" ? `Wyniesiony teren (+${num(wf.reliefMean, 1)} m) i naturalny drenaż` : `Elevated terrain (+${num(wf.reliefMean, 1)} m) & natural drainage`,
@@ -154,9 +197,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
         });
       }
     }
-    if (!s || (s.egMed >= -1.5 && s.egMin >= -3)) {
+    if (hz ? (hz.measured ? hz.sink > -1.2 : !!(s && s.egN && s.egMed >= -1 && s.egMin > -5)) : (!s || (s.egMed >= -1.5 && s.egMin >= -3))) {
       pros.push({
-        t: lang === "pl" ? "Stabilne podłoże (brak osiadania)" : "Stable ground (no sinking)",
+        t: lang === "pl" ? (hz && !hz.measured ? "Stabilne podłoże w okolicy (pomiar radarowy)" : "Stabilne podłoże (pomiar radarowy)") : (hz && !hz.measured ? "Stable ground around (radar measurement)" : "Stable ground (radar measurement)"),
         d: lang === "pl" ? "Radar satelitarny InSAR nie rejestruje niebezpiecznych ruchów pionowych gruntu." : "InSAR satellite radar records no hazardous ground motion."
       });
     }
@@ -221,6 +264,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (lost >= 2 * kHa) score -= 16;
 
     score = clamp(Math.round(score), 15, 95);
+    // The number shown is the map's own risk-first score (selectionScore, part 13a), so the card and the map agree.
+    // The weights above stay as the fallback for when the map layers are not loaded or the point is open water.
+    const riskScore = selectionScore(sel);
+    if (riskScore != null) score = riskScore;
 
     let tierClass = "tier-great", tierLabel = u.tierGreat || "Bardzo korzystna";
     if (score < 45) { tierClass = "tier-risk"; tierLabel = u.tierRisk || "Podwyższone ryzyko"; }

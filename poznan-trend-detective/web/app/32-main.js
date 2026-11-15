@@ -124,10 +124,29 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     for (let k = 0; k < 4; k++) next();
   }
 
+  // Settings the team changes on the server without a new version of the app: web/ustawienia.json (served with
+  // Cache-Control: no-cache, so a redeploy of that one file is seen on the next visit). Today one key: defaultBase,
+  // "map" (the plain map) or "orto" (the aerial photo). ?mapa=map|orto in the address wins. A missing or slow file
+  // (1.5 s) keeps the default from part 05.
+  async function loadSettings() {
+    const ok = (v) => (v === "map" || v === "orto" ? v : null);
+    const fromUrl = ok(new URLSearchParams(location.search).get("mapa"));
+    if (fromUrl) { state.base = fromUrl; return; }
+    try {
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 1500);
+      const r = await fetch("ustawienia.json", { cache: "no-cache", signal: ctl.signal });
+      clearTimeout(timer);
+      if (!r.ok) return;
+      const s = await r.json(), b = ok(s && s.defaultBase);
+      if (b) state.base = b;
+    } catch (e) { /* no settings: keep the default */ }
+  }
+
   async function main() {
     // Everything the first view needs is asked for at once; nothing waits for anything else.
     const baseP = makeVectorBase(); // the base map style (4 s limit); initMap awaits it and falls back to a raster
     baseP.catch(() => {});
+    const settingsP = loadSettings();
     // The finer radar pictures are optional. The radar products are optional only where they were never built (404):
     // the app then uses the v1 layout. If sar.json exists but cannot be reached, start-up fails with the retry message
     // instead of quietly showing a visitor the layout without radar.
@@ -138,7 +157,8 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (!sar) { SAR_KEYS.forEach((k) => { state.lyr[k].on = false; }); state.lyr.built.on = true; }
     if (sar) state.lyr.alos.y = LBAND_YEARS()[LBAND_YEARS().length - 1];
     // start on the radar view: NISAR 2026 at the end of the L-band time line. Its rasters download while the map is set up.
-    const firstP = sar ? applyLens() : Promise.resolve();
+    const firstP = sar || state.lens ? applyLens() : Promise.resolve();
+    await settingsP;
     await initMap(baseP);
     initDraw();
     initParcels();

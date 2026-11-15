@@ -77,16 +77,16 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
   // functions once the place layers have loaded in the background, never typed in (typed-in numbers drifted from the card:
   // 92/35/56/80 on the tiles against 98/27/87/62 in the card). Until then a tile shows its name only.
   const SPOTS = [
-    { k: "morasko", lat: 52.4833, lng: 16.8992, icon: "🌲", name: "Morasko", label: "fMorasko", place: "Morasko (rezerwat przyrody)" },
-    { k: "warta", lat: 52.4042, lng: 16.9458, icon: "🌊", name: "Dolina Warty", label: "fWarta", place: "Dolina Warty (strefa podtopień PIG-PIB)" },
-    { k: "naramowice", lat: 52.4485, lng: 16.9550, icon: "🏗️", name: "Naramowice", label: "fNaramowice", place: "Nowe Naramowice (nowa zabudowa wg radaru)" },
-    { k: "rynek", lat: 52.4083, lng: 16.9335, icon: "🏛️", name: "Stary Rynek", label: "fRynek", place: "Stary Rynek (centrum Poznania)" },
+    { k: "morasko", lat: 52.4833, lng: 16.8992, name: "Morasko", label: "fMorasko", place: "Morasko (rezerwat przyrody)" },
+    { k: "warta", lat: 52.4042, lng: 16.9458, name: "Dolina Warty", label: "fWarta", place: "Dolina Warty (strefa podtopień PIG-PIB)" },
+    { k: "naramowice", lat: 52.4485, lng: 16.9550, name: "Naramowice", label: "fNaramowice", place: "Nowe Naramowice (nowa zabudowa wg radaru)" },
+    { k: "rynek", lat: 52.4083, lng: 16.9335, name: "Stary Rynek", label: "fRynek", place: "Stary Rynek (centrum Poznania)" },
   ];
   let spotScores = null, spotScoresP = null;
   function spotBadge(k) {
     if (!spotScores) return "";
     const sc = spotScores[k];
-    return `<span class="f-badge ${sc >= 80 ? "f-great" : sc >= 65 ? "f-good" : sc >= 45 ? "f-warn" : "f-risk"}">${sc}</span>`;
+    return `<span class="f-badge ${sc >= 80 ? "f-great" : sc >= 65 ? "f-good" : sc >= 45 ? "f-warn" : "f-risk"}" title="${sc}/100">${sc}</span>`;
   }
   async function loadSpotScores() {
     try {
@@ -106,34 +106,36 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const t = T(), u = U(), d = findingData(), card = $("#sidecard");
     card.classList.toggle("min", !state.findingsOpen);
     const focused = card.contains(document.activeElement) ? focusKey(document.activeElement) : null;
+    // start card (15 Nov 2026): what to do, the three colours the place card uses, four places to try with their score in a
+    // coloured circle, then the radar line and the findings
+    const sk = u.stKey || {};
+    const keyHTML = `<ul class="st-key" aria-label="${esc(sk.label || "")}">${["ok", "warn", "risk"].map((k) => `<li class="st-${k}">${sk[k] || ""}</li>`).join("")}</ul>`;
+    const featuredHTML = `
+      <div class="featured-spots">
+        <div class="featured-head">${u.featuredHead}</div>
+        <div class="featured-grid">${SPOTS.map((sp) => `
+          <button type="button" class="f-spot" data-spot="${sp.k}">
+            ${spotBadge(sp.k) || `<span class="f-badge f-wait" aria-hidden="true"></span>`}
+            <div class="f-text">
+              <b>${sp.name}</b>
+              <small>${u[sp.label]}</small>
+            </div>
+          </button>`).join("")}
+        </div>
+      </div>`;
     const nisarHero = `
       <div class="nisar-banner">
         <div class="nisar-banner-head">
-          <span class="nisar-pill">${SAR_ICON()} NISAR · 2026</span>
+          <span class="nisar-pill">${SAR_ICON()} NISAR 2026</span>
           <span class="nisar-orbit">${u.nisarOrbit}</span>
-        </div>
-        <p class="nisar-quote">${u.nisarQuote}</p>
-        <div class="nisar-state">💡 ${u.nisarHint || "Kliknij dowolny punkt lub działkę na mapie, aby natychmiast zobaczyć jej ocenę (0–100), zalety (na zielono) i wady (na czerwono)."}</div>
-      </div>`;
-    const featuredHTML = `
-      <div class="featured-spots">
-        <div class="featured-head">📍 ${u.featuredHead || "Szybkie przykłady – zobacz kontrasty w terenie:"}</div>
-        <div class="featured-grid">${SPOTS.map((sp) => `
-          <button type="button" class="f-spot" data-spot="${sp.k}">
-            <span class="f-icon">${sp.icon}</span>
-            <div class="f-text">
-              <b>${sp.name}</b>
-              <small>${u[sp.label]}${spotScores ? ` · ${spotScores[sp.k]}/100` : ""}</small>
-            </div>
-            ${spotBadge(sp.k)}
-          </button>`).join("")}
         </div>
       </div>`;
     card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
         <button type="button" class="linkish" id="fold" aria-expanded="${state.findingsOpen}">${state.findingsOpen ? u.hide : u.show}</button></div>
-      ${nisarHero}
+      <p class="sub st-lead">${u.caseIntro}</p>
+      ${keyHTML}
       ${featuredHTML}
-      <p class="sub">${u.caseIntro}</p>
+      ${nisarHero}
       ${sar ? `<p class="sar-key">${SAR_ICON()}<span>${u.sarKeyShort}</span></p>` : ""}
       <ol class="findings">${Object.keys(FIND()).map((k, i) => { const fx = state.expert && t.fX && t.fX[k] ? t.fX[k] : t.f[k], x = fx(d[k]); return `<li><button type="button" data-f="${k}" ${state.finding === k ? 'aria-current="true"' : ""}>
         <span class="n">${i + 1}</span><span class="t">${x.t}${sar ? sarMark(FIND_SAR[k]) : ""}</span><span class="b">${x.b}</span></button></li>`; }).join("")}</ol>`;
@@ -142,7 +144,18 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
       const sp = SPOTS.find((x) => x.k === b.dataset.spot);
       if (sp) selectPoint(sp.lat, sp.lng, sp.place, { zoom: 14 });
     }));
-    if (!spotScoresP) spotScoresP = new Promise((r) => setTimeout(r, 800)).then(loadSpotScores); // after the first paint
+    // The example scores need every place-card layer and both MODIS grids (about 12 MB). They are not fetched at start:
+    // they are computed when the visitor shows interest in the start card (pointer or keyboard focus on it), or at once
+    // when a selection has already brought those layers into memory.
+    if (!spotScoresP) {
+      if (gridsOK() && PLACE_LAYERS().every((nm) => L8[nm])) spotScoresP = loadSpotScores();
+      else if (!card.dataset.spotWired) {
+        card.dataset.spotWired = "1";
+        const go = () => { if (!spotScoresP) spotScoresP = loadSpotScores(); };
+        card.addEventListener("pointerenter", go, { once: true });
+        card.addEventListener("focusin", go, { once: true });
+      }
+    }
     $("#fold").addEventListener("click", () => {
       state.findingsOpen = !state.findingsOpen;
       try { localStorage.setItem("ptd-fold", state.findingsOpen ? "open" : "closed"); } catch (e) { /* ignore */ }

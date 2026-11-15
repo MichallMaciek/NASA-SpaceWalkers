@@ -33,9 +33,10 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     sel: null, // {kind: 'parcel'|'point'|'area', lat, lng, ring:[[lat,lng]...], label, cells, sq}; parcel: sel.parcel {id, number, obreb, gmina, ring, areaM2}; point: sel.r (km)
     findingsOpen: (() => { try { const v = localStorage.getItem("ptd-fold"); if (v) return v === "open"; } catch (e) { /* ignore */ } return innerWidth >= 760; })(), finding: null, testVar: "built",
     expert: (() => { try { return localStorage.getItem("ptd-expert") === "1"; } catch (e) { return false; } })(),
-    // the rating and quantity layers as the smooth heat map (false, the default) or as hexagons (true); the pill above the zoom buttons
-    hex: (() => { try { return localStorage.getItem("ptd-hex") === "1"; } catch (e) { return false; } })(),
-    lens: null, // no view and no layer at the start: a clean map; the view buttons switch them on
+    // the rating and quantity layers as hexagons (true, the default since 15 Nov 2026) or as the smooth heat map (false); the pill
+    // above the zoom buttons. A new storage key, so a heat-map choice saved before hexagons became the default does not stick.
+    hex: (() => { try { return localStorage.getItem("ptd-hex2") !== "0"; } catch (e) { return true; } })(),
+    lens: "score", // the start view is the plot score (15 Nov 2026); "Default view" in the views list switches it off
     ryear: 2026, // radar views: the year on the radar time line
   };
   let NISAR_DATES = [];
