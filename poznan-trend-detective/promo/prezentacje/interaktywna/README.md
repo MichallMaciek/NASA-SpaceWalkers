@@ -1,7 +1,7 @@
 # SARnik: interaktywny pitch na 3 minuty
 
 Prezentacja w przeglądarce: **Spacja** to kolejny krok, kamera przybliża prawdziwe zrzuty aplikacji (karta adresu,
-werdykt, punkty przeglądu, mapy radaru). 17 kroków, ok. 10 s każdy.
+werdykt, punkty przeglądu, mapy radaru). 20 kroków (challenge, problem, liczby, demo), ok. 9 s każdy.
 
 **Publiczny link: na razie brak (decyzja zespołu).** Hosting czeka na **MichallMaciek**, właściciela repo: tylko on może
 włączyć GitHub Pages (Settings → Pages → Source: „GitHub Actions”). Wtedy pitch będzie pod
@@ -49,7 +49,7 @@ Firebase ani żadnych kluczy: wystarczy prawo do pusha w repo (albo pull request
 
 - Liczby tylko z aplikacji i z sekcji „Dowody” w głównym `README.md` repo (testy 1–4) albo z `web/data`.
   Nic nie zaokrąglaj w górę i nie dopisuj liczb bez źródła.
-- 3 minuty: ok. 17 kroków. Dodajesz krok, to inny usuń.
+- 3 minuty: ok. 20 kroków. Dodajesz krok, to inny usuń.
 - Wygląd aplikacji: Archivo, papier mapy `#F1F0EB`, dwa odcienie tekstu, kolor tylko tam, gdzie znaczy dane.
   Bez wersalików, bez monospace, bez kart z cieniem, bez „kostiumów” (patrz `poznan-trend-detective/docs/DESIGN.md`).
 - Nie wpisuj tu żadnych haseł, tokenów ani kluczy: repo jest publiczne.
