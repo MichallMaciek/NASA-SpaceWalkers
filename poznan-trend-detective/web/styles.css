@@ -157,7 +157,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radi
 .zoom button + button { border-top: 1px solid var(--line); }
 .zoom svg { width: 20px; height: 20px; }
 #radar-btn .iconbtn-t { display: none; } /* the visible label only where the top row has room for it */
-@media (min-width: 1120px) {
+.topright { pointer-events: none; } .topright > * { pointer-events: auto; } /* the column is as wide as its widest button: its empty part must not catch clicks */
+@media (min-width: 1600px) {
   #radar-btn { width: auto; grid-auto-flow: column; gap: 8px; padding: 0 16px 0 15px; }
   #radar-btn .iconbtn-t { display: inline; font-size: 14px; font-weight: 600; }
 }
@@ -562,14 +563,14 @@ body.no-tl .legend { bottom: var(--gap); }
 body.no-tl .leaflet-bottom.leaflet-right { bottom: 0; }
 body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--legend-h, 96px)); }
 
-/* the lenses move under the search bar when the top row is too narrow */
-@media (max-width: 1119px) {
+/* the lenses move under the search bar when the top row is too narrow (seven views need about 850 px) */
+@media (max-width: 1599px) {
   .topbar { flex-wrap: wrap; max-width: calc(100vw - 2 * var(--gap) - 62px); }
   .lenses { order: 3; height: 44px; overflow-x: auto; scrollbar-width: none; }
   .lenses::-webkit-scrollbar { display: none; }
   .lenses button { height: 34px; padding: 0 10px; font-size: 14px; }
 }
-@media (min-width: 761px) and (max-width: 1119px) {
+@media (min-width: 761px) and (max-width: 1599px) {
   .sidecard { top: calc(var(--gap) + 62px + 54px); max-height: calc(100vh - 116px - var(--gap) * 4 - 116px - var(--legend-h, 96px)); }
   body.no-tl .sidecard { max-height: calc(100vh - 116px - var(--gap) * 3 - var(--legend-h, 96px)); }
 }
@@ -648,7 +649,7 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
   body.no-tl .legend { bottom: calc(var(--gap) + 22px); }
 }
 @media (min-width: 761px) and (max-width: 1180px) and (max-height: 760px) { body.drawer-open .legend { right: calc(380px + var(--gap) + 62px); } }
-@media (min-width: 761px) and (max-width: 1119px) and (max-height: 760px) {
+@media (min-width: 761px) and (max-width: 1599px) and (max-height: 760px) {
   .sidecard { max-height: calc(100vh - 116px - var(--gap) * 3 - 116px); }
   body.no-tl .sidecard { max-height: calc(100vh - 116px - var(--gap) * 2); }
 }
@@ -658,8 +659,8 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
   .legend, .zoom { display: none; }
 }
 
-/* 761-1119 px: the views sit in a second row under the search, so the drawing hint moves below them, to the right of the card */
-@media (min-width: 761px) and (max-width: 1119px) {
+/* 761-1599 px: the views sit in a second row under the search, so the drawing hint moves below them, to the right of the card */
+@media (min-width: 761px) and (max-width: 1599px) {
   .drawhint { top: 132px; left: auto; right: calc(var(--gap) + 62px); transform: none; }
 }
 
@@ -798,6 +799,8 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
   background: rgba(242, 163, 27, 0.09);
   border-left: 3px solid #F2A31B;
 }
+.pc-item.con-item.info-item { background: var(--soft); border-left-color: var(--ink-3); } /* a neutral point to check */
+.pc-all > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 4px 0 6px; } /* every check-up row, folded */
 .pc-item.pro-item {
   background: rgba(47, 138, 79, 0.08);
   border-left: 3px solid #2F8A4F;

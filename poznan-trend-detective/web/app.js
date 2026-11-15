@@ -311,12 +311,13 @@
   // module radar_lata also reads. The history view draws it for the years after the optical map. Loaded once; if it is
   // missing or broken the view stays as it was, with one warning in the console.
   const RL = "sarnik/radar_lata/first_year";
-  let rlLast = 0, rlP = null; // last radar year, once the layer is usable
+  let rlLast = 0, rlP = null, rlQ75 = null; // last radar year, once the layer is usable; 75% quantile of new ha within 1 km
   const radarFirst = () => (rlLast && L8[RL]) || null;
   function loadRadarYears() {
     if (rlP) return rlP;
     rlP = skCtx.loadJSON("sarnik/radar_lata/meta.json").then((meta) => {
       if (!meta || !Array.isArray(meta.years) || !meta.years.length) throw new Error("meta.json without years");
+      const q = meta.near_1km && meta.near_1km.new_ha_since_2020_quantiles; rlQ75 = q && typeof q["75"] === "number" ? q["75"] : null;
       return loadGray(RL).then((arr) => { if (arr.length !== land.width * land.height) throw new Error("size differs from the grid"); rlLast = Math.max(...meta.years); });
     }).then(() => {
       if (map) { renderTimeline(); renderLegend(); redraw(); }
@@ -2409,7 +2410,7 @@
     }
 
     items.filter((it) => it.module && (it.lvl === "warn" || it.lvl === "risk")).forEach((it) => {
-      cons.push({ lvl: it.lvl, t: esc(it.t), d: esc(it.v) });
+      cons.push({ lvl: it.lvl, t: esc(it.t), d: it.v }); // v is HTML already (module rows escape their own text), as in the row list
     });
 
     // 2. PROS (Zalety na zielono)
@@ -2431,7 +2432,9 @@
         d: lang === "pl" ? "Radar satelitarny nie rejestruje niebezpiecznych ruchów pionowych gruntu." : "Satellite radar records no hazardous ground motion."
       });
     }
-    if (!s || (s.walls <= 0.01 && s.up <= 0.04)) {
+    const fy = radarFirst(), newHa = fy ? sel.cells.filter((i) => fy[i] > LAST_OBS() - 2000).length * cellHa() : 0, haS = num(newHa, newHa < 10 ? 1 : 0);
+    if (rlQ75 != null && newHa > rlQ75) cons.push({ lvl: "info", t: u.radarNewT(haS), d: u.radarNewD }); // a neutral point to check, not a flaw
+    else if (!s || (s.walls <= 0.01 && s.up <= 0.04)) {
       pros.push({
         t: lang === "pl" ? "Spokój w radarze (brak uciążliwych budów)" : "Quiet radar signature (no intrusive building)",
         d: lang === "pl" ? "Brak gwałtownych pojaśnień i nowych hal przemysłowych w ostatnim roku." : "No abrupt brightening or industrial sheds constructed in the past year."
@@ -2463,32 +2466,30 @@
     else if (score < 65) { tierClass = "tier-warn"; tierLabel = u.tierWarn || "Umiarkowana"; }
     else if (score < 80) { tierClass = "tier-good"; tierLabel = u.tierGood || "Dobra (w normie)"; }
 
-    // NISAR 2026 Ground Reality
-    let nisarStatus = u.nisarField || "Teren otwarty zachowujący naturalny cykl rolniczy.";
-    const isBuiltNow = sel.cells.some((i) => L8.built_2025 && L8.built_2025[i] > 120);
-    if (isBuiltNow) {
-      nisarStatus = u.nisarBuilt || "Wykryto zabudowę (sprawdzona trafność 95%). Stan wyjściowy pod prognozę.";
-    } else if (s && s.walls > 0.02) {
-      nisarStatus = u.nisarWalls || "Wykryto nowe konstrukcje / fizyczne ściany w sezonie 2026.";
-    } else if (rk && rk.level >= 4) {
-      nisarStatus = u.nisarPending || "Pole ze stłumionym rytmem wegetacji (cecha 1,5% gruntów oczekujących na inwestycję).";
-    }
+    // What radar sees here (2026), from measured radar only: the radar first-year layer (Sentinel-1 yearly, NISAR confirms
+    // 2025-2026), Sentinel-1 walls (autumn 2025 -> 2026), NISAR's June -> August change on open land. isNisar: the sentence is NISAR's.
+    let nisarStatus = u.radarNone, isNisar = false;
+    if (newHa > 0) nisarStatus = u.radarNewHa(haS);
+    else if (s && s.walls > 0.02) nisarStatus = u.radarWalls(num(s.walls * 100, 0));
+    else if (fy && sel.cells.some((i) => fy[i] >= 15)) nisarStatus = u.radarBuiltOld;
+    else if (s && s.nisarOpen) { nisarStatus = u.radarOpenNisar(num(s.nisarWetUp * 100, 0)); isNisar = true; }
+    else if (fy && sel.cells.some((i) => fy[i] === 1)) nisarStatus = u.radarOpen;
 
-    return { score, tierClass, tierLabel, pros, cons, nisarStatus };
+    return { score, tierClass, tierLabel, pros, cons, nisarStatus, isNisar };
   }
 
   function plainHTML(sel) {
     const u = U(), p = u.plain, items = plainChecks(sel);
-    const { score, tierClass, tierLabel, pros, cons, nisarStatus } = computeProsAndCons(sel, items);
+    const { score, tierClass, tierLabel, pros, cons, nisarStatus, isNisar } = computeProsAndCons(sel, items);
 
     const nisarBanner = `
       <div class="nisar-banner">
         <div class="nisar-banner-head">
-          <span class="nisar-pill">${SAR_ICON()} NISAR · 2026</span>
-          <span class="nisar-orbit">Pasmo L (20 m) · Orbita 158</span>
+          <span class="nisar-pill">${SAR_ICON()} ${isNisar ? "NISAR · 2026" : u.sarPill}</span>
+          ${isNisar ? `<span class="nisar-orbit">${u.nisarOrbit}</span>` : ""}
         </div>
-        <p class="nisar-quote">${u.nisarQuote || "„NISAR pokazuje co kilka dni, przez chmury, co stoi i co się dzieje na ziemi wokół działki w 2026 r., a od tego stanu startuje prognoza.”"}</p>
-        <div class="nisar-state"><b>${u.nisarGround || "Stan wg NISAR 2026:"}</b> ${nisarStatus}</div>
+        <p class="nisar-quote">${u.nisarQuote}</p>
+        <div class="nisar-state"><b>${u.nisarGround}</b> ${nisarStatus}</div>
       </div>`;
 
     const scoreCard = `
@@ -2504,7 +2505,7 @@
       <div class="pc-section">
         <div class="pc-head cons-head">⚠️ ${u.conHeader || "Wady i punkty do sprawdzenia"} (${cons.length})</div>
         ${cons.length ? `<ul class="pc-list">${cons.map((c) => `
-          <li class="pc-item con-item ${c.lvl === "warn" ? "warn-item" : ""}">
+          <li class="pc-item con-item ${c.lvl === "warn" ? "warn-item" : c.lvl === "info" ? "info-item" : ""}">
             <div><b>${c.t}</b><br><small>${c.d}</small></div>
           </li>`).join("")}</ul>` : `<div class="pc-empty">✅ ${u.noCons || "Brak krytycznych ostrzeżeń na tym terenie."}</div>`}
       </div>`;
@@ -2518,7 +2519,17 @@
           </li>`).join("")}</ul>` : ""}
       </div>`;
 
-    return nisarBanner + scoreCard + consHTML + prosHTML;
+    // every row of the check-up (module rows included), grouped as before, one click away: nothing the card knows is hidden
+    const word = (it) => (it.word ? esc(it.word) : it.pending ? p.checking : p.lvl[it.lvl]);
+    const txt = (it, x) => (it.module ? esc(x) : x);
+    const mark = { ok: "ok", info: "info", warn: "warn", risk: "risk", price: "info" };
+    const allHTML = `<details class="pc-all"><summary>${u.allPoints(items.length, items.filter((it) => it.sar !== "no").length)}</summary>
+      ${[[p.grpSar, items.filter((it) => it.sar !== "no"), true], [p.grpOther, items.filter((it) => it.sar === "no"), false]].filter(([, list]) => list.length).map(([h, list, isSar]) => `
+      <h3 class="pl-h${isSar ? " is-sar" : ""}">${isSar ? SAR_ICON() : ""}${h}</h3>
+      <ul class="plain">${list.map((it) => `<li class="pl pl-${mark[it.lvl]}${it.pending ? " pl-pending" : ""}"><span class="pl-dot" aria-hidden="true"></span><div>
+        <div class="pl-t"><span>${txt(it, it.t)}${it.sar === "part" ? sarMark("part") : ""}</span><span class="pl-l">${word(it)}</span></div><div class="pl-v">${it.v}</div>${it.src ? `<div class="pl-src">${txt(it, it.src)}</div>` : ""}</div></li>`).join("")}</ul>`).join("")}</details>`;
+
+    return nisarBanner + scoreCard + consHTML + prosHTML + allHTML;
   }
   function riskHTML(rk, sel) {
     const u = U(), s = rk.score;
@@ -2739,9 +2750,9 @@
       <div class="nisar-banner">
         <div class="nisar-banner-head">
           <span class="nisar-pill">${SAR_ICON()} NISAR · 2026</span>
-          <span class="nisar-orbit">Pasmo L (20 m) · Orbita 158</span>
+          <span class="nisar-orbit">${u.nisarOrbit}</span>
         </div>
-        <p class="nisar-quote">${u.nisarQuote || "„NISAR pokazuje co kilka dni, przez chmury, co stoi i co się dzieje na ziemi wokół działki w 2026 r., a od tego stanu startuje prognoza.”"}</p>
+        <p class="nisar-quote">${u.nisarQuote}</p>
         <div class="nisar-state">💡 ${u.nisarHint || "Kliknij dowolny punkt lub działkę na mapie, aby natychmiast zobaczyć jej ocenę (0–100), zalety (na zielono) i wady (na czerwono)."}</div>
       </div>`;
     card.innerHTML = `<div class="collapse-head"><h2>${u.appName}: ${t.caseTitle}</h2>
