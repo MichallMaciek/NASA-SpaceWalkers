@@ -31,6 +31,10 @@ pierwszy raz widzi tam zabudowę, od 2015 do 2026 r.
   jednak budowy po 2020 r. od wcześniejszej, więc nie zmienia poziomu wiersza.
 - **Gdzie aplikacja z tego korzysta:** wiersz w karcie (PR #22) oraz mapa, udział zabudowy i prognoza
   dla lat 2021–2026 (PR #24). Opis w sekcji „Wiersz w karcie miejsca i reszta aplikacji”.
+- **Prognoza uczona na radarze nie weszła do aplikacji.** W teście „radar na radarze” wypada dużo lepiej na
+  skraju zabudowy (0,83 wobec 0,58 dla prostej reguły), ale ten zysk to głównie dalszy ciąg budowy, którą
+  radar już widział obok, a niezależny rejestr pozwoleń GUNB go nie potwierdza. Nie mówimy, że radar
+  przewiduje, gdzie powstaną budynki. Sekcja „Prognoza uczona na radarze”.
 - **Prognoza:** model „co może powstać obok” sprawdziliśmy na tym, co radar widział po 2020 r.
   Trafia w okolicę, ale nie w konkretne działki (sekcja niżej).
 
@@ -276,6 +280,126 @@ budynki, radar widzi po 2020 r. więcej nowej zabudowy, także przy tym samym st
 możemy napisać, że radar potwierdza konkretną budowę ani jej rok. Wiersz karty zostaje więc informacją,
 bez ostrzeżeń.
 
+### Prognoza uczona na radarze (eksperyment, 15.11.2026)
+
+Skrypt: `pipeline/sarnik_radar_prognoza_ucz.py`. Liczby: `data/raw/radar/radar_prognoza_ucz/wyniki.json` (poza gitem).
+Plan i kryterium zapisaliśmy w kodzie (`DESIGN`, `CRITERIA`) przed policzeniem wyników.
+
+**Pytanie.** Czy prognoza „co może powstać obok” będzie lepsza, jeśli uczymy ją na tym, co widział radar,
+a nie tylko na mapie optycznej?
+
+**Jak.**
+- Dwa okresy po 4 lata. A: stan w 2018 r., nowa zabudowa z radaru w latach 2019–2022.
+  B: stan w 2022 r., nowa zabudowa w latach 2023–2026.
+- Uczymy na A, sprawdzamy na B. Do tego na innych blokach terenu (bloki ok. 1,2 km, losowa połowa do nauki).
+- Wolne komórki: A 353710, z nich nowe 2131; B 348522, z nich nowe 1590.
+- Skraj zabudowy: wolne komórki stykające się z zabudową.
+- Przedziały 95% z bootstrapu blokowego (1000 losowań, te same dla wszystkich modeli).
+- Najlepszy model wybieramy na okresie A (na blokach odłożonych), bez patrzenia na B. Wybrany: **M2**.
+
+**Wyniki** (test: okres B, bloki niewidziane w nauce). „Krotność” = udział nowej zabudowy w 5% miejsc najwyżej
+w prognozie, podzielony przez udział w pozostałych 95%.
+
+| Model | Co to jest | AUC, wszystkie wolne | Krotność, wszystkie | AUC, skraj | Krotność, skraj |
+|---|---|---|---|---|---|
+| M0 | model z aplikacji (uczony na mapie optycznej) | 0,832 (0,802–0,862) | 8,83 (6,69–11,73) | 0,467 (0,422–0,518) | 0,62 (0,23–1,13) |
+| B0 | bez modelu: ile zabudowy w promieniu ok. 1,1 km | 0,861 (0,808–0,902) | 10,19 (7,50–14,05) | 0,584 (0,524–0,649) | 1,38 (0,52–2,54) |
+| M1 | te same 9 cech, uczone na radarze | 0,887 (0,858–0,915) | 12,25 (9,16–16,53) | 0,629 (0,583–0,680) | 2,10 (1,11–3,47) |
+| M2 | M1 + cechy z radaru (regresja logistyczna) | 0,916 (0,882–0,944) | 24,56 (17,83–35,47) | 0,834 (0,794–0,864) | 8,98 (6,02–13,13) |
+| M3 | cechy M2, gradient boosting | 0,912 (0,876–0,943) | 22,97 (16,90–31,64) | 0,814 (0,774–0,847) | 8,98 (5,98–12,87) |
+
+**Kryterium** („uczenie na radarze pomaga”), dla M2:
+- skraj, AUC lepsze od modelu z aplikacji: różnica 0,366 (0,290–0,425): **tak**
+- skraj, AUC lepsze od reguły „obok zabudowy”: różnica 0,250 (0,169–0,322): **tak**
+- wszystkie wolne, AUC nie gorsze od tej reguły (dolna granica powyżej −0,01): różnica 0,055 (0,035–0,076): **tak**
+- **całe kryterium: zaliczone.**
+
+Bez podziału na bloki (uczenie na całym A, test na całym B) M2 ma AUC na skraju
+0,834 (0,807–0,861), a reguła „obok zabudowy” 0,624 (0,571–0,676).
+
+**Co niesie wynik.** Najważniejsze cechy w modelu M3 (dla porównania) (spadek AUC po przemieszaniu cechy, wszystkie wolne komórki okresu B): built within ~360 m (0,039), built within ~2,5 km (0,018), log distance to Old Market (0,011), p_7x7 (0,009).
+
+**Sprawdzenia.**
+- Tylko nowa zabudowa z lat 2023–2024 (lata 2025–2026 radar zaniża): M2 ma AUC 0,912 (0,864–0,948) na wszystkich
+  wolnych i 0,852 (0,814–0,882) na skraju.
+- Bez prawdopodobieństwa zabudowy z radaru (komórki i sąsiedztwa): AUC na skraju 0,839 (0,800–0,873), różnica do reguły 0,256 (0,176–0,334).
+- Kalibracja (10 przedziałów): suma przewidywań M2 1040 komórek wobec 908 obserwowanych.
+
+**Co dodaliśmy po pierwszym przebiegu** (nie zmienia kryterium ani liczb wyżej; wynik na skraju, AUC):
+- tylko 9 cech + „tempo budowy obok” z radaru: 0,827 (0,785–0,860);
+- tylko 9 cech + jasność radaru (VV, VH, rozrzut): 0,701 (0,658–0,744);
+- tylko 9 cech + prawdopodobieństwo zabudowy z radaru: 0,693 (0,649–0,737);
+- M2 bez „tempa budowy obok”: 0,737 (0,698–0,775);
+- 9 cech + „tempo budowy obok” z mapy optycznej (starsze o 3–8 lat, bez detektora radarowego): 0,647 (0,597–0,702).
+
+Zysk niesie więc głównie „tempo budowy obok”: ile radar datował jako nową zabudowę w promieniu ok. 360 m
+w trzech latach przed startem. Budowa idzie falami: osiedle rośnie etapami.
+
+**Granice.**
+- Lata 2025–2026 są zaniżone w warstwie radarowej (ostrzejsza reguła, potwierdzenie NISAR).
+- Etykietą jest sama warstwa radarowa. Cechy „prawie zabudowane” i „tempo budowy obok” częściowo mierzą
+  zachowanie detektora, a nie budowę.
+- Jedna budowa (np. osiedle) może dostać w sąsiednich komórkach różne lata pierwszej zabudowy, bo detektor
+  ma szum. Wtedy „tempo budowy obok” częściowo mierzy tę samą budowę, a nie następną. Tego nie sprawdziliśmy
+  osobno; „tempo” z mapy optycznej (starsze, bez detektora) daje dużo mniej (wyżej).
+- Nie mamy niezależnej prawdy dla lat 2023–2026. Następny krok: rejestr pozwoleń GUNB po obrębach.
+- Okresy mają 4 lata, a nie 5 jak prognoza w aplikacji.
+
+**Zdanie po pierwszej rundzie** (nieaktualne: zastępuje je druga runda niżej). Prognoza uczona na tym, co radar widział, lepiej wskazuje miejsca na skraju zabudowy niż model z aplikacji i prosta reguła „obok zabudowy” (AUC 0,83 wobec 0,47 i 0,58, na latach i blokach, których model nie widział), a niesie to głównie radarowy zapis tego, gdzie budowano obok w ostatnich trzech latach; sprawdzianem jest sam radar, nie niezależny rejestr.
+
+### Druga runda: szum dat i niezależny rejestr (15.11.2026)
+
+Plan i kryteria tej rundy (`DESIGN2`, `CRITERIA2`) zapisaliśmy w kodzie przed liczeniem. Liczby z pierwszej rundy
+się nie zmieniły (porównanie logów).
+
+**1. Czy „tempo budowy obok” wskazuje nowe miejsca, czy resztę tej samej budowy?**
+Detektor może dać sąsiednim komórkom jednego osiedla różne lata. Sprawdzamy dwa sposoby:
+przerwę w czasie (okno „tempa” kończy się rok albo dwa lata przed startem) i przerwę w przestrzeni
+(usuwamy z testu komórki, przy których radar datował budowę w latach 2020–2022).
+
+| Wariant (skraj zabudowy, okres B) | Nowe komórki | AUC modelu | AUC reguły „obok zabudowy” | Różnica |
+|---|---|---|---|---|
+| M2 jak w pierwszej rundzie | 221 | 0,834 (0,794–0,864) | 0,584 (0,524–0,649) | 0,250 (0,169–0,322) |
+| „tempo” kończy się rok przed startem (A 2016–2017, B 2019–2021) | 221 | 0,783 (0,746–0,818) | 0,584 (0,519–0,653) | 0,199 (0,133–0,259) |
+| „tempo” kończy się dwa lata przed startem (A 2016, B 2018–2020) | 221 | 0,753 (0,714–0,789) | 0,584 (0,523–0,651) | 0,169 (0,103–0,231) |
+| bez komórek z budową 2020–2022 tuż obok (3 × 3) | 66 | 0,770 (0,703–0,826) | 0,718 (0,621–0,803) | 0,053 (-0,013–0,126) |
+| bez komórek z budową 2020–2022 w promieniu ok. 220 m (7 × 7) | 36 | 0,750 (0,665–0,831) | 0,696 (0,558–0,823) | 0,053 (-0,042–0,148) |
+
+Ile zostaje z przewagi M2 nad regułą na skraju: rok przerwy 80%, dwa lata 68%, bez sąsiadów 3 × 3 21%, 7 × 7 22%.
+
+Kryterium „zysk to nie głównie szum dat”:
+- dwa lata przerwy, model lepszy od reguły: **tak**
+- bez budowy w promieniu 7 × 7, model lepszy od reguły: **nie**
+- **całe kryterium: niezaliczone.**
+
+**2. Sprawdzian bez radaru: rejestr pozwoleń GUNB.**
+- 320 obrębów w 18 gminach, 18221 działek z nową budową
+  i ostatnią sprawą w latach 2023–2026.
+- Dla każdego obrębu: średnia szansa z modelu na wolnych komórkach w 2022 r. (M2 uczony tylko na okresie A).
+- Miara: korelacja rang z liczbą takich działek na km², po odjęciu wpływu zabudowy z 2020 r.
+  Przedziały z losowania całych gmin (2000 razy).
+
+| Model | 2023–2026 (test) | 2016–2018 (kontrola czasu) |
+|---|---|---|
+| M0, model z aplikacji | 0,31 (0,23–0,38) | 0,28 (0,20–0,35) |
+| B0, reguła „obok zabudowy” | 0,26 (0,12–0,43) | 0,24 (0,05–0,44) |
+| M2, uczony na radarze | 0,22 (0,13–0,34) | 0,20 (0,09–0,36) |
+| różnica M2 − M0 | -0,09 (-0,19–0,05) | -0,08 (-0,24–0,12) |
+| różnica M2 − B0 | -0,04 (-0,20–0,11) | -0,04 (-0,21–0,13) |
+
+Kryterium „niezależnie lepszy” (różnica M2 − M0, dolna granica powyżej 0): **niezaliczone.**
+
+Co ten test może, a czego nie:
+- Pokazuje, czy obręby, które model ocenia wyżej, miały więcej nowych spraw budowlanych, bez radaru w wyniku.
+- Działa na obrębach, nie na komórkach ani działkach.
+- „Ostatni rok” to ostatnia sprawa dowolnego rodzaju (też rozbudowa, rozbiórka), a nie rok pozwolenia na nowy budynek.
+- Pozwolenie to nie budynek: może powstać później albo wcale.
+- 18 gmin: przedziały są szerokie. Rejestr obejmuje tylko miasto i powiat poznański.
+
+**Zdanie, które wolno powiedzieć na pitchu.** Radar pokazuje, co powstało po 2020 r.; prognoza uczona na radarze głównie powtarza, gdzie budowa już trwa.
+
+**Zdanie, którego nie wolno mówić.** Nie mówimy, że prognoza w aplikacji korzysta z radaru ani że radar przewiduje, gdzie powstaną nowe budynki.
+
 ### ALOS PALSAR 2007–2010: wybrany wariant (a)
 
 ALOS PALSAR na naszym modelu (z sąsiedztwem) odtwarza mapę optyczną z AUC ok. 0,93 (2007, 2008, 2010).
@@ -304,6 +428,7 @@ Skrypty (w `poznan-trend-detective/`), w kolejności uruchamiania:
 | `pipeline/sarnik_radar_lata.py` | klasyfikacja, rok pierwszej zabudowy, wszystkie testy, pliki modułu | ok. 3 min |
 | `pipeline/sarnik_radar_lata_obreby.py` | granice obrębów z usługi GUGiK ULDK do testu na rejestrze GUNB; bez nich test jest pomijany | ok. 50 min, raz |
 | `pipeline/sarnik_radar_prognoza.py` | prognoza sprawdzona radarem i liczona od stanu z 2026 r. | ok. 25 s |
+| `pipeline/sarnik_radar_prognoza_ucz.py` | eksperyment: prognoza uczona na zmianach z radaru, z dwoma niezależnymi sprawdzeniami | ok. 2,5 min |
 
 Dwa przebiegi `sarnik_radar_lata.py` dały identyczną warstwę (0 różnych komórek).
 
