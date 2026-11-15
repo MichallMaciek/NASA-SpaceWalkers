@@ -255,8 +255,12 @@
   Object.assign(en.L, { nisarwet: "NISAR: change Jun → Aug", alos: "L-band: ALOS-2 and NISAR" });
   Object.assign(pl.Lsub, { nisarwet: "pasmo L, HH: 24.08 minus 25.06 (po deszczu i po żniwach), otwarty teren", alos: "ALOS-2 2015–2021, NISAR 2026; R = HH, G = HV, B = HH/HV" });
   Object.assign(en.Lsub, { nisarwet: "L-band HH: 24 Aug minus 25 Jun (after rain, and after harvest), open land", alos: "ALOS-2 2015–2021, NISAR 2026; R = HH, G = HV, B = HH/HV" });
-  Object.assign(pl.lg, { nisarwet: "NISAR HH: 24.08 minus 25.06", wetter: "jaśniej: deszcz, żniwa i uprawa razem", drier: "ciemniej: zmiana upraw albo żniwa", nisarL: "Radar NISAR, pasmo L, 2026" });
-  Object.assign(en.lg, { nisarwet: "NISAR HH: 24 Aug minus 25 Jun", wetter: "brighter: rain, harvest and tillage together", drier: "darker: crop change or harvest", nisarL: "NISAR radar, L-band, 2026" });
+  Object.assign(pl.lg, { nisarwet: "NISAR HH: 24.08 minus 25.06", wetter: "jaśniej: deszcz, żniwa i uprawa razem", drier: "ciemniej: zmiana upraw albo żniwa", nisarL: "Radar NISAR, pasmo L, 2026",
+    nisarPass: (d) => `Radar NISAR, przelot ${d}`, passHH: "ten przelot ma tylko HH: jaśniej = silniejsze odbicie",
+    passNote: "Pojedyncze przeloty jednego lata: pola zmieniają się z uprawą, żniwami i deszczem, budynki i las zostają." });
+  Object.assign(en.lg, { nisarwet: "NISAR HH: 24 Aug minus 25 Jun", wetter: "brighter: rain, harvest and tillage together", drier: "darker: crop change or harvest", nisarL: "NISAR radar, L-band, 2026",
+    nisarPass: (d) => `NISAR radar, pass of ${d}`, passHH: "this pass has HH only: brighter = stronger echo",
+    passNote: "Single passes of one summer: fields change with crops, harvest and rain; buildings and forest stay." });
   Object.assign(pl.rb, {
     srcN: (n) => `NISAR (pasmo L), ${n} ${plForm(n, "przelot", "przeloty", "przelotów")}`,
     nisarWet: "NISAR: zmiana VI → VIII", nisarWetV: (p) => `HH, 25.06 → 24.08, otwarty teren; ${p} terenu jaśniej o 2 dB+`,
@@ -408,6 +412,9 @@
     lensBar: "Co pokazać na mapie", baseT: "Podkład mapy", sourcesT: "Źródła danych",
     aboutLink: '<p class="about-more"><a href="about.html">Nauka, dowody i ograniczenia: pełna strona „O projekcie”</a></p>',
     sarYes: "z radaru SAR", sarPart: "częściowo z radaru SAR", sarKeyShort: "Ten znak oznacza dane z radaru SAR (NISAR, Sentinel-1). Bez znaku: inne źródła, np. zdjęcia optyczne Landsat.",
+    passOpen: "Pokaż przeloty z lata", passClose: "Wróć do mediany 2026", passesLabel: "Pojedyncze przeloty NISAR, lato 2026",
+    passKind: (d, hhOnly) => `NISAR, ${d}${hhOnly ? ", tylko HH" : ""}`, passKindShort: (hhOnly) => (hhOnly ? "NISAR, tylko HH" : "NISAR"),
+    passOpenShort: "Przeloty", passCloseShort: "Wróć",
     radarYears: "Lata z danymi radaru", noRadarData: "2022–2025: brak zdjęć w paśmie L (ALOS-2 do 2021, NISAR od 2026)",
     tlKind: { archive: "radar ALOS-2", radar: "radar NISAR", build: "radar Sentinel-1", water: "radar NISAR", ground: "pomiary 2016–2020" },
     lgPlain: { alos: (y) => `Tak radar widział okolicę w ${y} (ALOS-2)`, nisarL: "Tak radar NISAR widzi okolicę (2026)", sarchange: "Co się zmieniło w ostatnim roku", wallsNow: "sygnał jak od nowych ścian", brighterNow: "inne zmiany: pola, prace ziemne", darkerNow: "ciemniej niż rok temu: na polach zwykle inna uprawa, orka albo suchsza gleba",
@@ -425,6 +432,9 @@
     lensBar: "What to show on the map", baseT: "Map background", sourcesT: "Data sources",
     aboutLink: '<p class="about-more"><a href="about.html">The science, the evidence and the limits: the full “About the project” page</a></p>',
     sarYes: "from SAR radar", sarPart: "partly from SAR radar", sarKeyShort: "This mark means SAR radar data (NISAR, Sentinel-1). No mark: other sources, such as Landsat optical images.",
+    passOpen: "Show the summer passes", passClose: "Back to the 2026 median", passesLabel: "Single NISAR passes, summer 2026",
+    passKind: (d, hhOnly) => `NISAR, ${d}${hhOnly ? ", HH only" : ""}`, passKindShort: (hhOnly) => (hhOnly ? "NISAR, HH only" : "NISAR"),
+    passOpenShort: "Passes", passCloseShort: "Back",
     radarYears: "Years with radar data", noRadarData: "2022–2025: no L-band images (ALOS-2 to 2021, NISAR from 2026)",
     tlKind: { archive: "ALOS-2 radar", radar: "NISAR radar", build: "Sentinel-1 radar", water: "NISAR radar", ground: "measured 2016–2020" },
     lgPlain: { alos: (y) => `How radar saw the area in ${y} (ALOS-2)`, nisarL: "How the NISAR radar sees the area (2026)", sarchange: "What changed in the last year", wallsNow: "a signal like new walls", brighterNow: "other changes: fields, earthworks", darkerNow: "darker than last autumn: on fields usually a different crop, tillage or drier soil",
