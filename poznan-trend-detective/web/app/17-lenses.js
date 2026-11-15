@@ -43,7 +43,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     state.lens = k; pass = -1;
     if (k === null) Object.keys(state.lyr).forEach((key) => { state.lyr[key].on = false; }); // back to the clean map
     else if (k === "trees") setYear(2024);
-    else if (k !== "history" && state.year > NOW_YEAR) setYear(NOW_YEAR);
+    else if (k === "history") {
+      if (state.year < TL_MIN || state.year > horizonEnd()) setYear(NOW_YEAR);
+    } else if (state.year > NOW_YEAR) setYear(NOW_YEAR);
     await applyLens();
     renderLenses(); renderDrawer(); renderTimeline(); renderLegend(); redraw();
   }
