@@ -109,12 +109,16 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     const d = SK.modules[name];
     if (d && d.onAction) skGuard(name, "onAction", () => d.onAction(action, state.sel, skCtx, el));
   });
-  skList.forEach(({ name, css: withCss }) => {
-    if (!/^[a-z0-9_-]+$/i.test(name)) { console.warn("SARnik: bad module name", name); return; }
-    if (withCss) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = `sarnik/${name}.css?v=${DATA_V}`; document.head.appendChild(l); }
-    const s = document.createElement("script");
-    s.src = `sarnik/${name}.js?v=${DATA_V}`; s.async = false; // keep the manifest order
-    s.onerror = () => console.warn(`SARnik: module ${name} did not load`);
-    document.body.appendChild(s);
-  });
+  // Called from 32-main.js once every core part has run: a script added here runs as soon as it arrives, so starting the
+  // modules while the later parts are still loading could run a module before the code it needs (map, renderCard).
+  function skLoadModules() {
+    skList.forEach(({ name, css: withCss }) => {
+      if (!/^[a-z0-9_-]+$/i.test(name)) { console.warn("SARnik: bad module name", name); return; }
+      if (withCss) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = `sarnik/${name}.css?v=${DATA_V}`; document.head.appendChild(l); }
+      const s = document.createElement("script");
+      s.src = `sarnik/${name}.js?v=${DATA_V}`; s.async = false; // keep the manifest order
+      s.onerror = () => console.warn(`SARnik: module ${name} did not load`);
+      document.body.appendChild(s);
+    });
+  }
 

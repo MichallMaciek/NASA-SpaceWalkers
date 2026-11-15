@@ -42,33 +42,48 @@ startu, gdy nie wczytał się Leaflet albo teksty (patrz niżej).
 | `31-search.js` | wyszukiwarka (Nominatim) |
 | `32-main.js` | język, podpięcie przycisków, `main()`: start aplikacji (ładuje się ostatnia) |
 
-## Zasady (pilnuje ich `tests/app_parts.mjs`, uruchamiany w CI)
+## Zasady
+
+Reguły 1–4 i 7 sprawdza `node poznan-trend-detective/tests/app_parts.mjs` (parser JavaScriptu, uruchamiany też w CI);
+reguły 5, 6 i 8 częściowo; resztę trzeba pamiętać.
 
 1. **Wszystkie części dzielą jeden zakres nazw.** To zwykłe skrypty ładowane po kolei przez `index.html`, więc nazwa
-   zadeklarowana na najwyższym poziomie w jednej części jest widoczna we wszystkich. Dlatego:
+   zadeklarowana na najwyższym poziomie w jednej części jest widoczna we wszystkich i w każdym skrypcie strony. Dlatego:
    - **nazwa najwyższego poziomu może wystąpić tylko w jednej części** (podwójne `const` zatrzymuje całą część, podwójne
      `function` po cichu podmienia wcześniejszą);
-   - **nie nazywaj niczego jak globalne przeglądarki** (`name`, `status`, `history`, `open`, `stop`, `Map`…).
+   - **nie nazywaj niczego jak globalne JavaScriptu i przeglądarki** (`name`, `status`, `history`, `open`, `stop`, `Map`,
+     `Number`, `onload`…) ani jak nazwy z innych skryptów strony (`plForm` z `i18n.js`). Przed dodaniem nazwy:
+     `grep -rn "nazwa" poznan-trend-detective/web/app/`.
 2. **Kod, który biegnie przy wczytywaniu, może używać tylko nazw z części wcześniejszych.** Funkcje z dalszych części
-   wołaj dopiero z `main()` (część 32) albo z obsługi zdarzeń. W jednym pliku `function` była „widoczna wcześniej”
+   wołaj dopiero z `main()` (część 32) albo z obsługi zdarzeń. W jednym pliku `function` była widoczna wcześniej
    (hoisting); między plikami już nie.
 3. **Bez `return` poza funkcją.** W starym pliku zatrzymanie startu robiło `return;`. Teraz robi to część 01
    (`window.SARNIK_STOP`), a każda następna część zaczyna się od linii
    `if (window.SARNIK_STOP) throw window.SARNIK_STOP;`. Zostaw ją na początku nowych części.
 4. **Każda część zaczyna się od `"use strict";`** (po komentarzu z opisem).
-5. **Nowa część:** plik `NN-nazwa.js` (wstawka między istniejące: `NNa-nazwa.js`, np. `25a-card-alerty.js`) i tag
-   `<script src="app/NN-nazwa.js?v=…"></script>` w `index.html` we właściwym miejscu. Numer `?v=` ma być ten sam co
-   w innych tagach (`node tools/stamp-assets.mjs --check`).
-6. **Nowe wiersze karty miejsca** dodawaj jako moduł w `web/sarnik/` (kontrakt: `docs/planwyd/KONTRAKT.md`), nie w rdzeniu.
+5. **Co ma ruszyć dopiero, gdy cały rdzeń jest wczytany** (dokładanie skryptów, timery, pobieranie danych na starcie),
+   uruchamiaj z `32-main.js`. Przykład: moduły `web/sarnik/` startuje `skLoadModules()` z części 32, nie z 06.
+6. **Nowa część:** plik `NN-nazwa.js` (wstawka między istniejące: `NNa-nazwa.js`, np. `25a-card-alerty.js`), z takim
+   samym nagłówkiem jak inne części, i tag `<script src="app/NN-nazwa.js?v=…"></script>` w `index.html` we właściwym
+   miejscu, z tym samym numerem `?v=` co pozostałe tagi. Wcięcie kodu: 2 spacje, jak w innych częściach.
+7. **Nowe wiersze karty miejsca** dodawaj jako moduł w `web/sarnik/` (kontrakt: `docs/planwyd/KONTRAKT.md`), nie w rdzeniu.
+   Moduł trzyma cały kod w `(function () { ... })();`, żeby nie dokładać nazw globalnych.
+8. **Numer `?v=` podbija tylko osoba, która robi deploy** (`node poznan-trend-detective/tools/stamp-assets.mjs`): zmienia
+   wtedy wszystkie ~50 tagów naraz. Kto dodaje tag, kopiuje obecny numer, inaczej każdy commit zmienia te same linie.
 
 ## Masz niezacommitowane zmiany w starym `web/app.js` albo `web/styles.css`?
 
 ```bash
-git stash          # Twoje zmiany idą do schowka
+git stash          # Twoje zmiany (wszystkie pliki) idą do schowka
 git pull           # przychodzi podział
 python3 poznan-trend-detective/tools/przenies_zmiany_app.py stash@{0}
+git stash pop      # wracają Twoje pozostałe pliki; app.js i styles.css wracają jako „deleted by us”:
+git rm -q poznan-trend-detective/web/app.js poznan-trend-detective/web/styles.css
+git stash drop
 ```
 
 Narzędzie robi 3-drogowe scalenie: Twoje zmiany względem wersji, na której pracowałeś, trafiają do właściwych części
-(i plików w `web/css/`). Konflikty zaznacza zwykłymi znacznikami `<<<<<<<`. Masz commity na własnej gałęzi? Podaj ją:
-`przenies_zmiany_app.py moja-galaz`.
+(także `web/css/`), nowe części dodane po podziale zostają nietknięte. Konflikty zaznacza zwykłymi znacznikami
+`<<<<<<<` (kod wyjścia 1). Gdy nie da się pociąć wyniku (np. usunąłeś komentarz-znacznik sekcji), niczego nie zmienia,
+kończy się kodem 2 i zostawia scalony plik w katalogu tymczasowym do przeniesienia ręcznie. Masz commity na własnej
+gałęzi? Uruchom na `main`: `przenies_zmiany_app.py moja-galaz`.

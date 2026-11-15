@@ -91,7 +91,7 @@
 
 | Ścieżka | Opis |
 |---|---|
-| [web/](web/) | aplikacja: [index.html](web/index.html), [app.js](web/app.js) (mapa, karta, rysowanie), [i18n.js](web/i18n.js) (PL/EN), [styles.css](web/styles.css) |
+| [web/](web/) | aplikacja: [index.html](web/index.html), [web/app/](web/app/README.md) (rdzeń w 32 częściach: mapa, karta, rysowanie; dawniej `app.js`), [i18n.js](web/i18n.js) (PL/EN), [web/css/](web/css/README.md) (style w 17 częściach; dawniej `styles.css`) |
 | [web/data/](web/data/) | gotowe dane dla aplikacji (JSON, GeoJSON, warstwy PNG 120 m), ok. 12 MB |
 | [pipeline/run_all.sh](pipeline/run_all.sh) | odtwarza wszystkie dane od zera |
 | [pipeline/fetch_*.py](pipeline/) | pobieranie: MODIS, IMGW/POWER/GUS, GHSL/las/DEM/Sentinel-1/drogi/ceny, las 30 m, podtopienia |

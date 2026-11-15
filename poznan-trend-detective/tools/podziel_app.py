@@ -122,10 +122,51 @@ def cut(lines, plan, first, last):
     return starts + [last]
 
 
+MARK = re.compile(r"^\s*/\*@@part ([\w.-]+)@@\*/$")   # a part added after the split, kept by join_* / split_*
+
+
+def take_marks(lines):
+    """Lines without the part markers, and [(index in the returned lines, part name)]."""
+    out, marks = [], []
+    for l in lines:
+        m = MARK.match(l)
+        if m:
+            marks.append((len(out), m[1]))
+        else:
+            out.append(l)
+    return out, marks
+
+
+def add_extra(parts, marks, lines, head, hlen, fix=lambda name, text: text):
+    """Cut the planned parts again where a marker was: the marker's part starts there.
+    head(name): header of a part added later; hlen(text): length of a part's header; fix: the same change split_* makes."""
+    if not marks:
+        return parts
+    out = []
+    for name, text, a, z, what in parts:
+        inside = [(m, n) for m, n in marks if a - 1 <= m < z]
+        if not inside:
+            out.append((name, text, a, z, what))
+            continue
+        cuts = [a - 1] + [m for m, _ in inside] + [z]
+        names = [name] + [n for _, n in inside]
+        for k, nm in enumerate(names):
+            body = fix(nm, "\n".join(lines[cuts[k]:cuts[k + 1]]) + "\n")
+            h = text[:hlen(text)] if k == 0 else head(nm)
+            out.append((nm, h + body, cuts[k] + 1, cuts[k + 1], what if k == 0 else "(added after the split)"))
+    return out
+
+
+def js_hlen(text):
+    """Length of a part's header: comments, "use strict"; and the stop line (whatever its comment says)."""
+    i = text.index('"use strict";\n') + len('"use strict";\n')
+    return text.index("\n", i) + 1 if text[i:].startswith("if (window.SARNIK_STOP) throw window.SARNIK_STOP;") else i
+
+
 def split_js(src=None):
     """Parts of app.js: [(file name, text, first old line, last old line, what)], and the source."""
     src = src if src is not None else (WEB / "app.js").read_text(encoding="utf-8")
-    lines = src.split("\n")
+    lines, marks = take_marks(src.split("\n"))
     o = next(i for i, l in enumerate(lines) if l.startswith("(() => {"))
     assert lines[o + 1].strip() == '"use strict";', lines[o + 1]
     end = max(i for i, l in enumerate(lines) if l.startswith("})();"))
@@ -149,12 +190,16 @@ def split_js(src=None):
         parts.append((name, head + text, b[k] + 1, b[k + 1], what))
     # the body of the IIFE, line for line, equals the parts without their headers
     assert sum((p[3] - p[2] + 1) for p in parts) == last - first
+    if any(m < first or m >= last for m, _ in marks):
+        sys.exit("a part marker outside the body of app.js")
+    parts = add_extra(parts, marks, lines, lambda n: JS_HEAD.format(n="?", total=len(JS), what=f"{n} (added after the split)") + STOP_LINE,
+                      js_hlen, lambda n, t: t.replace(GUARD_OLD, GUARD_NEW) if n == JS[0][0] else t)
     return parts, src
 
 
 def split_css(src=None):
     src = src if src is not None else (WEB / "styles.css").read_text(encoding="utf-8")
-    lines = src.split("\n")
+    lines, marks = take_marks(src.split("\n"))
     last = len(lines)
     while not lines[last - 1].strip():
         last -= 1
@@ -163,6 +208,8 @@ def split_css(src=None):
     for k, (name, _, what) in enumerate(CSS):
         body = lines[b[k]:b[k + 1]]
         parts.append((name, CSS_HEAD.format(n=k + 1, total=len(CSS), what=what) + "\n".join(body) + "\n", b[k] + 1, b[k + 1], what))
+    parts = add_extra(parts, marks, lines, lambda n: CSS_HEAD.format(n="?", total=len(CSS), what=f"{n} (added after the split)"),
+                      lambda t: t.index("\n") + 1)
     return parts, src
 
 
@@ -198,10 +245,15 @@ def main():
         print("written; app.js and styles.css removed")
 
 
-def join_js(texts):
-    """The inverse of split_js: app.js from the texts of the parts, in order (headers and stop lines dropped)."""
+def join_js(texts, names=None):
+    """The inverse of split_js: app.js from the texts of the parts, in order (headers and stop lines dropped).
+    With names, a part that is not in the plan (added after the split) is preceded by a marker line, so that
+    split_js cuts it out again under the same name."""
     head, body = [], []
+    known = {n for n, *_ in JS}
     for k, t in enumerate(texts):
+        if names and names[k] not in known:
+            body.append(f"  /*@@part {names[k]}@@*/")
         lines = t.split("\n")
         s = lines.index('"use strict";')
         if k == 0:
@@ -215,9 +267,11 @@ def join_js(texts):
     return "\n".join(head) + '\n(() => {\n  "use strict";\n\n' + text + "})();\n"
 
 
-def join_css(texts):
-    """The inverse of split_css: styles.css from the texts of the parts, in order."""
-    return "".join(t.split("\n", 1)[1] for t in texts)
+def join_css(texts, names=None):
+    """The inverse of split_css: styles.css from the texts of the parts, in order (markers as in join_js)."""
+    known = {n for n, *_ in CSS}
+    return "".join((f"/*@@part {names[k]}@@*/\n" if names and names[k] not in known else "") + t.split("\n", 1)[1]
+                   for k, t in enumerate(texts))
 
 
 if __name__ == "__main__":

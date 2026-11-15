@@ -7,7 +7,7 @@
 (() => {
   "use strict";
 
-  /* ---------- storage: same keys as web/app.js ---------- */
+  /* ---------- storage: same keys as the app's core (web/app/01-helpers.js) ---------- */
   const LANG_KEY = "ptd-lang", THEME_KEY = "ptd-theme";
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },

@@ -30,8 +30,8 @@
 </style>
 <!-- the base map style and tiles come from this host: open the connection while the scripts download -->
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-<!-- the data every first view needs starts downloading before app.js runs; these URLs must equal the ones app.js fetches,
-     so the ?v= number here changes together with the one on app.js below -->
+<!-- the data every first view needs starts downloading before the core (app/*.js) runs; these URLs must equal the ones the
+     core fetches, so the ?v= number here changes together with the one on app/01-helpers.js below (its DATA_V) -->
 <link rel="preload" as="fetch" crossorigin href="data/study.json?v=1794735901">
 <link rel="preload" as="fetch" crossorigin href="data/areas.geojson?v=1794735901">
 <link rel="preload" as="fetch" crossorigin href="data/land/land.json?v=1794735901">
