@@ -418,8 +418,8 @@
   };
   Object.assign(pl, {
     techSummary: "Szczegóły techniczne: radar, wykresy, statystyka",
-    lens: { radar: "Radar", build: "Nowe budowy", water: "Woda", ground: "Grunt", trees: "Drzewa", history: "Historia" },
-    lensTip: { radar: "Jak radar widzi okolicę, od 2015 (ALOS-2) do 2026 (NISAR)", build: "Gdzie radar widzi w ostatnim roku ślad nowych ścian", water: "Strefy zagrożone podtopieniami i zmiana pól od czerwca do sierpnia (radar NISAR)", ground: "Czy i gdzie grunt osiada", trees: "Gdzie od 2001 roku wycięto drzewa", history: "Jak rosła zabudowa od 1975 roku i co mówi prognoza na 2035" },
+    lens: { score: "Ocena działki", history: "Zabudowa i prognoza", build: "Nowe mury (SAR)", water: "Ryzyko zalania", ground: "Osiadanie terenu", trees: "Ubytek zieleni", radar: "Satelita NISAR" },
+    lensTip: { score: "Ogólna ocena działki: zalety (zieleń, stabilność, spokój) i wady (podtopienia, osiadanie)", history: "Rozwój miasta od 1975 roku i prognoza zabudowy AI do 2035 roku", build: "Gdzie radar Sentinel-1 widzi w ostatnim roku fizyczny ślad nowych ścian", water: "Strefy podtopień (ISOK) i wilgoć po deszczu (radar NISAR)", ground: "Pomiary osiadania i ruchów gruntu z satelitów radarowych (EGMS)", trees: "Gdzie od 2001 roku wycięto las", radar: "Bezpośredni obraz mikrofalowy z satelity radarowego NASA-ISRO NISAR (pasmo L, 2026)" },
     showOnMap: "Co pokazać na mapie", expertT: "Tryb ekspercki", expertSub: "dB, polaryzacje, testy statystyczne i wszystkie suwaki", allLayers: "Wszystkie warstwy i ustawienia",
     lensBar: "Co pokazać na mapie", baseT: "Podkład mapy", sourcesT: "Źródła danych",
     aboutLink: '<p class="about-more"><a href="about.html">Nauka, dowody i ograniczenia: pełna strona „O projekcie”</a></p>',
@@ -428,18 +428,36 @@
     passKind: (d, hhOnly) => `NISAR, ${d}${hhOnly ? ", tylko HH" : ""}`, passKindShort: (hhOnly) => (hhOnly ? "NISAR, tylko HH" : "NISAR"),
     passOpenShort: "Przeloty", passCloseShort: "Wróć",
     radarYears: "Lata z danymi radaru", noRadarData: "2022–2025: brak zdjęć w paśmie L (ALOS-2 do 2021, NISAR od 2026)",
-    tlKind: { archive: "radar ALOS-2", radar: "radar NISAR", build: "radar Sentinel-1", water: "radar NISAR", ground: "pomiary 2016–2020" },
+    tlKind: { score: "ocena działki", archive: "radar ALOS-2", radar: "radar NISAR", build: "radar Sentinel-1", water: "radar NISAR", ground: "pomiary 2016–2020", history: "zabudowa Poznań" },
     lgPlain: { alos: (y) => `Tak radar widział okolicę w ${y} (ALOS-2)`, nisarL: "Tak radar NISAR widzi okolicę (2026)", sarchange: "Co się zmieniło w ostatnim roku", wallsNow: "sygnał jak od nowych ścian", brighterNow: "inne zmiany: pola, prace ziemne", darkerNow: "ciemniej niż rok temu: na polach zwykle inna uprawa, orka albo suchsza gleba",
       nisarwet: "Zmiana od czerwca do sierpnia (radar NISAR)", wetter: "jaśniej: deszcz, żniwa, uprawa", drier: "ciemniej: inna uprawa albo żniwa", s1rgb: "Tak radar widzi okolicę", egms: "Ruch gruntu", sinks: "osiada", rises: "podnosi się" },
     hov: { walls: "Radar: sygnał jak od nowych ścian", brighter: "Radar: zmiana terenu (pole lub prace ziemne)", darker: "Radar: ciemniej niż rok temu (na polach zwykle inna uprawa, orka albo suchsza gleba)", noChange: "Radar: bez zmian",
       soaks: "NISAR: jaśniej w sierpniu (deszcz, żniwa, uprawa)", dries: "NISAR: ciemniej w sierpniu (inna uprawa albo żniwa)", steady: "NISAR: bez wyraźnej zmiany od czerwca",
       noPoints: "Ruch gruntu: brak pomiarów", sinks: (m) => `Grunt osiada ok. ${m} mm na rok`, rises: (m) => `Grunt podnosi się ok. ${m} mm na rok`, stable: "Grunt stabilny" },
     caseIntro: "Wpisz adres, kliknij mapę albo obrysuj działkę. Radar satelitarny i mapy powiedzą, czy obok coś się buduje, czy grozi tu woda i czy grunt się rusza.",
+    nisarQuote: "„NISAR pokazuje co kilka dni, przez chmury, co stoi i co się dzieje na ziemi wokół działki w 2026 r., a od tego stanu startuje prognoza.”",
+    nisarHint: "Kliknij dowolny punkt lub działkę na mapie, aby natychmiast zobaczyć jej ocenę (0–100), zalety (na zielono) i wady (na czerwono).",
+    nisarGround: "Stan wg radaru NISAR (2026):",
+    nisarBuilt: "Wykryto zabudowę (potwierdzona trafność 95%). Stan wyjściowy pod prognozę.",
+    nisarField: "Teren otwarty zachowujący naturalny cykl rolny (brak cech wygaszania pod budowę).",
+    nisarPending: "Pole ze stłumionym rytmem wegetacji (cecha 1,5% gruntów oczekujących na inwestycję).",
+    nisarWalls: "Wykryto nowe konstrukcje / fizyczne ściany w sezonie 2026.",
+    scoreTitle: "Ogólna ocena terenu",
+    proHeader: "Zalety i atuty lokalizacji",
+    conHeader: "Wady i punkty do sprawdzenia",
+    noCons: "Brak istotnych ostrzeżeń na tym terenie.",
+    tierGreat: "Bardzo korzystna lokalizacja",
+    tierGood: "Dobra lokalizacja (w normie)",
+    tierWarn: "Umiarkowana (sprawdź ostrzeżenia)",
+    tierRisk: "Podwyższone ryzyko (istotne wady)",
+    lgScore: "Ocena działki (zielony = zalety, czerwony = wady)",
+    lgScoreGood: "korzystna / bezpieczna",
+    lgScoreRisk: "więcej wad / ryzyko",
   });
   Object.assign(en, {
     techSummary: "Technical details: radar, charts, statistics",
-    lens: { radar: "Radar", build: "New buildings", water: "Water", ground: "Ground", trees: "Trees", history: "History" },
-    lensTip: { radar: "How radar sees the area, from 2015 (ALOS-2) to 2026 (NISAR)", build: "Where radar sees signs of new walls in the last year", water: "Groundwater-flood areas and how fields changed from June to August (NISAR radar)", ground: "Whether and where the ground sinks", trees: "Where trees were cut since 2001", history: "How building grew since 1975 and what the projection says for 2035" },
+    lens: { score: "Plot score", history: "City & forecast", build: "New walls (SAR)", water: "Flood risk", ground: "Ground sinking", trees: "Tree loss", radar: "NISAR satellite" },
+    lensTip: { score: "Overall land score: pros (greenery, stability, quiet) and cons (floods, sinking, construction)", history: "City expansion since 1975 and AI forecast up to 2035", build: "Where Sentinel-1 radar detects new construction walls since last year", water: "Groundwater-flood areas (ISOK) and field moisture change (NISAR radar)", ground: "Millimeter-level ground sinking from satellite radar (EGMS)", trees: "Where forest has been cleared since 2001", radar: "Direct microwave radar imagery from NASA-ISRO NISAR (L-band, 2026)" },
     showOnMap: "What to show on the map", expertT: "Expert mode", expertSub: "dB, polarisations, statistical tests and every slider", allLayers: "All layers and settings",
     lensBar: "What to show on the map", baseT: "Map background", sourcesT: "Data sources",
     aboutLink: '<p class="about-more"><a href="about.html">The science, the evidence and the limits: the full “About the project” page</a></p>',
@@ -448,13 +466,31 @@
     passKind: (d, hhOnly) => `NISAR, ${d}${hhOnly ? ", HH only" : ""}`, passKindShort: (hhOnly) => (hhOnly ? "NISAR, HH only" : "NISAR"),
     passOpenShort: "Passes", passCloseShort: "Back",
     radarYears: "Years with radar data", noRadarData: "2022–2025: no L-band images (ALOS-2 to 2021, NISAR from 2026)",
-    tlKind: { archive: "ALOS-2 radar", radar: "NISAR radar", build: "Sentinel-1 radar", water: "NISAR radar", ground: "measured 2016–2020" },
+    tlKind: { score: "plot score", archive: "ALOS-2 radar", radar: "NISAR radar", build: "Sentinel-1 radar", water: "NISAR radar", ground: "measured 2016–2020", history: "Poznań development" },
     lgPlain: { alos: (y) => `How radar saw the area in ${y} (ALOS-2)`, nisarL: "How the NISAR radar sees the area (2026)", sarchange: "What changed in the last year", wallsNow: "a signal like new walls", brighterNow: "other changes: fields, earthworks", darkerNow: "darker than last autumn: on fields usually a different crop, tillage or drier soil",
       nisarwet: "Change from June to August (NISAR radar)", wetter: "brighter: rain, harvest, tillage", drier: "darker: a different crop or harvest", s1rgb: "How radar sees the area", egms: "Ground motion", sinks: "sinking", rises: "rising" },
     hov: { walls: "Radar: a signal like new walls", brighter: "Radar: land changed (field or earthworks)", darker: "Radar: darker than last autumn (on fields usually a different crop, tillage or drier soil)", noChange: "Radar: no change",
       soaks: "NISAR: brighter in August (rain, harvest, tillage)", dries: "NISAR: darker in August (a different crop or harvest)", steady: "NISAR: no clear change since June",
       noPoints: "Ground motion: no measurements", sinks: (m) => `Ground sinks about ${m} mm a year`, rises: (m) => `Ground rises about ${m} mm a year`, stable: "Ground stable" },
     caseIntro: "Search an address, click the map or draw a plot. Satellite radar and maps tell you whether building is going on next door, whether water is a risk and whether the ground moves.",
+    nisarQuote: "“NISAR shows every few days, through clouds, what stands and what is happening on the ground around the plot in 2026, and from that state the forecast starts.”",
+    nisarHint: "Click any point or plot on the map to instantly reveal its score (0–100), pros (in green), and cons (in red).",
+    nisarGround: "Ground reality via NISAR (2026):",
+    nisarBuilt: "Built-up land confirmed (95% accuracy). Baseline for projection.",
+    nisarField: "Open land following natural farming rhythm (no sign of abandonment for construction).",
+    nisarPending: "Dampened field rhythm (characteristic of 1.5% of land awaiting investment).",
+    nisarWalls: "Physical new walls / construction detected in the 2026 season.",
+    scoreTitle: "Overall land score",
+    proHeader: "Location advantages",
+    conHeader: "Issues and things to verify",
+    noCons: "No major warnings found for this spot.",
+    tierGreat: "Highly advantageous location",
+    tierGood: "Good location (normal range)",
+    tierWarn: "Moderate (check warnings)",
+    tierRisk: "Elevated risk (critical issues)",
+    lgScore: "Plot score (green = pros, red = cons)",
+    lgScoreGood: "advantageous / safe",
+    lgScoreRisk: "more issues / risk",
   });
   window.I18N.pl.caseTitle = "Przegląd działki z kosmosu";
   window.I18N.en.caseTitle = "A land check-up from space";
@@ -465,10 +501,10 @@
   const oL = { pl: fp.lband, en: fe.lband };
   fp.wet = (d) => ({ t: "Powierzchnia reaguje na mokrą pogodę", b: `Na ${d.share}% pól i łąk radar widzi, jak powierzchnia jaśnieje w mokre dni i ciemnieje w suche. To nie mówi, jak grunt przepuszcza wodę.` });
   fe.wet = (d) => ({ t: "The surface responds to wet weather", b: `On ${d.share}% of fields and meadows radar sees the surface brighten on wet days and darken on dry ones. This does not show how well the soil drains.` });
-  fp.lband = (d) => (!d.nisar || !d.wd ? oL.pl(d) : { t: "Nowy radar NASA i ISRO widzi, jak zmieniają się pola",
-    b: `Radar NISAR (NASA i ISRO, Indie) wraca nad Poznań co 12 dni z tej samej orbity. Między 25 czerwca a 24 sierpnia jego echo wyraźnie wzrosło na ${d.wd.share}% pól i łąk: to deszcz razem ze żniwami i uprawą. Kliknij, żeby zobaczyć gdzie.` });
-  fe.lband = (d) => (!d.nisar || !d.wd ? oL.en(d) : { t: "The new NASA-ISRO radar sees fields change",
-    b: `The NISAR radar (NASA and ISRO, India) returns over Poznań every 12 days on the same track. Between 25 June and 24 August its echo clearly rose on ${d.wd.share}% of fields and meadows: rain together with harvest and tillage. Click to see where.` });
+  fp.lband = (d) => (!d.nisar ? oL.pl(d) : { t: "Co NISAR faktycznie widzi nad Poznaniem w 2026 r.",
+    b: `Radar NASA-ISRO NISAR w paśmie L wraca co 12 dni. Z nocnych pomiarów wynika: rozpoznaje zabudowę z trafnością 0,95 i potwierdza prognozę. Silny rytm sezonowy pól występuje na 6,4% terenów otwartych, a tylko na 1,5% tam, gdzie model przewiduje zabudowę (ziemia czekająca na inwestycję). Wilgotność gleby spadła w sezonie z 0,28 do 0,17.` });
+  fe.lband = (d) => (!d.nisar ? oL.en(d) : { t: "What NISAR actually sees over Poznań in 2026",
+    b: `The NASA-ISRO NISAR L-band radar returns every 12 days. Night measurements reveal: it detects built-up land with 0.95 accuracy and confirms the forecast. Strong seasonal field rhythm occurs on 6.4% of open land, but only on 1.5% where building is projected (land awaiting development). Soil moisture dropped from 0.28 to 0.17 over the season.` });
   fp.radar = (d) => ({ t: "Gdzie radar widzi ślad nowych ścian",
     b: `Radar Sentinel-1 porównał jesień 2026 z jesienią 2025: na ok. ${d.wha} ha sygnał wzrósł tak, jak przy nowych ścianach (to górna granica).` + (d.sig ? " Na działkach, gdzie miasto wydało decyzję o nowej budowie, radar częściej widzi silne pojaśnienie niż w reszcie miasta, ale to dopiero kilka budów." : "") });
   fe.radar = (d) => ({ t: "Where radar sees signs of new walls",

@@ -8,7 +8,7 @@ window.I18N = {
   en: {
     about: "About the data",
     searchLabel: "Search an address",
-    searchPh: "Search an address, e.g. Bukowska 285, Poznań",
+    searchPh: "Search an address or click a plot on the map…",
     layers: "Layers",
     opacity: "Opacity",
     borders: "Municipal borders and names",
@@ -120,7 +120,7 @@ window.I18N = {
   pl: {
     about: "O danych",
     searchLabel: "Szukaj adresu",
-    searchPh: "Szukaj adresu, np. Bukowska 285, Poznań",
+    searchPh: "Szukaj adresu lub kliknij działkę na mapie…",
     layers: "Warstwy",
     opacity: "Krycie",
     borders: "Granice i nazwy gmin",
@@ -232,7 +232,7 @@ window.I18N = {
 
 /* ---- UI v4 (layout from the team's prototype) ---- */
 window.I18N.pl.ui = {
-  searchLabel: "Szukaj adresu", searchPh: "Szukaj adresu, np. Bukowska 285, Poznań",
+  searchLabel: "Szukaj adresu", searchPh: "Szukaj adresu lub kliknij działkę na mapie…",
   tools: "Narzędzia rysowania", drawFree: "Obrysuj obszar odręcznie", drawPoly: "Narysuj wielokąt", clearArea: "Usuń zaznaczenie",
   settings: "Ustawienia mapy", zoomIn: "Przybliż", zoomOut: "Oddal", close: "Zamknij", play: "Odtwórz", pause: "Pauza", year: "Rok",
   measured: "Dane z pomiarów", predicted: "Predykcja", modelForecast: "prognoza modelu", fromMeasurements: "dane z pomiarów", fromRadar: "dane z pomiarów radaru", today: "Dziś",
@@ -284,7 +284,7 @@ window.I18N.pl.ui = {
   caseIntro: "Dane satelitarne zamienione na liczby dla każdego miejsca wokół Poznania. Wyszukaj adres, kliknij mapę albo obrysuj obszar.",
 };
 window.I18N.en.ui = {
-  searchLabel: "Search an address", searchPh: "Search an address, e.g. Bukowska 285, Poznań",
+  searchLabel: "Search an address", searchPh: "Search an address or click a plot on the map…",
   tools: "Drawing tools", drawFree: "Draw an area freehand", drawPoly: "Draw a polygon", clearArea: "Clear selection",
   settings: "Map settings", zoomIn: "Zoom in", zoomOut: "Zoom out", close: "Close", play: "Play", pause: "Pause", year: "Year",
   measured: "Measured data", predicted: "Prediction", modelForecast: "model forecast", fromMeasurements: "measured", fromRadar: "measured by radar", today: "Today",

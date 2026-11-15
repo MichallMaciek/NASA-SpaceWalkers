@@ -670,3 +670,142 @@ body.no-tl .sidecard { max-height: calc(100vh - 62px - var(--gap) * 3 - var(--le
   .sidecard { bottom: calc(var(--gap) + 96px + 22px); } /* clear of the map credits line */
 }
 @media (max-width: 420px) { .timeline.radar .tl-labels .tl-pred { display: none; } } /* "no data" ran into "years with radar data" */
+
+/* NISAR 2026 ground banner & headline */
+.nisar-banner {
+  background: linear-gradient(135deg, rgba(138, 92, 246, 0.09), rgba(138, 92, 246, 0.02));
+  border: 1px solid rgba(138, 92, 246, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0 12px;
+}
+.nisar-banner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.nisar-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--c-nisar);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.nisar-orbit {
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.nisar-quote {
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 7px;
+  font-style: italic;
+}
+.nisar-state {
+  font-size: 13px;
+  line-height: 1.35;
+  background: var(--card);
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.nisar-state b {
+  color: var(--c-nisar);
+}
+
+/* Overall spot score card */
+.spot-score-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--soft);
+  margin: 10px 0 12px;
+  border: 1px solid var(--line);
+}
+.score-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 750;
+  color: #fff;
+  flex: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.score-badge.tier-great { background: #2F8A4F; }
+.score-badge.tier-good { background: #7DBB8A; color: #154522; }
+.score-badge.tier-warn { background: #F2A31B; }
+.score-badge.tier-risk { background: #E0332F; }
+.score-info { flex: 1; min-width: 0; }
+.score-title { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.score-sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+
+/* Pros and Cons (Alarms first) */
+.pc-section {
+  margin: 10px 0 12px;
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 7px;
+}
+.pc-head.cons-head { color: #E0332F; }
+.pc-head.pros-head { color: #2F8A4F; }
+.pc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pc-item {
+  font-size: 13.5px;
+  line-height: 1.35;
+  padding: 7px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pc-item.con-item {
+  background: rgba(224, 51, 47, 0.08);
+  border-left: 3px solid #E0332F;
+  color: var(--ink);
+}
+.pc-item.con-item.warn-item {
+  background: rgba(242, 163, 27, 0.09);
+  border-left: 3px solid #F2A31B;
+}
+.pc-item.pro-item {
+  background: rgba(47, 138, 79, 0.08);
+  border-left: 3px solid #2F8A4F;
+  color: var(--ink);
+}
+.pc-empty {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-style: italic;
+  padding: 4px 6px;
+}
