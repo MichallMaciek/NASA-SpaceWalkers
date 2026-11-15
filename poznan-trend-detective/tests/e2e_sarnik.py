@@ -271,7 +271,7 @@ async def radar_sentence(pg, text):
     """which of the app's radar status sentences (U.radar*) the banner shows, or None"""
     return await pg.evaluate(r"""(st) => { const U = window.I18N[document.documentElement.lang].ui;
       const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      for (const k of ['radarNewHa', 'radarWalls', 'radarBuiltOld', 'radarOpenNisar', 'radarOpen', 'radarNone']) {
+      for (const k of ['radarNewHa', 'radarWalls', 'radarBuiltOld', 'radarOpenNisar', 'radarNisarOnly', 'radarOpen', 'radarNone']) {
         const v = U[k]; if (!v) continue;
         const re = new RegExp('^' + (typeof v === 'function' ? esc(v('\u0001')).replace('\u0001', '.+?') : esc(v)) + '$');
         if (re.test(st)) return k; }

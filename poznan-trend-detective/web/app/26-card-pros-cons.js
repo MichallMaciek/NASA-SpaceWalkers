@@ -132,7 +132,9 @@ if (window.SARNIK_STOP) throw window.SARNIK_STOP; // the core stopped in part 01
     if (newHa > 0) nisarStatus = u.radarNewHa(haS);
     else if (s && s.walls > 0.02) nisarStatus = u.radarWalls(num(s.walls * 100, 0));
     else if (fy && sel.cells.some((i) => fy[i] >= 15)) nisarStatus = u.radarBuiltOld;
-    else if (s && s.nisarOpen) { nisarStatus = u.radarOpenNisar(num(s.nisarWetUp * 100, 0)); isNisar = true; }
+    // "open land" is only said when the radar layer is loaded and shows no built-up here; without that layer the
+    // sentence keeps to what NISAR measured on the fields around (a dense city centre also has fields in its 1 km circle)
+    else if (s && s.nisarOpen) { nisarStatus = (fy ? u.radarOpenNisar : u.radarNisarOnly)(num(s.nisarWetUp * 100, 0)); isNisar = true; }
     else if (fy && sel.cells.some((i) => fy[i] === 1)) nisarStatus = u.radarOpen;
 
     return { score, tierClass, tierLabel, pros, cons, nisarStatus, isNisar };
